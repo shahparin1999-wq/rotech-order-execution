@@ -647,6 +647,11 @@ input[type="number"] {
 
 /* ---------- Responsive ---------- */
 
+/* The views toggle is only needed once the column can collapse. */
+.rail-views-toggle {
+  display: none;
+}
+
 @media (max-width: 1100px) {
   .shell {
     grid-template-columns: 68px 1fr;
@@ -659,6 +664,9 @@ input[type="number"] {
   }
   .shell.show-views .views-col {
     display: block;
+  }
+  .rail-views-toggle {
+    display: flex;
   }
 }
 

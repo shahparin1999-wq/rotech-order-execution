@@ -3,16 +3,10 @@
 // Small shared presentation components.
 
 import type { SaveState, TaskStatus, UnitStatus } from "@/domain/types";
+import { unitStatusLabel } from "@/domain/selectors";
 
 export function UnitStatusBadge({ status }: { status: UnitStatus }) {
-  const labels: Record<UnitStatus, string> = {
-    NotStarted: "Not started",
-    InAssembly: "In assembly",
-    Blocked: "Blocked",
-    AwaitingQuality: "Awaiting quality",
-    Complete: "Complete"
-  };
-  return <span className={`badge s-${status.toLowerCase()}`}>{labels[status]}</span>;
+  return <span className={`badge s-${status.toLowerCase()}`}>{unitStatusLabel(status)}</span>;
 }
 
 export function TaskStatusBadge({ status }: { status: TaskStatus }) {

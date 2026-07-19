@@ -120,7 +120,7 @@ function DocView({ unitId }: { unitId: string }) {
                 <td>{op.seq}</td>
                 <td>{op.name}</td>
                 <td>{op.department}</td>
-                <td>{op.status}</td>
+                <td>{op.status === "NotStarted" ? "Not started" : op.status === "InProgress" ? "In progress" : op.status}</td>
               </tr>
             ))}
           </tbody>

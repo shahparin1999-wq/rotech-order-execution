@@ -14,17 +14,27 @@ export function unitIdFor(
 // prototype derives a stable mock value so tests and screenshots are
 // reproducible.
 export function mockPublicRef(seed: string): string {
+  // FNV-1a seeds an xorshift stream so every character keeps full entropy.
+  // A real implementation uses a random 128-bit value; this stays
+  // deterministic so tests and screenshots are reproducible.
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
     h ^= seed.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
+  let x = h >>> 0 || 1;
+  const next = () => {
+    x ^= x << 13;
+    x >>>= 0;
+    x ^= x >>> 17;
+    x ^= x << 5;
+    x >>>= 0;
+    return x;
+  };
   const alphabet = "ABCDEFGHJKMNPQRSTVWXYZ23456789";
-  let value = Math.abs(h);
   let out = "";
   for (let i = 0; i < 12; i++) {
-    out += alphabet[value % alphabet.length];
-    value = Math.floor(value / alphabet.length) + 7 * i + seed.length;
+    out += alphabet[next() % alphabet.length];
   }
   return out;
 }

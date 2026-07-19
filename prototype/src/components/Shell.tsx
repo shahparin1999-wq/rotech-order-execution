@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { useAppState } from "@/store/StoreProvider";
 import { unreadCountForOrder } from "@/domain/selectors";
 
@@ -39,10 +40,25 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
+  // On tablet landscape and narrower the views column collapses so the
+  // shop-floor screen keeps its width (Document 04). It stays available
+  // behind an explicit toggle.
+  const [showViews, setShowViews] = useState(false);
+
   return (
-    <div className="shell show-views">
+    <div className={`shell ${showViews ? "show-views" : ""}`}>
       <nav className="rail" aria-label="Primary">
         <div className="rail-brand">ROTECH</div>
+        <button
+          className="rail-item rail-views-toggle"
+          aria-expanded={showViews}
+          onClick={() => setShowViews((v) => !v)}
+        >
+          <span className="rail-icon" aria-hidden>
+            ☰
+          </span>
+          Views
+        </button>
         {railItems.map((it) => (
           <Link
             key={it.href}

@@ -9,7 +9,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import { ORDER_NO } from "@/domain/fixtures";
-import { orderByNumber, orderProgress, unitsForOrder } from "@/domain/selectors";
+import { orderByNumber, orderProgress, unitStatusLabel, unitsForOrder } from "@/domain/selectors";
 import { QrSvg } from "@/components/bits";
 
 const LABEL_REV = "Label rev 1 (mock)";
@@ -124,7 +124,7 @@ function LabelsView() {
               <tr key={u.unitId}>
                 <td>{u.unitId}</td>
                 <td>{u.serial ?? "Serial pending"}</td>
-                <td>{u.status}</td>
+                <td>{unitStatusLabel(u.status)}</td>
                 <td>{u.asBuiltMaterial}</td>
                 <td style={{ fontSize: 11 }}>{u.publicRef}</td>
               </tr>

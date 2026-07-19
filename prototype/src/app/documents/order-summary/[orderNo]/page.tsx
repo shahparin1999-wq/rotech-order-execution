@@ -6,7 +6,7 @@ import Link from "next/link";
 import { use } from "react";
 import { useAppState } from "@/store/StoreProvider";
 import { buildOrderSummarySnapshot } from "@/domain/documents";
-import { orderByNumber, orderProgress } from "@/domain/selectors";
+import { orderByNumber, orderProgress, unitStatusLabel } from "@/domain/selectors";
 import { QrSvg } from "@/components/bits";
 
 function SummaryView({ orderNo }: { orderNo: string }) {
@@ -71,7 +71,7 @@ function SummaryView({ orderNo }: { orderNo: string }) {
                   <Link href={`/documents/${u.unitId}`}>{u.unitId}</Link>
                 </td>
                 <td>{u.serial ?? "Serial pending"}</td>
-                <td>{u.status}</td>
+                <td>{unitStatusLabel(u.status)}</td>
                 <td>{u.asBuiltMaterial}</td>
                 <td style={{ fontSize: 11.5 }}>{u.documentName}</td>
               </tr>

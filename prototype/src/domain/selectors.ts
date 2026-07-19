@@ -12,6 +12,18 @@ import type {
   UnitStatus
 } from "./types";
 
+const UNIT_STATUS_LABELS: Record<UnitStatus, string> = {
+  NotStarted: "Not started",
+  InAssembly: "In assembly",
+  Blocked: "Blocked",
+  AwaitingQuality: "Awaiting quality",
+  Complete: "Complete"
+};
+
+export function unitStatusLabel(status: UnitStatus): string {
+  return UNIT_STATUS_LABELS[status];
+}
+
 export function employeeName(state: AppState, id: string | null): string {
   if (!id) return "Unassigned";
   return state.employees.find((e) => e.id === id)?.name ?? id;
