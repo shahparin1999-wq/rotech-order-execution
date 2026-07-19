@@ -150,26 +150,55 @@ Required evidence: approved manifests, asset inventory, rendered-page review rec
 
 Required evidence: permission matrix, environment/prerequisite register, notification matrix, restore report, support/fallback runbook, pilot roster, and signed cutover criteria.
 
-## Phase 0 exit gate
+## Staged implementation gates
 
-Backlog ticket A1 is authorized only when:
+The former single Phase 0 exit gate is replaced by three staged gates. Each gate authorizes only its named scope; a later gate requires the earlier gates. No gate may be assumed passed without its recorded sign-off.
 
+### Gate A - Foundation Build Ready (authorizes backlog ticket A1 only)
+
+- [ ] `AGENTS.md`, the planning package, and the decision log are current on the integration branch.
+- [ ] Bounded technical decisions are `Accepted`: Next.js/React web application with a separate TypeScript worker, and the delegated ORM/migration-tooling selection with its ADR requirement.
+- [ ] The Entra tenant/application owner is confirmed (Workshop 6 item).
+- [ ] Azure subscription/resource ownership, environments, region/data residency, and budget owner are confirmed (Workshop 6 item).
+- [ ] Technical owner signs Gate A below.
+
+Gate A permits repository, infrastructure, CI, environment-configuration, and health/readiness foundation work only. It does not authorize domain schema, manufacturing behavior, templates, checklists, QR, documents, or Teams integration.
+
+### Gate B - Domain Build Ready (authorizes manufacturing/domain implementation)
+
+- [ ] Gate A is signed.
 - [ ] All six workshops are complete and linked evidence is retained.
-- [ ] Every required decision is `Accepted` in the decision log; no safety/quality/identity/source-of-truth/document blocker remains `Proposed`.
+- [ ] Every required domain decision is `Accepted`; no safety/quality/identity/source-of-truth/document blocker remains `Proposed` (at minimum the 1196 definition, permission matrix, document manifests, and label decisions).
 - [ ] The 1196 definition and golden fixtures are approved by Production and Quality.
 - [ ] UX observation and physical label tests have no unresolved severity-one/two issue.
-- [ ] Entra/Azure/Teams owners and environment prerequisites are confirmed.
+- [ ] Teams method, destination, and permissions are confirmed.
 - [ ] PDF manifests/assets and immutable correction behavior are approved.
+- [ ] The ORM/database-access and migration-tooling ADR is accepted before any domain schema implementation.
+- [ ] Product owner, Production owner, Quality owner, and Technical owner sign Gate B below.
+
+### Gate C - Pilot Ready (authorizes real production pilot orders)
+
+- [ ] Gates A and B are signed.
+- [ ] Signed production RPO/RTO targets and a successful restore report exist.
+- [ ] Pilot roster, support/fallback process, exit sample, and cutover authority are approved.
+- [ ] Security review, backup/restore drill, UAT, training, and rollback rehearsal are complete (Document 07).
 - [ ] Pilot scope, users, support, fallback, exit metrics, and cutover authority are named.
-- [ ] Product owner, Production owner, Quality owner, and Technical owner sign below.
+- [ ] Executive sponsor authorizes the pilot alongside the four owner sign-offs.
 
 ## Approval record
 
-| Approval | Name | Decision | Date | Evidence/notes |
-| --- | --- | --- | --- | --- |
-| Product owner |  | Pending |  |  |
-| Production owner |  | Pending |  |  |
-| Quality owner |  | Pending |  |  |
-| Technical owner |  | Pending |  |  |
-| Executive sponsor |  | Pending |  | Required for pilot authorization |
+Record one row per approval per gate as each gate is assessed.
+
+| Approval | Gate | Name | Decision | Date | Evidence/notes |
+| --- | --- | --- | --- | --- | --- |
+| Technical owner | A |  | Pending |  |  |
+| Product owner | B |  | Pending |  |  |
+| Production owner | B |  | Pending |  |  |
+| Quality owner | B |  | Pending |  |  |
+| Technical owner | B |  | Pending |  |  |
+| Product owner | C |  | Pending |  |  |
+| Production owner | C |  | Pending |  |  |
+| Quality owner | C |  | Pending |  |  |
+| Technical owner | C |  | Pending |  |  |
+| Executive sponsor | C |  | Pending |  | Required for pilot authorization |
 

@@ -35,7 +35,7 @@ Dependencies: A1, tenant registration. Tests: token/role matrix, unsafe redirect
 
 **A3. Add transactional audit, idempotency, concurrency and outbox**
 Story: As an auditor, every controlled action is attributable and retry-safe.
-Acceptance: duplicate key returns original result; altered duplicate rejects; stale version conflicts; state/audit/outbox commit atomically.
+Acceptance: same actor/command-type/key/payload returns the original result; the same key with a changed payload rejects; different actors reusing the same textual key are independent; stale version conflicts; state/audit/outbox commit atomically; bulk/child commands preserve a shared correlation ID.
 Dependencies: A1. Tests: concurrent commands, rollback, dispatcher retry. Migration: audit/idempotency/outbox tables. Docs: command contract and operations.
 
 ### Epic B - Order intake and Unit identity
@@ -68,8 +68,8 @@ Acceptance: dependencies produce correct Ready set; Unit/Line fractions drill to
 Dependencies: B2, C2. Tests: five Units at different stages, holds, cancellations, recalculation. Migration: instances/projections.
 
 **C4. Implement My Work, queues and controlled task commands**
-Acceptance: assignment/claim/start/pause/resume/block/complete/reopen enforce policy and prerequisites; handoff fields required.
-Dependencies: A3, C3. Tests: lifecycle, separation, concurrency, facility scope. Docs: technician/manager SOP.
+Acceptance: assignment/claim/start/pause/resume/block/complete/reopen enforce policy and prerequisites; handoff fields required; planning-time holds, unassignment, and cancellation follow the Document 03 task lifecycle.
+Dependencies: A3, C3. Tests: lifecycle including planning-time blocking, unassign, cancellation from each non-terminal state, blocker resume to the recorded pre-block state; separation; concurrency; facility scope. Docs: technician/manager SOP.
 
 **C5. Implement checklist, measurement and labour capture**
 Acceptance: typed validation, units/tolerances, required remarks/evidence, attempts/corrections and electronic sign-off.
@@ -78,8 +78,8 @@ Dependencies: C4. Tests: boundary values, unit mismatch, failed/reinspection/cor
 ### Epic D - Evidence, activity and controlled changes
 
 **D1. Implement direct upload and categorized evidence**
-Acceptance: create-only scoped grant, finalized verified blob, thumbnails, target locking, orphan expiry, no storage URL in domain/QR.
-Dependencies: A2-A3. Tests: size/type/checksum, interrupted/retried upload, wrong target, permission. Docs: retention and upload operations.
+Acceptance: create-only scoped grant, finalized verified blob, PendingValidation/Quarantined states until validation and malware scanning complete, unvalidated evidence never satisfies required checklist evidence or enters a released document, scanner outage fails closed, thumbnails, target locking, orphan expiry, no storage URL in domain/QR.
+Dependencies: A2-A3. Tests: size/type/checksum, interrupted/retried upload, quarantined and scanner-unavailable paths, wrong target, permission. Docs: retention and upload operations.
 
 **D2. Implement activity posts, replies and unread/follow state**
 Acceptance: one reply level, exact timestamps/deep links, filters, mentions, unread controls, categorized attachments.
@@ -100,8 +100,8 @@ Acceptance: stable auth-return link, friendly retired/denied states, seven sampl
 Dependencies: A2, B2. Tests: pre/post serial, damaged reprint, malicious return, duplicate scan. Docs: placement/media pilot.
 
 **E2. Implement final inspection and rework**
-Acceptance: missing/failed evidence blocks release; failed attempt remains; rework and reinspection close explicitly; override policy enforced.
-Dependencies: C5, D4. Tests: pass/fail/rework/override/reopen. Migration: inspection/nonconformance tables.
+Acceptance: missing/failed evidence blocks release; failed attempt and its nonconformance remain immutable; approved rework appends operations to the Unit's single route (never a second RouteInstance); reinspection is a new attempt; NeedsReview resolves only to pass, fail, or return for additional evidence; override policy enforced.
+Dependencies: C5, D4. Tests: pass/fail/rework/override/reopen/NeedsReview resolution; assertion that no Unit ever has more than one RouteInstance. Migration: inspection/nonconformance tables.
 
 **E3. Implement packaging and shipment record**
 Acceptance: checks, dimensions, carrier/PRO and photos are Unit/package scoped; dispatch blocks incomplete release.
@@ -151,7 +151,7 @@ Dependencies: all MVP tickets. Tests: scripted UAT on target devices. Docs: trai
 2. The five Units occupy different route states; every progress fraction returns the exact matching set.
 3. One Unit receives CD4 while siblings remain at ordered 316SS; original, approval and as-built records appear correctly.
 4. One Unit receives a measured custom machining instruction with before/after evidence and verification.
-5. One Unit fails inspection, enters rework, passes reinspection, and retains the failed attempt.
+5. One Unit fails inspection, gains a nonconformance with rework operations appended to its single route, passes reinspection, and retains the immutable failed attempt.
 6. One employee pauses with a full handoff; another resumes at the same location/state.
 7. A Unit-targeted photo, checklist response, measurement and PDF never appear on a sibling Unit.
 8. A safe-retry after lost connectivity creates one completion event; a stale conflicting edit requires review.

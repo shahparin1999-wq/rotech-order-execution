@@ -20,14 +20,14 @@
 ## Future-state workflow
 
 1. **Create import draft.** Coordinator uploads the original AIMCOR work-order PDF. The application stores the file and checksum, extracts suggested values, and marks every extracted field unverified.
-2. **Verify commercial facts.** Coordinator compares the draft with the PDF, corrects suggestions, selects facility and `1196 bare pump end` template, and confirms the order. Confirmation is idempotent and audited.
-3. **Generate structure.** The system creates one Order, its lines, one Unit per quantity, stable Unit IDs/public QR references, and a frozen copy of the selected template revision.
+2. **Verify commercial facts.** Coordinator compares the draft with the PDF, corrects suggestions, selects the facility and a template per order line (the pilot's single line uses `1196 bare pump end`), and confirms the order. Confirmation is idempotent and audited.
+3. **Generate structure.** The system creates one Order, its lines, one Unit per quantity, stable Unit IDs/public QR references, and, per line, a reference to the selected template revision with its checksum plus a compiled frozen snapshot of that revision.
 4. **Review/release.** Coordinator reviews route, line-wide instructions, Unit-specific exceptions, required materials, and due date. Production release makes ready operations visible.
 5. **Plan work.** Production manager assigns work or allows role/location queues to claim it. Dependencies determine `Ready`; holds show owner, reason, and expected resolution.
 6. **Execute.** Technician opens My Work or scans a Unit, confirms the identity banner, starts the next operation, completes checklist items, records measurements, and captures categorized evidence.
 7. **Pause/handoff.** Pausing requires reason, completed work, remaining work, location, storage/safety state, blockers, and optional photo. Another authorized user resumes the same operation.
 8. **Control changes.** Material substitutions and special instructions are structured records with affected Units, approvals, evidence, and final verification. Activity comments may be converted to these records.
-9. **Inspect/rework.** Quality reviews required responses and evidence. Failures create a nonconformance/rework route; release is blocked until disposition and reinspection are complete.
+9. **Inspect/rework.** Quality reviews required responses and evidence. Failures create a nonconformance and append approved rework operations to the Unit's existing route; release is blocked until disposition and reinspection are complete.
 10. **Package/ship.** Shipping completes packaging checks, weight, dimensions, package count, carrier/PRO, and required photos.
 11. **Generate documents.** Release freezes a Unit snapshot and queues final PDF generation. Each Unit gets an independent history; the order summary links all released Unit documents.
 12. **Close order.** Order closes only when every non-cancelled Unit is released/shipped as required and no blocking change, inspection, or document job remains.
@@ -118,7 +118,7 @@ Users may hold multiple roles. Server authorization evaluates role, facility sco
 - A technician cannot complete a step lacking a required measurement/photo, and a sibling Unit remains unchanged.
 - Paused work records a complete handoff and can be resumed by another authorized user without verbal context.
 - Quality release fails closed when required evidence, approval, rework disposition, or final checklist response is missing.
-- Repeating a confirmed command with the same idempotency key returns the original result and creates no duplicate event.
+- Repeating a confirmed command with the same actor, command type, idempotency key, and payload returns the original result and creates no duplicate event; reusing that key with a changed payload is rejected, and a different actor's use of the same textual key is treated as an unrelated command.
 - Scanning a QR while signed out returns to the correct record after Entra sign-in; insufficient permission shows a friendly denial.
 - Released Unit PDF content is derived only from that Unit's frozen snapshot and registered document manifest.
 

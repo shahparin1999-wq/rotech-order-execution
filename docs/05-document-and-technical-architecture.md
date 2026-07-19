@@ -2,7 +2,7 @@
 
 ## Target architecture
 
-Use a TypeScript modular monolith with clear domain modules and one PostgreSQL database. Deploy the responsive web/API service and an isolated worker to Azure Container Apps. Use Azure Service Bus for reliable background work, Blob Storage for binary objects, Microsoft Entra ID for single-tenant identity, Key Vault/managed identity for secrets, Application Insights/OpenTelemetry for observability, and Bicep for infrastructure.
+Use a TypeScript modular monolith with clear domain modules and one PostgreSQL database. The web/API service is a Next.js/React application, and background work runs in a separate TypeScript worker (decision D-019). Deploy the responsive web/API service and the isolated worker to Azure Container Apps. Selection of ORM/database-access and migration tooling is delegated to ticket A1 after repository discovery under the evaluation criteria in decision D-020; an accepted ADR is required before any domain schema is implemented. Use Azure Service Bus for reliable background work, Blob Storage for binary objects, Microsoft Entra ID for single-tenant identity, Key Vault/managed identity for secrets, Application Insights/OpenTelemetry for observability, and Bicep for infrastructure.
 
 ```mermaid
 flowchart LR
@@ -49,11 +49,11 @@ Modules may read through explicit query services. Cross-module mutations use app
 
 1. Client requests an upload intent with target, category, media type, size, checksum when available, and idempotency key.
 2. API authorizes the target and returns an attachment ID, blob key, and short-lived create-only user-delegation SAS scoped to that object.
-3. Client uploads directly to Blob Storage and calls finalize.
-4. API/worker verifies blob existence, size, declared/actual type, checksum, image metadata, malware result where available, and target state.
-5. Finalization creates the attachment/audit event and queues thumbnail/compression work. Unfinalized blobs expire through lifecycle policy.
+3. Client uploads directly to Blob Storage and calls finalize. The attachment enters `PendingValidation`.
+4. API/worker verifies blob existence, size, declared/actual type, checksum, image metadata, malware/security scan result, and target state. An attachment remains `PendingValidation` (or moves to `Quarantined` on a failed or suspicious result) until every required validation and the malware/security scan complete.
+5. Only a fully validated attachment becomes an accepted attachment with its audit event and queued thumbnail/compression work. Unvalidated or quarantined evidence cannot satisfy a required checklist evidence rule and cannot enter a released document. If the scanning service is unavailable, attachments stay `PendingValidation` and the outage is surfaced operationally; the system never silently accepts evidence because a scanner was down. Unfinalized blobs expire through lifecycle policy.
 
-Use random blob keys, not customer/order data. Keep originals for controlled evidence; create derived thumbnails/previews as separate linked objects. Strip unnecessary photo metadata from derivatives while retaining required capture metadata in the database. Configure limits by category, with a pilot default of 20 MB per image/file and video deferred unless the checklist owner confirms a need.
+Use random blob keys, not customer/order data. Keep originals for controlled evidence; create derived thumbnails/previews as separate linked objects. Strip unnecessary photo metadata from derivatives while retaining required capture metadata in the database. Configure limits by category, with a pilot default of 20 MB per image/file. General video capture remains deferred; the single exception is a constrained short-video evidence category for the 1196 free-rotation step (length- and size-limited, subject to Quality approval in Workshop 2, Document 04).
 
 ## Transaction and job reliability
 
@@ -92,8 +92,8 @@ Request/response schemas use discriminated unions for activity, attachments, che
 {
   "eventId": "uuid",
   "occurredAt": "UTC timestamp",
-  "actor": {"entraObjectId": "uuid", "displayNameSnapshot": "..."},
-  "facilityId": "uuid",
+  "actor": {"kind": "human | service | system", "entraObjectId": "uuid or null", "displayNameSnapshot": "..."},
+  "facilityId": "uuid, or null for legitimate system events",
   "action": "task.completed",
   "target": {"type": "Task", "id": "uuid", "unitId": "26SO00729_1.1"},
   "correlationId": "uuid",
@@ -106,7 +106,7 @@ Request/response schemas use discriminated unions for activity, attachments, che
 }
 ```
 
-Sensitive fields are redacted by audit-view policy, not omitted from the underlying authorized history. Logs reference IDs and correlation data rather than duplicating document/photo contents.
+The audit target is polymorphic: any record type (task, template revision, material lot, transfer, label, document version, configuration) may be a target, not only Order-scoped records. Sensitive fields are redacted by audit-view policy, not omitted from the underlying authorized history. Logs reference IDs and correlation data rather than duplicating document/photo contents.
 
 ## PDF/document architecture
 
@@ -154,7 +154,7 @@ Each job has a UUID and a dedicated temporary prefix/directory. No shared output
 
 - Draft previews are watermarked, replaceable, and not customer/quality records.
 - Final generation is allowed only from a release-ready frozen snapshot.
-- A released `DocumentVersion` and referenced blob version are immutable.
+- A released `DocumentVersion` and referenced blob version are immutable. This immutability is application-enforced: no mutation path exists for released versions, and blob versioning/soft delete protect the stored object. Azure immutable-storage (WORM) policies are an optional storage-enforced hardening to be decided at Workshop 5, not an assumed dependency.
 - Correction reopens only the necessary domain record under authorization, produces superseding records/events, freezes a new snapshot, and releases a new document version. The previous version remains accessible and clearly superseded.
 - Regeneration from an identical snapshot/manifest returns the existing version. A renderer-only change requires an explicit new document version and reason.
 
@@ -173,7 +173,8 @@ Checklist/template rules select mandatory evidence categories. Quality can add/r
 
 - Separate development, test, and production Azure resources, identities, databases, queues, containers, and Teams destinations.
 - Build immutable container images; promote the same digest after automated gates. Apply versioned database migrations as a controlled release step with tested rollback/forward-fix instructions.
-- Use private networking where operationally feasible, managed identities, Key Vault, least-privilege RBAC, TLS, encryption at rest, Blob versioning/soft delete, and database backups/PITR.
+- The authenticated web frontend is internet-reachable so QR scans work from any managed device; Entra sign-in and server authorization remain mandatory for every request, and an unauthorized scan discloses no order or customer details. Data, storage, queue, and management surfaces (PostgreSQL, Blob Storage control plane, Service Bus, Key Vault, administration endpoints) remain on private networking where practical.
+- Use managed identities, Key Vault, least-privilege RBAC, TLS, encryption at rest, Blob versioning/soft delete, and database backups/PITR.
 - Define pilot recovery targets after business review; initial planning target is RPO <= 15 minutes and RTO <= 4 hours, validated by restore drills before production-source-of-truth cutover.
 - Monitor availability, latency, authorization denials, concurrency conflicts, pending/failed uploads, outbox age, queue/dead-letter depth, document failures, notification failures, and storage/database capacity.
 
