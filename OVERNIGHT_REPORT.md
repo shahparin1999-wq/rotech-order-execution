@@ -13,7 +13,7 @@ criteria pass. No stop condition was reached.
 | --- | --- |
 | Branch | `prototype/overnight-vertical-slice` |
 | Base commit | `3e130de` (Merge pull request #1 — architecture-review corrections) |
-| Final commit | `a133ef7` |
+| Final commit | `8152f63` |
 | Worktree clean | Yes (verified after the final commit) |
 | Pushed / merged | **No.** Nothing was pushed, merged, or deployed. `main` is untouched. |
 | Planning documents | Unmodified except the additive branch/delivery section in `AGENTS.md` |
@@ -23,12 +23,15 @@ criteria pass. No stop condition was reached.
 | Commit | Message |
 | --- | --- |
 | `f67566c` | `chore: add repository agent instructions` |
-| `df0b4fd` | `prototype: establish interactive application foundation` *(scaffold + domain layer)* |
-| `3123506` | `prototype: add order and unit execution workspace` |
-| `a133ef7` | `prototype: add shop floor checklist and activity flows` / `add QR labels and quality history preview` |
+| `813d4e9` | `prototype: establish interactive application foundation` *(scaffold + domain layer + 26 unit tests)* |
+| `df0b4fd` | `prototype: add order and unit execution workspace` *(all screens + 39 browser tests)* |
+| `3123506` | `prototype: add shop floor checklist and activity flows` *(tablet/responsive fixes + screenshots)* |
+| `a133ef7` | `prototype: add QR labels and quality history preview` *(employee switcher, label polish)* |
+| `8152f63` | `docs: add overnight prototype report` |
 
-The six suggested checkpoints were consolidated into four coherent, individually
-verified slices; each was committed only after its tests passed.
+The six suggested checkpoints were delivered as five coherent, individually
+verified slices plus this report; each was committed only after its tests
+passed.
 
 ---
 
