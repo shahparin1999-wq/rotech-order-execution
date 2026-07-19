@@ -6,32 +6,33 @@ Every persistent entity uses a UUID primary key. User-facing numbers are separat
 
 | Identifier | Example | Rule |
 | --- | --- | --- |
-| Order number | `26SO00729` | Supplied from AIMCOR; unique within source system; not a database key |
+| Order number | `26SO00729` | Supplied from AIMCOR; Orders are unique on `sourceSystem` plus order number; the pilot assumes AIMCOR is the only source system; not a database key |
 | Line number | `1` | Immutable within an Order |
 | Unit sequence | `1` | Immutable within a Line; cancelled sequences are not reused |
 | Unit ID | `26SO00729_1.1` | Derived once at Unit creation and then stored immutably |
-| Serial number | `2607143053` | Assignable/revisable through an audited command; never the sole identity |
+| Serial number | `2607143053` | Stored as a string; globally unique across all Units; never reused; corrected only through audited supersession; never the sole identity |
 | Public reference | `7J4K...` | Opaque stable QR/deep-link reference; contains no business or sensitive data |
 
-Superseded or merged records keep their public reference and resolve to a notice plus the current record. Reprinting a label never creates a new domain record.
+`QRIdentity` is the authoritative home of every `publicRef`; scannable entities resolve their public reference through their QRIdentity rather than storing an independent copy. Superseded or merged records keep their public reference and resolve to a notice plus the current record. Reprinting a label never creates a new domain record.
 
 ## Entity model
 
 | Entity | Purpose and important fields | Relationships and governance |
 | --- | --- | --- |
-| `Order` | Source system/key, order number, customer/PO snapshot, dates, coordinator, commercial/payment release, status, row version | Has Lines, activity, documents, Teams link; commercial corrections are audited |
-| `OrderLine` | Line number, product, description, quantity, ordered specification, template revision, progress | Belongs to Order; has Units; quantity cannot shrink below created non-cancelled Units |
-| `Unit` | Unit ID, sequence, serial, as-built specification, current location, status, hold, publicRef | Belongs to Line; has route, checklists, changes, evidence, shipments and PDFs |
-| `Package` | Package ID, calculated status, publicRef | Belongs to a Line/Order; contains Units and PackageComponents; post-pilot |
-| `Component` | Part/material identity, serial/heat/lot, tracking level, status, location, publicRef | May be unallocated or allocated to one Unit/Package with allocation history |
+| `Order` | Source system/key, order number, customer/PO snapshot, dates, coordinator, commercial/payment release, status, row version | Has Lines, activity, documents, Teams link; unique on source system plus order number; commercial corrections are audited |
+| `OrderLine` | Line number, product, description, quantity, ordered specification, selected template revision, progress | Belongs to Order; template selection is per OrderLine; has Units; quantity cannot shrink below created non-cancelled Units |
+| `Unit` | Unit ID, sequence, serial, as-built specification, current location, status, hold, QRIdentity link | Belongs to Line; has exactly one route, plus checklists, changes, evidence, shipments and PDFs |
+| `Package` | Package ID, calculated status, QRIdentity link | Belongs to a Line/Order; contains Units and PackageComponents; post-pilot |
+| `Component` | Part/material identity, serial/heat/lot, tracking level, status, location, QRIdentity link | May be unallocated or allocated to one Unit/Package with allocation history |
 | `MaterialLot` | Part, grade, heat/lot, quantity/unit, supplier, receipt/inspection, certificate | Allocated through append-only `MaterialAllocation` transactions |
 | `Template` | Product/order family and owner | Has immutable numbered revisions |
 | `TemplateRevision` | Status, effective dates, route/checklist/package definitions, release notes, checksum | Draft/test/approved/retired; assigned Orders keep the original revision |
-| `RouteInstance` | Frozen route definition, overall progress | One per Unit or scoped target; has ordered OperationInstances |
-| `OperationInstance` | Sequence, location/department, dependency, status, instructions, expected result | Has Tasks, ChecklistRuns, labour sessions and evidence |
-| `Task` | Action type, scope, owner, dates, status, priority, hold, instructions | May attach to an operation or be a general Order/Line/Unit action |
+| `RouteInstance` | TemplateRevision reference and checksum, compiled frozen route snapshot, overall progress | Exactly one per Unit; has ordered OperationInstances; approved rework appends operations to this route rather than creating a second route |
+| `OperationInstance` | Sequence, location/department, dependency, calculated status, instructions, expected result, rework origin | Has Tasks, ChecklistRuns, labour sessions and evidence; status is a projection of its Tasks, ChecklistRuns and inspection attempts |
+| `Task` | Action type, scope, owner, dates, status, priority, hold with recorded pre-block state, instructions | May attach to an operation or be a general Order/Line/Unit action |
 | `ChecklistDefinitionRevision` | Typed items, conditions, evidence, tolerance and completion rules | Immutable once approved; referenced by a template revision |
-| `ChecklistRun` | Frozen definition reference, target, status, assigned inspector | Contains responses; reinspection creates a new attempt |
+| `ChecklistRun` | Definition revision reference and checksum, compiled frozen snapshot, target, status, assigned inspector | Contains responses; reinspection creates a new attempt |
+| `Nonconformance` | Source inspection attempt, defect description, disposition, affected Unit, status | Created by inspection failure; approved rework appends operations/tasks to the Unit route; closed by disposition plus passing reinspection; failed attempts remain immutable |
 | `ChecklistResponse` | Item key, typed value/result, remarks, actor/time, version | Never silently overwritten; correction supersedes a response |
 | `Measurement` | Name, numeric value, unit, nominal/lower/upper bounds, result, instrument | Belongs to a response/operation/Unit; stores normalized value and entered text |
 | `ActivityPost` / `ActivityReply` | Category, subject/body, author/time, target badges, resolved state | One reply level; may link to structured records created from the post |
@@ -41,8 +42,8 @@ Superseded or merged records keep their public reference and resolve to a notice
 | `Attachment` | Kind, category, blob key/version, media type, size/checksum, target, capture metadata | Storage URL is never permanent domain identity; upload is finalized server-side |
 | `Transfer` / `TransferItem` | Origin/destination, container, status, dispatch/receipt, discrepancies | One transfer may contain many Units/components; preserves item-level receipt |
 | `Shipment` / `ShipmentItem` | Customer destination, packages, carrier, PRO/tracking, weight/dimensions | Dispatch requires configured Unit/package readiness |
-| `QRIdentity` / `LabelPrint` | PublicRef, record type, status; label profile/version, printer/user/time | Stable identity with append-only print/reprint/damage/loss events |
-| `AuditEvent` | Actor, action, target, facility, time, correlation, previous/new values, evidence | Append-only and application-controlled; correction points to superseded event |
+| `QRIdentity` / `LabelPrint` | PublicRef, record type, status; label profile/version, printer/user/time | Authoritative home of every publicRef; stable identity with append-only print/reprint/damage/loss events |
+| `AuditEvent` | Actor (human, service, or system), action, polymorphic target, optional facility, time, correlation, previous/new values, evidence | Append-only and application-controlled; targets any record type, not only Order-scoped records; `facilityId` may be null for legitimate system events; correction points to superseded event |
 | `DocumentJob` | UUID, type, snapshot, manifest, status, attempts, temp/output paths, checksums | Isolated execution; idempotent on target snapshot and document type |
 | `DocumentVersion` | Type, version, draft/final, blob version, checksum, released/superseded metadata | Released versions are immutable; correction creates a new version |
 
@@ -59,6 +60,8 @@ erDiagram
     OPERATION_INSTANCE ||--o{ CHECKLIST_RUN : requires
     CHECKLIST_RUN ||--|{ CHECKLIST_RESPONSE : records
     CHECKLIST_RESPONSE ||--o{ MEASUREMENT : includes
+    UNIT ||--o{ NONCONFORMANCE : records
+    NONCONFORMANCE ||--o{ OPERATION_INSTANCE : appends_rework
     UNIT ||--o{ DEVIATION : affects
     UNIT ||--o{ SPECIAL_WORK_INSTRUCTION : affects
     DEVIATION ||--o{ APPROVAL : requires
@@ -75,8 +78,9 @@ erDiagram
     DOCUMENT_JOB ||--|| DOCUMENT_VERSION : produces
     ORDER ||--o{ ACTIVITY_POST : discusses
     ACTIVITY_POST ||--o{ ACTIVITY_REPLY : receives
-    ORDER ||--o{ AUDIT_EVENT : records
 ```
+
+`AuditEvent` is deliberately absent from the diagram: it is not owned by any single aggregate. Its target is polymorphic (any record type), its actor may be a human, service, or system principal, and `facilityId` is null for legitimate system events such as scheduled jobs and template lifecycle actions.
 
 ## Ownership and scope rules
 
@@ -89,34 +93,55 @@ erDiagram
 
 ## Status models
 
-### Task and operation
+### Task lifecycle
+
+Tasks carry the commanded lifecycle. `Blocked` records the state the task held when the hold was placed; resolving the blocker returns the task to that recorded pre-block state.
 
 ```mermaid
 stateDiagram-v2
     [*] --> NotStarted
     NotStarted --> Ready: dependencies satisfied and released
     Ready --> Assigned: owner assigned
+    Assigned --> Ready: owner unassigned
     Ready --> InProgress: authorized claim/start
     Assigned --> InProgress: start
     InProgress --> Paused: handoff recorded
-    InProgress --> Blocked: blocking reason recorded
     InProgress --> WaitingInspection: execution complete
     Paused --> InProgress: resume
+    NotStarted --> Blocked: planning hold recorded
+    Ready --> Blocked: planning hold recorded
+    Assigned --> Blocked: planning hold recorded
+    InProgress --> Blocked: blocking reason recorded
+    Paused --> Blocked: hold recorded
+    Blocked --> NotStarted: blocker resolved
     Blocked --> Ready: blocker resolved
-    WaitingInspection --> Complete: accepted
-    WaitingInspection --> ReworkRequired: failed
-    ReworkRequired --> Ready: rework task released
+    Blocked --> Assigned: blocker resolved
+    Blocked --> InProgress: blocker resolved
+    Blocked --> Paused: blocker resolved
+    WaitingInspection --> Complete: inspection passed
+    WaitingInspection --> ReworkRequired: inspection failed
+    WaitingInspection --> InProgress: returned for additional evidence
+    ReworkRequired --> Ready: rework operations released
     Complete --> Reopened: authorized reason
     Reopened --> Ready
     NotStarted --> Cancelled: authorized cancellation
-    Ready --> Cancelled
+    Ready --> Cancelled: authorized cancellation
+    Assigned --> Cancelled: authorized cancellation
+    InProgress --> Cancelled: authorized cancellation with reason
+    Paused --> Cancelled: authorized cancellation with reason
+    Blocked --> Cancelled: authorized cancellation with reason
 ```
 
-`WaitingMaterial`, `WaitingEngineering`, `WaitingCustomer`, and `WaitingTransfer` are hold reasons on `Blocked`, not separate lifecycle states. The UI presents them as friendly badges.
+- `WaitingMaterial`, `WaitingEngineering`, `WaitingCustomer`, and `WaitingTransfer` are hold reasons on `Blocked`, not separate lifecycle states. The UI presents them as friendly badges. A hold may be placed before work starts (planning-time blocking) as well as during execution.
+- `Cancelled` is reachable from every non-terminal state; cancellation from `Assigned`, `InProgress`, `Paused`, or `Blocked` requires a reason and preserves all recorded work and evidence. Cancelling a Unit cancels its non-complete tasks with the Unit-cancellation reason; `Complete` tasks retain their history unchanged.
+
+### Operation status (calculated)
+
+An OperationInstance does not receive lifecycle commands. Its status is a projection over its Tasks, ChecklistRuns, and inspection attempts using this precedence: any constituent `Blocked` shows `Blocked`; otherwise any `InProgress`/`Paused` shows `InProgress`/`Paused`; otherwise all execution complete with an unresolved inspection shows `WaitingInspection`; a failed inspection with open rework shows `ReworkRequired`; all constituents complete and inspection passed shows `Complete`; all constituents cancelled shows `Cancelled`; otherwise readiness follows route dependencies (`NotStarted`/`Ready`). The projection stores its calculation version and can be rebuilt from authoritative child records.
 
 ### Inspection
 
-`NotStarted -> InProgress -> Submitted -> Passed | Failed | NeedsReview`. A failure blocks release and creates or links a rework disposition. Reinspection is a new attempt; the failed attempt remains immutable. Only Quality can pass final inspection or approve an override, and overrides require reason plus policy-authorized approver.
+`NotStarted -> InProgress -> Submitted -> Passed | Failed | NeedsReview`. A failure blocks release and creates a `Nonconformance` recording the defect and disposition. Approved rework appends rework operations/tasks to the Unit's single RouteInstance - never a second route - and reinspection is a new attempt; the failed attempt and its Nonconformance record remain immutable. `NeedsReview` keeps the operation in `WaitingInspection` under a named quality owner until it is resolved to `Passed`, resolved to `Failed`, or returned to `InProgress` for additional evidence. Only Quality can pass final inspection or approve an override, and overrides require reason plus policy-authorized approver.
 
 ### Transfer
 
@@ -139,14 +164,15 @@ Calculated states store a projection for query performance, but the projection i
 
 Commands use a client-generated idempotency key and expected `rowVersion`. Examples include `confirmImport`, `startTask`, `pauseTask`, `completeTask`, `submitInspection`, `approveDeviation`, `assignSerial`, `dispatchTransfer`, `releaseUnit`, and `supersedeDocument`.
 
-The server:
+Idempotency identity is scoped by tenant, actor, command type, and key. The server:
 
 1. Authenticates the actor and checks role/facility/state policy.
-2. Returns the existing result if the idempotency key was already committed for the same actor/command.
-3. Rejects a reused key with a different payload.
-4. Checks the expected row version and returns a friendly conflict with current state.
-5. Validates prerequisites and evidence.
-6. Commits state changes, domain records, outbox messages, and audit events in one database transaction.
+2. If the same tenant/actor/command-type/key combination was already committed with an identical payload, returns the original result without re-executing.
+3. If the same tenant/actor/command-type/key combination is reused with a changed payload, rejects the command.
+4. Treats the same textual key submitted by different actors as unrelated commands; actors may independently reuse a key without collision.
+5. Checks the expected row version and returns a friendly conflict with current state.
+6. Validates prerequisites and evidence.
+7. Commits state changes, domain records, outbox messages, and audit events in one database transaction. Bulk or parent commands assign each child command its own idempotency identity while all children share the parent's correlation ID.
 
 ## Audit and correction rules
 

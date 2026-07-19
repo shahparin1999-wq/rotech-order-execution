@@ -86,7 +86,7 @@ The screen opens directly from a Unit QR or My Work. It minimizes navigation and
 
 Default route: intake review -> pull/tag parts -> verify material -> visual/fit inspection -> powerframe leak/free-rotation test -> verify shaft/sleeve -> impeller trim -> runout and axial play -> seal verification -> Plan 11 (conditional) -> pump travel -> impeller clearance -> fastener/free rotation -> hydrotest -> seal clips/warning tags -> touch-up (conditional) -> nameplate -> final quality -> packaging -> weight/dimensions/shipping.
 
-Required measurements include impeller diameter, shaft/sleeve runout, axial play, pump travel, impeller clearance, hydrotest pressure/duration/result, weight, and dimensions where applicable. Evidence includes material marks when traceable, free-rotation video or configured photo evidence, measurement evidence, nameplate, final pump, and packaging photos. Quality owns final inspection/release. Checklist owners must confirm exact units, tolerance values, conditional Plan 11 rules, and whether video is mandatory before approval.
+Required measurements include impeller diameter, shaft/sleeve runout, axial play, pump travel, impeller clearance, hydrotest pressure/duration/result, weight, and dimensions where applicable. Evidence includes material marks when traceable, free-rotation evidence, measurement evidence, nameplate, final pump, and packaging photos. Free-rotation evidence uses a constrained short-video category (length- and size-limited, defined for this step only and subject to Quality approval in Workshop 2) or configured photo evidence; general video capture remains deferred (Document 05). Quality owns final inspection/release. Checklist owners must confirm exact units, tolerance values, conditional Plan 11 rules, and whether the short video is mandatory before approval.
 
 ### Complete pump package example (Phase 2)
 
@@ -98,7 +98,7 @@ Generate only required tracked parts/Units. Route: verify drawing/instruction ->
 
 ## QR identity and deep links
 
-QR content is only `https://<internal-host>/r/<publicRef>`. The resolver validates the reference, stores no access token, sends unauthenticated users through Entra with a signed same-origin return state, checks permission, and redirects to the most relevant record/action. The QR destination remains stable when serial, description, status, location, template, or document versions change.
+QR content is only `https://<application-host>/r/<publicRef>`, an opaque stable publicRef link. The authenticated web frontend is internet-reachable so a scan resolves from any managed device without VPN dependence; Entra sign-in and server authorization remain mandatory, and data/storage/queue management surfaces stay private where practical (Document 05). The resolver validates the reference, stores no access token, sends unauthenticated users through Entra with a signed same-origin return state, checks permission, and redirects to the most relevant record/action. An unauthorized or failed scan discloses no order or customer details. The QR destination remains stable when serial, description, status, location, template, or document versions change.
 
 Scannable record types: master Order, Line, Unit, Package, tracked Component, MaterialLot, Transfer/container, and Shipment/pallet. Workstation/location codes may be added later but do not identify manufacturing history.
 

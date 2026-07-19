@@ -93,15 +93,15 @@ Likelihood/impact use Low/Medium/High during the pilot.
 | Teams notifications become noise | M | M | Milestone matrix, dedup/update, follow/mute controls, volume review | Product owner |
 | Teams integration permission/availability fails | M | M | Links remain functional; outbox retries/dead letter; manufacturing transaction never rolls back | Technical owner |
 | Oversized or unreadable PDFs | M | M | Photo budgets/derivatives, async generation, render QA, size/page metrics | Quality/technical owners |
-| Final PDF contains sibling Unit data | L | High | Snapshot target constraints, isolated queries/jobs, negative fixture tests, release review | Quality owner |
-| Weak auditability or silent correction | L | High | Append-only events, supersession, restricted correction, periodic audit export review | Quality/auditor |
-| Permission mistake allows unsafe action | M | High | Server policy matrix, group-role review, least privilege, denial/audit tests | Security/system admin |
+| Final PDF contains sibling Unit data | L | H | Snapshot target constraints, isolated queries/jobs, negative fixture tests, release review | Quality owner |
+| Weak auditability or silent correction | L | H | Append-only events, supersession, restricted correction, periodic audit export review | Quality/auditor |
+| Permission mistake allows unsafe action | M | H | Server policy matrix, group-role review, least privilege, denial/audit tests | Security/system admin |
 | QR/tag damaged or detached | H | M | Human-readable ID, protected placement, durable media test, reprint/history | Production owner |
 | QR old/superseded record misleads user | L | H | Stable resolver, status banner, redirect notice and current-record link | Technical/product owners |
 | Scope expands during pilot | H | M | Eligibility rule, decision log, separate Phase 2 backlog, sponsor gate | Product owner |
 | Custom system lacks maintainers | M | H | Modular design, runbooks, tests, handoffs, named internal/external support | Sponsor/technical owner |
 | Two agents edit overlapping work | M | M | One implementation worktree owner, committed handoff, review worktree, clean-state checks | Technical owner |
-| Database/blob recovery unproven | L | High | Backup policies and restore drills before cutover; record measured RPO/RTO | Technical owner |
+| Database/blob recovery unproven | L | H | Backup policies and restore drills before cutover; record measured RPO/RTO | Technical owner |
 
 ## Success metrics
 
