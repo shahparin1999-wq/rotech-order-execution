@@ -54,6 +54,18 @@ These may not be weakened by any change without an accepted decision-log entry:
    execution. AIMCOR remains commercial truth; Teams remains
    collaboration/notification.
 
+## Branch and delivery rules
+
+- Never work directly on `main`. Each slice uses a dedicated branch/worktree
+  with a single owner; the prototype vertical slice lives on
+  `prototype/overnight-vertical-slice` under `prototype/`.
+- Completion evidence must include automated tests, browser evidence, and the
+  exact commands executed with their results.
+- No deployment, pushing, merging, or external-system mutation (Azure, AIMCOR,
+  Entra, Teams, Graph, Blob Storage) without explicit user approval.
+- See [CLAUDE.md](CLAUDE.md) for the condensed instruction set that AI agents
+  load by default.
+
 ## Implementation gates
 
 Implementation authority is staged; see
