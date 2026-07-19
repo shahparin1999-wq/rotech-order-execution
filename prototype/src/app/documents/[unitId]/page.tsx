@@ -8,7 +8,7 @@ import Link from "next/link";
 import { use } from "react";
 import { useAppState } from "@/store/StoreProvider";
 import { buildUnitHistorySnapshot } from "@/domain/documents";
-import { employeeName, measurementResult } from "@/domain/selectors";
+import { employeeName, humanizeStatus, measurementResult } from "@/domain/selectors";
 import { Exact, MockPhoto } from "@/components/bits";
 
 function DocView({ unitId }: { unitId: string }) {
@@ -120,7 +120,7 @@ function DocView({ unitId }: { unitId: string }) {
                 <td>{op.seq}</td>
                 <td>{op.name}</td>
                 <td>{op.department}</td>
-                <td>{op.status === "NotStarted" ? "Not started" : op.status === "InProgress" ? "In progress" : op.status}</td>
+                <td>{humanizeStatus(op.status)}</td>
               </tr>
             ))}
           </tbody>

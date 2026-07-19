@@ -17,7 +17,13 @@ import { Checklist } from "@/components/Checklist";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { TaskControls, HandoffCard } from "@/components/TaskControls";
 import { PhotoCapture } from "@/components/PhotoCapture";
-import { Exact, MockPhoto, SaveStateBadge, TaskStatusBadge } from "@/components/bits";
+import {
+  Exact,
+  MockPhoto,
+  OperationStatusBadge,
+  SaveStateBadge,
+  TaskStatusBadge
+} from "@/components/bits";
 
 const TABS = ["overview", "checklist", "evidence", "activity", "audit"] as const;
 type Tab = (typeof TABS)[number];
@@ -82,8 +88,7 @@ function UnitView({ unitId }: { unitId: string }) {
                 <ol style={{ paddingLeft: 20, lineHeight: 1.9 }}>
                   {route.map((op) => (
                     <li key={op.id}>
-                      {op.name}{" "}
-                      <span className={`badge s-${op.status.toLowerCase()}`}>{op.status}</span>{" "}
+                      {op.name} <OperationStatusBadge status={op.status} />{" "}
                       <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>{op.department}</span>
                     </li>
                   ))}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { useAppState } from "@/store/StoreProvider";
+import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import { unreadCountForOrder } from "@/domain/selectors";
 
 const railItems = [
@@ -31,6 +31,7 @@ const departmentViews = [
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const state = useAppState();
+  const dispatch = useAppDispatch();
   const me = state.employees.find((e) => e.id === state.currentUserId);
   const totalUnread = state.orders.reduce(
     (n, o) => n + unreadCountForOrder(state, o.orderNumber),
@@ -76,7 +77,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {it.label}
           </Link>
         ))}
-        <div style={{ marginTop: "auto", padding: "10px 6px", fontSize: 10.5, color: "#8fa1b8", textAlign: "center" }}>
+        <div style={{ marginTop: "auto", padding: "10px 4px", fontSize: 10.5, color: "#8fa1b8", textAlign: "center" }}>
           {me?.name}
           <br />({me?.role})
         </div>
@@ -84,6 +85,27 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       <aside className="views-col" aria-label="Views">
         <div className="views-title">Work views</div>
+
+        <div className="views-group">
+          <div className="views-group-label">Acting as (mock identity)</div>
+          <select
+            value={state.currentUserId}
+            onChange={(e) => dispatch({ type: "switchUser", employeeId: e.target.value })}
+            data-testid="user-switcher"
+            aria-label="Acting employee"
+            style={{ fontSize: 13 }}
+          >
+            {state.employees.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name} — {e.role}
+              </option>
+            ))}
+          </select>
+          <div style={{ fontSize: 11, color: "var(--text-subtle)", padding: "4px 2px" }}>
+            Demo switcher only. Real sign-in uses Entra; this prototype has no
+            authentication or authorization.
+          </div>
+        </div>
 
         <div className="views-group">
           <div className="views-group-label">Favourites</div>

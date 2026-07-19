@@ -66,7 +66,7 @@ test.describe("Pause / handoff / resume", () => {
     await expect(handoff).toContainText("locked out");
 
     await page.getByTestId("resume-t-12-trim").click();
-    await expect(page.getByTestId("task-controls-t-12-trim")).toContainText("InProgress");
+    await expect(page.getByTestId("task-controls-t-12-trim")).toContainText("In progress");
     // Signed-in mock user (Alex Nguyen) becomes the owner.
     await expect(page.getByTestId("task-controls-t-12-trim")).toContainText("Alex Nguyen");
   });
@@ -124,9 +124,21 @@ test.describe("Checklist", () => {
     await page.getByTestId("measure-save-shaft-runout").click();
     await expect(page.getByTestId("response-shaft-runout")).toContainText("1.7");
 
-    // Sibling 1.3 has no shaft-runout response.
-    await page.goto(`/units/${U(3)}?tab=checklist`);
+    // Navigate to the sibling client-side so the in-memory store persists;
+    // a full reload would reset it and make this assertion meaningless.
+    await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
+    await page.getByRole("link", { name: "Units", exact: true }).click();
+    await page.getByRole("link", { name: U(3), exact: true }).click();
+    await page.getByRole("link", { name: "Checklist", exact: true }).click();
+    await expect(page.getByTestId("identity-banner")).toContainText(U(3));
     await expect(page.getByTestId("checklist-item-shaft-runout")).not.toContainText("Recorded:");
+
+    // Returning to 1.5 still shows its own reading — the store was live.
+    await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
+    await page.getByRole("link", { name: "Units", exact: true }).click();
+    await page.getByRole("link", { name: U(5), exact: true }).click();
+    await page.getByRole("link", { name: "Checklist", exact: true }).click();
+    await expect(page.getByTestId("response-shaft-runout")).toContainText("1.7");
   });
 
   test("out-of-range measurement is flagged against the placeholder limit", async ({ page }) => {
@@ -150,8 +162,13 @@ test.describe("Photo capture target locking", () => {
     await page.getByTestId("capture-save").click();
     await expect(page.getByText("nameplate-26SO00729_1.5.jpg")).toBeVisible();
 
-    // It must not appear on a sibling.
-    await page.goto(`/units/${U(3)}?tab=evidence`);
+    // It must not appear on a sibling. Navigate client-side so the store
+    // stays live; a reload would reset it and hide a real leak.
+    await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
+    await page.getByRole("link", { name: "Units", exact: true }).click();
+    await page.getByRole("link", { name: U(3), exact: true }).click();
+    await page.getByRole("link", { name: "Evidence", exact: true }).click();
+    await expect(page.getByTestId("identity-banner")).toContainText(U(3));
     await expect(page.getByText("nameplate-26SO00729_1.5.jpg")).toHaveCount(0);
   });
 });

@@ -24,6 +24,13 @@ export function unitStatusLabel(status: UnitStatus): string {
   return UNIT_STATUS_LABELS[status];
 }
 
+// Turns PascalCase lifecycle values ("NotStarted") into readable text
+// ("Not started") for display.
+export function humanizeStatus(status: string): string {
+  const spaced = status.replace(/([a-z])([A-Z])/g, "$1 $2");
+  return spaced.charAt(0) + spaced.slice(1).toLowerCase();
+}
+
 export function employeeName(state: AppState, id: string | null): string {
   if (!id) return "Unassigned";
   return state.employees.find((e) => e.id === id)?.name ?? id;

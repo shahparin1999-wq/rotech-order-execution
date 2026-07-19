@@ -3,14 +3,18 @@
 // Small shared presentation components.
 
 import type { SaveState, TaskStatus, UnitStatus } from "@/domain/types";
-import { unitStatusLabel } from "@/domain/selectors";
+import { humanizeStatus, unitStatusLabel } from "@/domain/selectors";
 
 export function UnitStatusBadge({ status }: { status: UnitStatus }) {
   return <span className={`badge s-${status.toLowerCase()}`}>{unitStatusLabel(status)}</span>;
 }
 
 export function TaskStatusBadge({ status }: { status: TaskStatus }) {
-  return <span className={`badge s-${status.toLowerCase()}`}>{status}</span>;
+  return <span className={`badge s-${status.toLowerCase()}`}>{humanizeStatus(status)}</span>;
+}
+
+export function OperationStatusBadge({ status }: { status: string }) {
+  return <span className={`badge s-${status.toLowerCase()}`}>{humanizeStatus(status)}</span>;
 }
 
 export function SaveStateBadge({ state }: { state: SaveState }) {

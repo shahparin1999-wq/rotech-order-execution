@@ -90,9 +90,15 @@ function TabletView({ unitId }: { unitId: string }) {
           <Link className="btn btn-big" href={`/units/${unitId}?tab=activity`}>
             <span className="icon">💬</span>Recent Activity
           </Link>
-          {lastJob && lastJob.unitId !== unitId && (
-            <Link className="btn btn-big btn-primary" href={`/tablet/${lastJob.unitId}`} data-testid="continue-last-job">
+          {lastJob && (
+            <Link
+              className="btn btn-big btn-primary"
+              href={`/tablet/${lastJob.unitId}`}
+              data-testid="continue-last-job"
+              title={`${lastJob.name} on ${lastJob.unitId}`}
+            >
               <span className="icon">↩️</span>Continue Last Job
+              <span style={{ fontSize: 12, fontWeight: 500 }}>{lastJob.unitId}</span>
             </Link>
           )}
         </div>
