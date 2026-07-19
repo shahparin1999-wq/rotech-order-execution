@@ -20,7 +20,9 @@ export default defineConfig({
   projects: [
     {
       name: "desktop",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } }
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+      // Tablet-viewport assertions belong to the tablet project only.
+      testIgnore: /tablet\.spec\.ts/
     },
     {
       name: "tablet",
