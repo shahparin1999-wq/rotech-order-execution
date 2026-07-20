@@ -18,6 +18,7 @@ import type {
   Task,
   TaskStatus
 } from "./types";
+import { recomputeUnitProjection } from "./projections";
 
 function nowIso(at?: string): string {
   return at ?? new Date().toISOString();
@@ -70,6 +71,7 @@ export function startTask(state: AppState, taskId: string, actorId: string, at?:
     at: ts, actorId, action: "task.started", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Started "${t.name}".`, supersedesEventId: null
   });
+  s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -133,6 +135,7 @@ export function pauseTask(state: AppState, taskId: string, actorId: string, inpu
       : `Paused with handoff: ${input.reason}`,
     supersedesEventId: priorPauseEventId
   });
+  s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -158,6 +161,7 @@ export function resumeTask(state: AppState, taskId: string, actorId: string, at?
     at: ts, actorId, action: "task.resumed", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Resumed "${t.name}".`, supersedesEventId: null
   });
+  s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -173,6 +177,7 @@ export function completeTask(state: AppState, taskId: string, actorId: string, a
     at: ts, actorId, action: "task.completed", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Completed "${t.name}".`, supersedesEventId: null
   });
+  s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -193,6 +198,7 @@ export function blockTask(state: AppState, taskId: string, actorId: string, reas
     at: ts, actorId, action: "task.blocked", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Blocked: ${reason}`, supersedesEventId: null
   });
+  s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -211,6 +217,7 @@ export function resolveBlocker(state: AppState, taskId: string, actorId: string,
     at: ts, actorId, action: "task.blockerResolved", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Blocker resolved; task returned to ${restored}.`, supersedesEventId: null
   });
+  s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
