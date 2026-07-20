@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Runs in the "tablet" Playwright project at 1024x768 with touch enabled.
 
-const ORDER = "26SO00729";
+const ORDER = "SAMPLE1001";
 const U = (n: number) => `${ORDER}_1.${n}`;
 
 test.describe("Shop-floor tablet", () => {
@@ -52,7 +52,7 @@ test.describe("Shop-floor tablet", () => {
     await page.goto(`/tablet/${U(5)}`);
     await expect(page.getByTestId("identity-banner")).toContainText("Serial pending");
     await page.goto(`/tablet/${U(1)}`);
-    await expect(page.getByTestId("identity-banner")).toContainText("2607143053");
+    await expect(page.getByTestId("identity-banner")).toContainText("DEMO-SN-0001");
   });
 
   test("the page does not scroll horizontally at the tablet viewport", async ({ page }) => {

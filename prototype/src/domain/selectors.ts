@@ -5,7 +5,11 @@ import type {
   AppState,
   ChecklistItemDef,
   ChecklistResponse,
+  Contact,
+  Customer,
+  HandoffRecord,
   Order,
+  PlannerBucket,
   QrIdentity,
   Task,
   Unit,
@@ -50,6 +54,75 @@ export function orderByNumber(state: AppState, orderNumber: string): Order | und
   return state.orders.find((o) => o.orderNumber === orderNumber);
 }
 
+// ---------------------------------------------------------------------------
+// Customers and contacts
+// ---------------------------------------------------------------------------
+
+export function customerById(state: AppState, customerId: string | null): Customer | undefined {
+  if (!customerId) return undefined;
+  return state.customers.find((c) => c.id === customerId);
+}
+
+export function customerName(state: AppState, customerId: string | null): string {
+  return customerById(state, customerId)?.name ?? "Unknown customer";
+}
+
+// "Name - City" as shown on the order header and printed Work Order Plan -
+// the same at-a-glance identification the old single-string customer field
+// gave the shop floor, now derived from the Customer record.
+export function customerNameWithCity(state: AppState, customerId: string | null): string {
+  const c = customerById(state, customerId);
+  if (!c) return "Unknown customer";
+  return c.city ? `${c.name} - ${c.city}` : c.name;
+}
+
+export function contactsForCustomer(state: AppState, customerId: string): Contact[] {
+  return state.contacts.filter((c) => c.customerId === customerId);
+}
+
+export function ordersForCustomer(state: AppState, customerId: string): Order[] {
+  return state.orders.filter((o) => o.customerId === customerId);
+}
+
+export function tasksForCustomer(state: AppState, customerId: string): Task[] {
+  return state.tasks.filter((t) => t.customerId === customerId);
+}
+
+// ---------------------------------------------------------------------------
+// Date helpers - all overdue/due-soon logic funnels through these two
+// functions so every screen agrees on what "today" and "this week" mean.
+// ---------------------------------------------------------------------------
+
+export function isOverdue(dueDate: string | null, now: Date = new Date()): boolean {
+  if (!dueDate) return false;
+  return new Date(dueDate).getTime() < startOfDay(now).getTime();
+}
+
+export function isDueToday(dueDate: string | null, now: Date = new Date()): boolean {
+  if (!dueDate) return false;
+  const d = new Date(dueDate);
+  const today = startOfDay(now);
+  return d.getTime() >= today.getTime() && d.getTime() < addDays(today, 1).getTime();
+}
+
+export function isDueThisWeek(dueDate: string | null, now: Date = new Date()): boolean {
+  if (!dueDate) return false;
+  const d = new Date(dueDate).getTime();
+  const today = startOfDay(now).getTime();
+  const weekOut = addDays(startOfDay(now), 7).getTime();
+  return d >= today && d < weekOut;
+}
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function addDays(d: Date, days: number): Date {
+  const copy = new Date(d.getTime());
+  copy.setDate(copy.getDate() + days);
+  return copy;
+}
+
 // Progress fraction drill-down: given a status, return the exact Unit set.
 export function unitsInStatus(state: AppState, orderNumber: string, status: UnitStatus): Unit[] {
   return unitsForOrder(state, orderNumber).filter((u) => u.status === status);
@@ -76,8 +149,54 @@ export function orderProgress(state: AppState, orderNumber: string): ProgressSum
   };
 }
 
+// An order is "Completed" once every one of its Units is Complete (and it
+// has at least one Unit) - this is a computed read, never a second mutable
+// status field that could disagree with the Units.
+export function isOrderCompleted(state: AppState, orderNumber: string): boolean {
+  const p = orderProgress(state, orderNumber);
+  return p.total > 0 && p.complete.length === p.total;
+}
+
+export interface OrderFlags {
+  overdue: boolean;
+  blocked: boolean;
+  missingDetails: boolean;
+}
+
+export function orderFlags(state: AppState, orderNumber: string): OrderFlags {
+  const order = orderByNumber(state, orderNumber);
+  const p = orderProgress(state, orderNumber);
+  const completed = p.total > 0 && p.complete.length === p.total;
+  return {
+    overdue: !!order && isOverdue(order.dueDate) && !completed,
+    blocked: p.blocked.length > 0,
+    missingDetails: !!order && (!order.customerPo.trim() || order.lines.length === 0)
+  };
+}
+
 export function tasksForUnit(state: AppState, unitId: string): Task[] {
   return state.tasks.filter((t) => t.unitId === unitId);
+}
+
+export function tasksForOrder(state: AppState, orderNumber: string): Task[] {
+  return state.tasks.filter((t) => t.orderNumber === orderNumber);
+}
+
+// The active handoff is the most recent record. Earlier records are retained
+// and readable through `task.handoffs`.
+export function currentHandoff(task: Task): HandoffRecord | null {
+  return task.handoffs.at(-1) ?? null;
+}
+
+export function supersededHandoffs(task: Task): HandoffRecord[] {
+  return task.handoffs.slice(0, -1);
+}
+
+// Checklist items whose numeric limits or pass criteria are unapproved
+// placeholders (decision D-013 is still Proposed). This is independent of
+// response type: the hydrotest criterion is pass/fail and still unapproved.
+export function placeholderItemKeys(state: AppState): string[] {
+  return state.checklistDefs.filter((d) => d.placeholderTolerance).map((d) => d.key);
 }
 
 export function responsesForUnit(state: AppState, unitId: string): ChecklistResponse[] {
@@ -136,6 +255,83 @@ export function resolveScan(state: AppState, publicRef: string): QrIdentity | un
   return state.qrIdentities.find((q) => q.publicRef === publicRef);
 }
 
+// ---------------------------------------------------------------------------
+// Planner
+// ---------------------------------------------------------------------------
+
+export const PLANNER_BUCKETS: PlannerBucket[] = [
+  "TBC",
+  "OrderPlanning",
+  "PartsPicked",
+  "Machining",
+  "AssemblyTesting",
+  "Quality",
+  "Packaging",
+  "OnHold",
+  "Complete"
+];
+
+export const PLANNER_BUCKET_LABELS: Record<PlannerBucket, string> = {
+  TBC: "TBC",
+  OrderPlanning: "Order planning",
+  PartsPicked: "Parts picked/ordered",
+  Machining: "Machining",
+  AssemblyTesting: "Assembly and testing",
+  Quality: "Quality",
+  Packaging: "Packaging",
+  OnHold: "On hold",
+  Complete: "Complete"
+};
+
+export function tasksInBucket(state: AppState, bucket: PlannerBucket, tasks: Task[] = state.tasks): Task[] {
+  return tasks.filter((t) => t.bucket === bucket);
+}
+
+export function isAssignedTo(task: Task, employeeId: string): boolean {
+  return task.ownerId === employeeId || task.assigneeIds.includes(employeeId);
+}
+
+export function checklistDone(task: Task): { done: number; total: number } {
+  return { done: task.checklist.filter((c) => c.done).length, total: task.checklist.length };
+}
+
+export interface MyWorkSections {
+  overdue: Task[];
+  dueToday: Task[];
+  dueThisWeek: Task[];
+  inProgress: Task[];
+  blocked: Task[];
+  recentlyCompleted: Task[];
+}
+
+// A task appears in exactly one primary section so counts add up predictably:
+// Blocked takes priority over due-date sections, then overdue > due-today >
+// due-this-week > in-progress. Recently-completed is separate (status-based,
+// not date-based).
+export function myWorkSections(state: AppState, employeeId: string, now: Date = new Date()): MyWorkSections {
+  const mine = state.tasks.filter((t) => isAssignedTo(t, employeeId) && t.status !== "Complete");
+  const sections: MyWorkSections = {
+    overdue: [],
+    dueToday: [],
+    dueThisWeek: [],
+    inProgress: [],
+    blocked: [],
+    recentlyCompleted: []
+  };
+  for (const t of mine) {
+    if (t.status === "Blocked") sections.blocked.push(t);
+    else if (isOverdue(t.dueDate, now)) sections.overdue.push(t);
+    else if (isDueToday(t.dueDate, now)) sections.dueToday.push(t);
+    else if (isDueThisWeek(t.dueDate, now)) sections.dueThisWeek.push(t);
+    else if (t.status === "InProgress" || t.status === "Paused") sections.inProgress.push(t);
+  }
+  sections.recentlyCompleted = state.tasks
+    .filter((t) => isAssignedTo(t, employeeId) && t.status === "Complete")
+    .sort((a, b) => (b.history.at(-1)?.at ?? "").localeCompare(a.history.at(-1)?.at ?? ""))
+    .slice(0, 10);
+  return sections;
+}
+
 export function myWork(state: AppState, employeeId: string): Task[] {
   return state.tasks.filter(
     (t) =>
@@ -146,7 +342,7 @@ export function myWork(state: AppState, employeeId: string): Task[] {
 
 export function continueLastJob(state: AppState, employeeId: string): Task | undefined {
   const resumable = state.tasks.filter(
-    (t) => (t.status === "Paused" || t.status === "InProgress") &&
+    (t) => t.unitId && (t.status === "Paused" || t.status === "InProgress") &&
       (t.ownerId === employeeId || t.ownerId === null || t.status === "Paused")
   );
   return resumable.sort((a, b) => {
@@ -154,6 +350,133 @@ export function continueLastJob(state: AppState, employeeId: string): Task | und
     const bAt = b.history.at(-1)?.at ?? "";
     return bAt.localeCompare(aAt);
   })[0];
+}
+
+// ---------------------------------------------------------------------------
+// Orders grid: saved views and filters
+// ---------------------------------------------------------------------------
+
+export type SavedView =
+  | "all"
+  | "open"
+  | "due-this-week"
+  | "overdue"
+  | "blocked"
+  | "awaiting-quality"
+  | "completed";
+
+export interface OrderFilters {
+  status?: string;
+  customerId?: string;
+  facility?: string;
+  orderType?: string;
+  priority?: string;
+  coordinatorId?: string;
+  assigneeId?: string;
+  overdueOnly?: boolean;
+  blockedOnly?: boolean;
+  missingDetailsOnly?: boolean;
+}
+
+export function applySavedView(state: AppState, view: SavedView, orders: Order[] = state.orders): Order[] {
+  switch (view) {
+    case "all":
+      return orders;
+    case "open":
+      return orders.filter((o) => !isOrderCompleted(state, o.orderNumber));
+    case "completed":
+      return orders.filter((o) => isOrderCompleted(state, o.orderNumber));
+    case "due-this-week":
+      return orders.filter((o) => isDueThisWeek(o.dueDate) || isDueToday(o.dueDate));
+    case "overdue":
+      return orders.filter((o) => orderFlags(state, o.orderNumber).overdue);
+    case "blocked":
+      return orders.filter((o) => orderFlags(state, o.orderNumber).blocked);
+    case "awaiting-quality":
+      return orders.filter((o) => orderProgress(state, o.orderNumber).awaitingQuality.length > 0);
+    default:
+      return orders;
+  }
+}
+
+export function applyOrderFilters(state: AppState, filters: OrderFilters, orders: Order[] = state.orders): Order[] {
+  return orders.filter((o) => {
+    if (filters.status && o.status !== filters.status) return false;
+    if (filters.customerId && o.customerId !== filters.customerId) return false;
+    if (filters.facility && o.facility !== filters.facility) return false;
+    if (filters.orderType && o.orderType !== filters.orderType) return false;
+    if (filters.priority && o.priority !== filters.priority) return false;
+    if (filters.coordinatorId && o.coordinatorId !== filters.coordinatorId) return false;
+    if (filters.assigneeId) {
+      const hasAssignee = tasksForOrder(state, o.orderNumber).some((t) => isAssignedTo(t, filters.assigneeId!));
+      if (!hasAssignee) return false;
+    }
+    const flags = orderFlags(state, o.orderNumber);
+    if (filters.overdueOnly && !flags.overdue) return false;
+    if (filters.blockedOnly && !flags.blocked) return false;
+    if (filters.missingDetailsOnly && !flags.missingDetails) return false;
+    return true;
+  });
+}
+
+export function searchOrders(orders: Order[], state: AppState, query: string): Order[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return orders;
+  return orders.filter(
+    (o) =>
+      o.orderNumber.toLowerCase().includes(q) ||
+      customerName(state, o.customerId).toLowerCase().includes(q) ||
+      o.customerPo.toLowerCase().includes(q) ||
+      (o.lines[0]?.description ?? "").toLowerCase().includes(q)
+  );
+}
+
+export type OrderSortKey = "orderNumber" | "customer" | "dueDate" | "status" | "priority" | "updatedAt";
+
+export function sortOrders(orders: Order[], state: AppState, key: OrderSortKey, dir: "asc" | "desc" = "asc"): Order[] {
+  const sorted = [...orders].sort((a, b) => {
+    let cmp = 0;
+    switch (key) {
+      case "orderNumber":
+        cmp = a.orderNumber.localeCompare(b.orderNumber);
+        break;
+      case "customer":
+        cmp = customerName(state, a.customerId).localeCompare(customerName(state, b.customerId));
+        break;
+      case "dueDate":
+        cmp = a.dueDate.localeCompare(b.dueDate);
+        break;
+      case "status":
+        cmp = a.status.localeCompare(b.status);
+        break;
+      case "priority":
+        cmp = a.priority.localeCompare(b.priority);
+        break;
+      case "updatedAt":
+        cmp = a.updatedAt.localeCompare(b.updatedAt);
+        break;
+    }
+    return dir === "asc" ? cmp : -cmp;
+  });
+  return sorted;
+}
+
+export function groupOrdersBy(
+  orders: Order[],
+  state: AppState,
+  key: "status" | "facility" | "customer" | "priority"
+): Array<{ group: string; orders: Order[] }> {
+  const map = new Map<string, Order[]>();
+  for (const o of orders) {
+    const group =
+      key === "status" ? o.status :
+      key === "facility" ? o.facility :
+      key === "priority" ? o.priority :
+      customerName(state, o.customerId);
+    if (!map.has(group)) map.set(group, []);
+    map.get(group)!.push(o);
+  }
+  return [...map.entries()].map(([group, orders]) => ({ group, orders }));
 }
 
 export type ViewId =
@@ -211,7 +534,7 @@ export function applyView(state: AppState, view: ViewId): ViewFilterResult {
 }
 
 export interface SearchHit {
-  type: "Order" | "Unit" | "Task" | "Post" | "Attachment";
+  type: "Order" | "Unit" | "Task" | "Post" | "Attachment" | "Customer";
   id: string;
   title: string;
   subtitle: string;
@@ -223,12 +546,18 @@ export function search(state: AppState, query: string): SearchHit[] {
   if (!q) return [];
   const hits: SearchHit[] = [];
   for (const o of state.orders) {
+    const cName = customerName(state, o.customerId);
     if (
       o.orderNumber.toLowerCase().includes(q) ||
-      o.customer.toLowerCase().includes(q) ||
+      cName.toLowerCase().includes(q) ||
       o.customerPo.toLowerCase().includes(q)
     ) {
-      hits.push({ type: "Order", id: o.orderNumber, title: o.orderNumber, subtitle: o.customer, href: `/orders/${o.orderNumber}` });
+      hits.push({ type: "Order", id: o.orderNumber, title: o.orderNumber, subtitle: cName, href: `/orders/${o.orderNumber}` });
+    }
+  }
+  for (const c of state.customers) {
+    if (c.name.toLowerCase().includes(q)) {
+      hits.push({ type: "Customer", id: c.id, title: c.name, subtitle: `${c.city}, ${c.region}`, href: `/customers/${c.id}` });
     }
   }
   for (const u of state.units) {
@@ -238,7 +567,13 @@ export function search(state: AppState, query: string): SearchHit[] {
   }
   for (const t of state.tasks) {
     if (t.name.toLowerCase().includes(q)) {
-      hits.push({ type: "Task", id: t.id, title: t.name, subtitle: t.unitId, href: `/units/${t.unitId}` });
+      hits.push({
+        type: "Task",
+        id: t.id,
+        title: t.name,
+        subtitle: t.unitId ?? t.orderNumber ?? "Planner",
+        href: t.unitId ? `/units/${t.unitId}` : "/planner"
+      });
     }
   }
   for (const p of state.posts) {

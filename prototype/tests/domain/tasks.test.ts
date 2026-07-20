@@ -8,6 +8,7 @@ import {
   resumeTask,
   startTask
 } from "@/domain/actions";
+import { currentHandoff } from "@/domain/selectors";
 
 describe("Task lifecycle and handoff (criterion 6)", () => {
   it("paused work retains handoff fields and can be resumed by another employee", () => {
@@ -15,20 +16,21 @@ describe("Task lifecycle and handoff (criterion 6)", () => {
     // Fixture task t-12-trim was paused by Miguel with a full handoff.
     const paused = state.tasks.find((t) => t.id === "t-12-trim")!;
     expect(paused.status).toBe("Paused");
-    expect(paused.handoff).not.toBeNull();
-    expect(paused.handoff!.reason).toBe("End of shift");
-    expect(paused.handoff!.completedWork).toMatch(/rough cut/i);
-    expect(paused.handoff!.remainingWork).toMatch(/12.50/);
-    expect(paused.handoff!.location).toMatch(/bay 2/i);
-    expect(paused.handoff!.storageState).toMatch(/secured/i);
-    expect(paused.handoff!.byId).toBe("e-miguel");
+    const handoff = currentHandoff(paused)!;
+    expect(handoff).not.toBeNull();
+    expect(handoff.reason).toBe("End of shift");
+    expect(handoff.completedWork).toMatch(/rough cut/i);
+    expect(handoff.remainingWork).toMatch(/12.50/);
+    expect(handoff.location).toMatch(/bay 2/i);
+    expect(handoff.storageState).toMatch(/secured/i);
+    expect(handoff.byId).toBe("e-miguel");
 
     // Another employee (Alex) resumes and sees the handoff retained.
     state = resumeTask(state, "t-12-trim", "e-alex", "2026-07-18T12:00:00Z");
     const resumed = state.tasks.find((t) => t.id === "t-12-trim")!;
     expect(resumed.status).toBe("InProgress");
     expect(resumed.ownerId).toBe("e-alex");
-    expect(resumed.handoff).not.toBeNull(); // handoff record retained
+    expect(currentHandoff(resumed)).not.toBeNull(); // handoff record retained
     expect(resumed.history.at(-1)!.action).toBe("Resumed");
   });
 
@@ -66,8 +68,8 @@ describe("Task lifecycle and handoff (criterion 6)", () => {
     );
     const t = state.tasks.find((x) => x.id === "t-15-intake")!;
     expect(t.status).toBe("Paused");
-    expect(t.handoff!.byId).toBe("e-alex");
-    expect(t.handoff!.at).toBe("2026-07-18T15:00:00Z");
+    expect(currentHandoff(t)!.byId).toBe("e-alex");
+    expect(currentHandoff(t)!.at).toBe("2026-07-18T15:00:00Z");
     state = resumeTask(state, "t-15-intake", "e-miguel", "2026-07-18T16:00:00Z");
     state = completeTask(state, "t-15-intake", "e-miguel", "2026-07-18T16:30:00Z");
     const done = state.tasks.find((x) => x.id === "t-15-intake")!;

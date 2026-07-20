@@ -30,9 +30,9 @@ describe("Unit history snapshot (criterion 10)", () => {
     expect(snap.approvedChanges).toHaveLength(1);
     expect(snap.approvedChanges[0].proposedMaterial).toBe("CD4MCu");
     expect(snap.asBuiltSpecification.material).toBe("CD4MCu");
-    expect(snap.asBuiltSpecification.serial).toBe("2607143053");
+    expect(snap.asBuiltSpecification.serial).toBe("DEMO-SN-0001");
     expect(snap.documentName).toBe(
-      "26SO00729_1.1_Unit_QC_and_Manufacturing_History.pdf"
+      `${ORDER_NO}_1.1_Unit_QC_and_Manufacturing_History.pdf`
     );
   });
 

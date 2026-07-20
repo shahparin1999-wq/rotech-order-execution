@@ -3,33 +3,44 @@
 import Link from "next/link";
 import { Suspense, use, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAppState } from "@/store/StoreProvider";
+import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import {
   checklistProgress,
   currentResponses,
+  customerNameWithCity,
   employeeName,
   orderByNumber,
   orderProgress,
+  PLANNER_BUCKETS,
+  PLANNER_BUCKET_LABELS,
+  tasksForOrder,
   unitsForOrder
 } from "@/domain/selectors";
-import type { Unit, UnitStatus } from "@/domain/types";
+import type { ManufacturingNoteCategory, PlannerBucket, Unit, UnitStatus } from "@/domain/types";
+import type { ExecutionLineV1 } from "@/domain/executionPackage";
 import {
   Exact,
+  PriorityBadge,
   SaveStateBadge,
   TaskStatusBadge,
   UnitStatusBadge
 } from "@/components/bits";
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { NewTaskDrawer } from "@/components/NewTaskDrawer";
+import { FieldGroup } from "@/components/Drawer";
+import { PlusIcon } from "@/components/icons";
 
 const TABS = [
   "overview",
   "units",
+  "lines",
   "tasks",
-  "activity",
+  "planner",
   "materials",
   "quality",
-  "documents",
   "shipping",
+  "documents",
+  "activity",
   "audit"
 ] as const;
 type Tab = (typeof TABS)[number];
@@ -188,6 +199,405 @@ function OverviewTab({ orderNo }: { orderNo: string }) {
           🖨️ Print Work Order Plan
         </Link>
       </div>
+    </div>
+  );
+}
+
+const NOTE_CATEGORIES: ManufacturingNoteCategory[] = [
+  "ShopInstruction",
+  "EngineeringNote",
+  "MachiningInstruction",
+  "QualityRequirement",
+  "PackagingInstruction"
+];
+
+const LINE_SUBTABS = [
+  ["config", "Configuration"],
+  ["notes", "Manufacturing notes"],
+  ["changes", "Approved changes"],
+  ["bom", "BOM"],
+  ["documents", "Documents"],
+  ["asbuilt", "As built"]
+] as const;
+type LineSubTab = (typeof LINE_SUBTABS)[number][0];
+
+function LinesTab({ orderNo }: { orderNo: string }) {
+  const state = useAppState();
+  const order = orderByNumber(state, orderNo);
+  if (!order) return <p>Order not found.</p>;
+  return (
+    <div>
+      {order.lines.map((line) => (
+        <LineCard key={line.id} orderNo={orderNo} lineId={line.id} />
+      ))}
+    </div>
+  );
+}
+
+function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
+  const state = useAppState();
+  const [sub, setSub] = useState<LineSubTab>("config");
+
+  const order = orderByNumber(state, orderNo);
+  const line = order?.lines.find((l) => l.id === lineId);
+  if (!order || !line) return null;
+
+  const snapshot = state.configurationSnapshots.find((s) => s.id === line.configurationSnapshotId);
+  const payload = snapshot?.payload as ExecutionLineV1 | undefined;
+  const units = state.units
+    .filter((u) => u.orderNumber === orderNo && u.lineNumber === line.lineNumber)
+    .sort((a, b) => a.sequence - b.sequence);
+  const notes = state.manufacturingNotes.filter(
+    (n) => n.orderNumber === orderNo && n.lineNumber === line.lineNumber
+  );
+  const adjustments = state.configurationAdjustments.filter(
+    (a) => a.orderNumber === orderNo && a.lineNumber === line.lineNumber
+  );
+
+  return (
+    <div className="card" data-testid={`line-card-${line.lineNumber}`} style={{ marginBottom: 16 }}>
+      <h3>
+        Line {line.lineNumber}: {line.product} — Quantity {line.quantity}
+      </h3>
+      <div style={{ fontSize: 12, color: "var(--text-subtle)", marginBottom: 8 }}>
+        Source: {line.sourceSystem}
+        {line.sourceSystem === "CPQ" && snapshot && (
+          <>
+            {" "}· CPQ {line.cpqQuoteId} rev via snapshot · checksum{" "}
+            <code data-testid={`line-checksum-${line.lineNumber}`}>{snapshot.checksum}</code> (frozen)
+          </>
+        )}
+      </div>
+
+      <nav className="tabs" aria-label={`Line ${line.lineNumber} tabs`}>
+        {LINE_SUBTABS.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={`tab ${sub === key ? "active" : ""}`}
+            data-testid={`line-${line.lineNumber}-subtab-${key}`}
+            onClick={() => setSub(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {sub === "config" && (
+        <div style={{ marginTop: 10 }}>
+          {payload ? (
+            <table className="data">
+              <tbody>
+                <tr><td>Material build</td><td>{payload.configuration.materialBuild ?? "—"}</td></tr>
+                <tr><td>Casing</td><td>{payload.configuration.casingMaterial ?? "—"}</td></tr>
+                <tr><td>Impeller</td><td>{payload.configuration.impellerMaterial ?? "—"}</td></tr>
+                <tr><td>Shaft</td><td>{payload.configuration.shaftMaterial ?? "—"}</td></tr>
+                <tr><td>Seal</td><td>{JSON.stringify(payload.configuration.seal ?? {})}</td></tr>
+                <tr><td>Motor</td><td>{JSON.stringify(payload.configuration.motor ?? {})}</td></tr>
+                <tr><td>Testing</td><td>{payload.configuration.testingRequirements.join(", ") || "—"}</td></tr>
+                <tr><td>Customer-supplied</td><td>{payload.configuration.customerSuppliedItems.join(", ") || "None"}</td></tr>
+                <tr>
+                  <td>Selected options</td>
+                  <td>{payload.configuration.selectedOptions.map((o) => `${o.description}: ${o.value ?? ""}`).join("; ") || "—"}</td>
+                </tr>
+                <tr><td>Config rules version</td><td>{payload.versions.configurationRulesVersion}</td></tr>
+              </tbody>
+            </table>
+          ) : (
+            <p>Manually created line — no frozen CPQ snapshot. Ordered material: {line.orderedMaterial}.</p>
+          )}
+          <p style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+            The CPQ configuration is read-only. Manufacturing intent is captured under Manufacturing notes and Approved changes.
+          </p>
+        </div>
+      )}
+
+      {sub === "notes" && (
+        <div style={{ marginTop: 10 }}>
+          <AddNoteForm orderNo={orderNo} lineId={lineId} lineNumber={line.lineNumber} units={units} />
+          {notes.length === 0 && <p>No manufacturing notes yet.</p>}
+          {notes.map((n) => {
+            const scopeLabel =
+              n.scopeType === "WorkOrderLine"
+                ? `Line ${line.lineNumber} (applies to all ${units.length} Unit(s))`
+                : `Unit ${n.scopeId}`;
+            return (
+              <div key={n.id} className="card" data-testid={`mnote-${n.id}`} style={{ marginTop: 8 }}>
+                <strong>{n.title}</strong> <span className="badge">{n.category}</span>
+                <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>{scopeLabel}</div>
+                <p style={{ margin: "4px 0 0" }}>{n.description}</p>
+              </div>
+            );
+          })}
+          {units.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <h4>Per-Unit view (line notes inherited)</h4>
+              {units.map((u) => {
+                const inherited = notes.filter((n) => n.scopeType === "WorkOrderLine");
+                const own = notes.filter((n) => n.scopeType === "Unit" && n.scopeId === u.unitId);
+                return (
+                  <div key={u.unitId} data-testid={`unit-notes-${u.unitId}`} style={{ fontSize: 13, marginBottom: 4 }}>
+                    <b>{u.unitId}</b>: {[...inherited, ...own].map((n) => n.title).join(", ") || "—"}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {sub === "changes" && (
+        <div style={{ marginTop: 10 }}>
+          <AddAdjustmentForm orderNo={orderNo} lineId={lineId} lineNumber={line.lineNumber} units={units} />
+          {adjustments.length === 0 && <p>No configuration adjustments proposed.</p>}
+          {adjustments.map((a) => (
+            <div key={a.id} className="card" data-testid={`cfgadj-${a.id}`} style={{ marginTop: 8 }}>
+              <code>{a.configurationPath}</code>: {JSON.stringify(a.originalValue)} → {JSON.stringify(a.proposedValue)}
+              <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+                {a.scopeType === "WorkOrderLine" ? `Line ${line.lineNumber}` : `Unit ${a.scopeId}`} · {a.approvalStatus}
+                {a.commercialReviewRequired && " · commercial review required"}
+              </div>
+              <p style={{ margin: "4px 0 0" }}>{a.reason}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {sub === "bom" && (
+        <div style={{ marginTop: 10 }}>
+          {payload && payload.bom.length > 0 ? (
+            <table className="data">
+              <thead><tr><th>Part</th><th>Description</th><th>Qty</th><th>Material</th></tr></thead>
+              <tbody>
+                {payload.bom.map((b, i) => (
+                  <tr key={i}>
+                    <td>{b.partNumber ?? "—"}</td>
+                    <td>{b.description}</td>
+                    <td>{b.quantity}</td>
+                    <td>{b.material ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p>No BOM in the imported package.</p>
+          )}
+        </div>
+      )}
+
+      {sub === "documents" && (
+        <div style={{ marginTop: 10 }}>
+          {payload && payload.documents.length > 0 ? (
+            <table className="data">
+              <thead><tr><th>Type</th><th>Document</th><th>Title</th><th>Rev</th></tr></thead>
+              <tbody>
+                {payload.documents.map((d, i) => (
+                  <tr key={i}>
+                    <td>{d.type}</td>
+                    <td>{d.documentId}</td>
+                    <td>{d.title}</td>
+                    <td>{d.revision ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p>No document references in the imported package.</p>
+          )}
+        </div>
+      )}
+
+      {sub === "asbuilt" && (
+        <div style={{ marginTop: 10 }}>
+          <table className="data">
+            <thead>
+              <tr><th>Field</th><th>CPQ ordered</th><th>Manufacturing adjustment</th><th>As built</th></tr>
+            </thead>
+            <tbody>
+              {[
+                ["configuration.casingMaterial", "Casing", payload?.configuration.casingMaterial],
+                ["configuration.impellerMaterial", "Impeller", payload?.configuration.impellerMaterial],
+                ["configuration.shaftMaterial", "Shaft", payload?.configuration.shaftMaterial],
+                ["configuration.motor", "Motor", payload ? summarize(payload.configuration.motor) : line.orderedMaterial]
+              ].map(([path, label, ordered]) => {
+                const adj = adjustments.find((a) => a.configurationPath === path);
+                return (
+                  <tr key={path as string}>
+                    <td>{label}</td>
+                    <td>{(ordered as string | undefined) ?? "—"}</td>
+                    <td>{adj ? `${JSON.stringify(adj.proposedValue)} (${adj.approvalStatus})` : "No change"}</td>
+                    <td>Pending</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+            As-built capture is not yet implemented in the prototype; values remain Pending.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function summarize(obj: Record<string, unknown> | undefined): string {
+  if (!obj || Object.keys(obj).length === 0) return "—";
+  const supply = typeof obj.supply === "string" ? obj.supply : "";
+  const power = typeof obj.power === "string" ? obj.power : "";
+  return [supply, power].filter(Boolean).join(", ") || "See configuration";
+}
+
+function AddNoteForm({
+  orderNo,
+  lineId,
+  lineNumber,
+  units
+}: {
+  orderNo: string;
+  lineId: string;
+  lineNumber: number;
+  units: Unit[];
+}) {
+  const dispatch = useAppDispatch();
+  const [scope, setScope] = useState<string>("line"); // "line" or a unitId
+  const [category, setCategory] = useState<ManufacturingNoteCategory>("ShopInstruction");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+
+  return (
+    <div className="card" style={{ marginBottom: 8 }}>
+      <div className="field-row">
+        <FieldGroup label="Scope">
+          <select data-testid={`note-scope-${lineNumber}`} value={scope} onChange={(e) => setScope(e.target.value)}>
+            <option value="line">Whole line (all Units)</option>
+            {units.map((u) => (
+              <option key={u.unitId} value={u.unitId}>
+                {u.unitId}
+              </option>
+            ))}
+          </select>
+        </FieldGroup>
+        <FieldGroup label="Category">
+          <select value={category} onChange={(e) => setCategory(e.target.value as ManufacturingNoteCategory)}>
+            {NOTE_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </FieldGroup>
+      </div>
+      <FieldGroup label="Title">
+        <input data-testid={`note-title-${lineNumber}`} value={title} onChange={(e) => setTitle(e.target.value)} />
+      </FieldGroup>
+      <FieldGroup label="Description">
+        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+      </FieldGroup>
+      <button
+        type="button"
+        className="btn btn-primary"
+        data-testid={`note-add-${lineNumber}`}
+        disabled={!title.trim() || !description.trim()}
+        onClick={() => {
+          dispatch({
+            type: "addManufacturingNote",
+            input: {
+              scopeType: scope === "line" ? "WorkOrderLine" : "Unit",
+              scopeId: scope === "line" ? lineId : scope,
+              orderNumber: orderNo,
+              category,
+              title: title.trim(),
+              description: description.trim()
+            }
+          });
+          setTitle("");
+          setDescription("");
+        }}
+      >
+        Add note
+      </button>
+    </div>
+  );
+}
+
+function AddAdjustmentForm({
+  orderNo,
+  lineId,
+  lineNumber,
+  units
+}: {
+  orderNo: string;
+  lineId: string;
+  lineNumber: number;
+  units: Unit[];
+}) {
+  const dispatch = useAppDispatch();
+  const [scope, setScope] = useState<string>("line");
+  const [path, setPath] = useState("");
+  const [original, setOriginal] = useState("");
+  const [proposed, setProposed] = useState("");
+  const [reason, setReason] = useState("");
+
+  return (
+    <div className="card" style={{ marginBottom: 8 }}>
+      <div className="field-row">
+        <FieldGroup label="Scope">
+          <select data-testid={`adj-scope-${lineNumber}`} value={scope} onChange={(e) => setScope(e.target.value)}>
+            <option value="line">Whole line (all Units)</option>
+            {units.map((u) => (
+              <option key={u.unitId} value={u.unitId}>
+                {u.unitId}
+              </option>
+            ))}
+          </select>
+        </FieldGroup>
+        <FieldGroup label="Configuration path">
+          <input
+            data-testid={`adj-path-${lineNumber}`}
+            value={path}
+            onChange={(e) => setPath(e.target.value)}
+            placeholder="e.g. configuration.impellerMaterial"
+          />
+        </FieldGroup>
+      </div>
+      <div className="field-row">
+        <FieldGroup label="Original value">
+          <input value={original} onChange={(e) => setOriginal(e.target.value)} />
+        </FieldGroup>
+        <FieldGroup label="Proposed value">
+          <input data-testid={`adj-proposed-${lineNumber}`} value={proposed} onChange={(e) => setProposed(e.target.value)} />
+        </FieldGroup>
+      </div>
+      <FieldGroup label="Reason">
+        <input value={reason} onChange={(e) => setReason(e.target.value)} />
+      </FieldGroup>
+      <button
+        type="button"
+        className="btn btn-primary"
+        data-testid={`adj-add-${lineNumber}`}
+        disabled={!path.trim() || !reason.trim()}
+        onClick={() => {
+          dispatch({
+            type: "addConfigurationAdjustment",
+            input: {
+              scopeType: scope === "line" ? "WorkOrderLine" : "Unit",
+              scopeId: scope === "line" ? lineId : scope,
+              orderNumber: orderNo,
+              configurationPath: path.trim(),
+              originalValue: original,
+              proposedValue: proposed,
+              reason: reason.trim()
+            }
+          });
+          setPath("");
+          setOriginal("");
+          setProposed("");
+          setReason("");
+        }}
+      >
+        Propose adjustment
+      </button>
     </div>
   );
 }
@@ -490,12 +900,68 @@ function AuditTab({ orderNo }: { orderNo: string }) {
   );
 }
 
+function OrderPlannerTab({ orderNo }: { orderNo: string }) {
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const tasks = tasksForOrder(state, orderNo);
+  return (
+    <div className="planner-board" data-testid="order-planner-board">
+      {PLANNER_BUCKETS.map((bucket) => {
+        const bucketTasks = tasks.filter((t) => t.bucket === bucket);
+        return (
+          <div key={bucket} className="planner-column" data-testid={`order-planner-column-${bucket}`}>
+            <div className="planner-column-header">
+              {PLANNER_BUCKET_LABELS[bucket]} ({bucketTasks.length})
+            </div>
+            {bucketTasks.map((t) => (
+              <div key={t.id} className="planner-card" data-testid={`order-planner-card-${t.id}`}>
+                <div className="planner-card-title">
+                  {t.unitId ? <Link href={`/units/${t.unitId}`}>{t.name}</Link> : t.name}
+                </div>
+                <div className="planner-card-meta">
+                  <TaskStatusBadge status={t.status} />
+                  <PriorityBadge priority={t.priority} />
+                </div>
+                <div className="planner-card-meta">
+                  <span style={{ fontSize: 11.5 }}>{employeeName(state, t.ownerId)}</span>
+                  <select
+                    className="move-select"
+                    value={t.bucket}
+                    aria-label={`Move ${t.name} to bucket`}
+                    onChange={(e) => dispatch({ type: "moveTaskBucket", taskId: t.id, bucket: e.target.value as PlannerBucket })}
+                  >
+                    {PLANNER_BUCKETS.map((b) => (
+                      <option key={b} value={b}>{PLANNER_BUCKET_LABELS[b]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function OrderWorkspace({ orderNo }: { orderNo: string }) {
   const state = useAppState();
+  const dispatch = useAppDispatch();
   const params = useSearchParams();
   const tab = (params.get("tab") ?? "overview") as Tab;
   const order = orderByNumber(state, orderNo);
   const [showUnits, setShowUnits] = useState(false);
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [showEditOrder, setShowEditOrder] = useState(false);
+  const [showUnitNote, setShowUnitNote] = useState(false);
+  const [showDueDate, setShowDueDate] = useState(false);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [editPo, setEditPo] = useState("");
+  const [editOrderType, setEditOrderType] = useState("");
+  const [noteUnitId, setNoteUnitId] = useState("");
+  const [noteBody, setNoteBody] = useState("");
+  const [newDueDate, setNewDueDate] = useState("");
+  const [contactName, setContactName] = useState("");
   if (!order) {
     return (
       <div className="page">
@@ -514,7 +980,7 @@ function OrderWorkspace({ orderNo }: { orderNo: string }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", alignItems: "baseline" }}>
           <h1 style={{ margin: 0 }}>{order.orderNumber}</h1>
           <span>
-            <b>{order.customer}</b> · PO {order.customerPo}
+            <b>{customerNameWithCity(state, order.customerId)}</b> · PO {order.customerPo}
           </span>
           <span>Due {order.dueDate}</span>
           <span className="badge s-notstarted">{order.facility}</span>
@@ -532,9 +998,6 @@ function OrderWorkspace({ orderNo }: { orderNo: string }) {
           <button className="pill-link" onClick={() => setShowUnits((v) => !v)}>
             {showUnits ? "Hide" : "Show"} Unit set
           </button>
-          <Link className="btn" style={{ minHeight: 38, marginLeft: "auto" }} href={`/labels?order=${orderNo}`}>
-            🖨️ Print Work Order Plan
-          </Link>
         </div>
         {showUnits && (
           <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }} data-testid="header-unit-set">
@@ -546,6 +1009,134 @@ function OrderWorkspace({ orderNo }: { orderNo: string }) {
           </div>
         )}
       </div>
+
+      <div className="command-bar">
+        <Link className="btn" href={`/labels?order=${orderNo}`}>
+          Print Work Order Plan
+        </Link>
+        <button type="button" className="btn btn-primary" data-testid="order-new-task" onClick={() => setShowNewTask(true)}>
+          <PlusIcon size={13} /> New task
+        </button>
+        <button type="button" className="btn" data-testid="order-edit" onClick={() => { setEditPo(order.customerPo); setEditOrderType(order.orderType); setShowEditOrder((v) => !v); }}>
+          Edit order
+        </button>
+        <button type="button" className="btn" data-testid="order-add-unit-note" onClick={() => setShowUnitNote((v) => !v)}>
+          Add Unit note
+        </button>
+        <button type="button" className="btn" data-testid="order-change-duedate" onClick={() => { setNewDueDate(order.dueDate); setShowDueDate((v) => !v); }}>
+          Change due date
+        </button>
+        <button type="button" className="btn" data-testid="order-add-contact" onClick={() => setShowAddContact((v) => !v)}>
+          Add customer contact
+        </button>
+      </div>
+
+      {showEditOrder && (
+        <div className="card" data-testid="order-edit-panel">
+          <div className="field-row">
+            <FieldGroup label="Customer PO">
+              <input value={editPo} onChange={(e) => setEditPo(e.target.value)} />
+            </FieldGroup>
+            <FieldGroup label="Order type">
+              <input value={editOrderType} onChange={(e) => setEditOrderType(e.target.value)} />
+            </FieldGroup>
+          </div>
+          <div className="composer-actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              data-testid="order-edit-save"
+              onClick={() => {
+                dispatch({ type: "editOrder", orderNumber: orderNo, input: { customerPo: editPo, orderType: editOrderType } });
+                setShowEditOrder(false);
+              }}
+            >
+              Save
+            </button>
+            <button type="button" className="btn" onClick={() => setShowEditOrder(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {showUnitNote && (
+        <div className="card" data-testid="order-unit-note-panel">
+          <FieldGroup label="Unit">
+            <select value={noteUnitId} onChange={(e) => setNoteUnitId(e.target.value)} data-testid="order-unit-note-select">
+              <option value="">Select a Unit…</option>
+              {unitsForOrder(state, orderNo).map((u) => (
+                <option key={u.unitId} value={u.unitId}>{u.unitId}</option>
+              ))}
+            </select>
+          </FieldGroup>
+          <FieldGroup label="Note">
+            <textarea rows={2} value={noteBody} onChange={(e) => setNoteBody(e.target.value)} data-testid="order-unit-note-body" />
+          </FieldGroup>
+          <div className="composer-actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!noteUnitId || !noteBody.trim()}
+              data-testid="order-unit-note-save"
+              onClick={() => {
+                dispatch({ type: "addPost", orderNumber: orderNo, unitId: noteUnitId, body: noteBody.trim() });
+                setNoteBody("");
+                setNoteUnitId("");
+                setShowUnitNote(false);
+              }}
+            >
+              Save note
+            </button>
+            <button type="button" className="btn" onClick={() => setShowUnitNote(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {showDueDate && (
+        <div className="card" data-testid="order-duedate-panel">
+          <FieldGroup label="New due date">
+            <input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} data-testid="order-duedate-input" />
+          </FieldGroup>
+          <div className="composer-actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!newDueDate}
+              data-testid="order-duedate-save"
+              onClick={() => {
+                dispatch({ type: "changeOrderDueDate", orderNumber: orderNo, dueDate: newDueDate });
+                setShowDueDate(false);
+              }}
+            >
+              Save
+            </button>
+            <button type="button" className="btn" onClick={() => setShowDueDate(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {showAddContact && (
+        <div className="card" data-testid="order-add-contact-panel">
+          <FieldGroup label="Contact name">
+            <input value={contactName} onChange={(e) => setContactName(e.target.value)} data-testid="order-contact-name" />
+          </FieldGroup>
+          <div className="composer-actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!contactName.trim()}
+              data-testid="order-contact-save"
+              onClick={() => {
+                dispatch({ type: "createContact", customerId: order.customerId, input: { name: contactName.trim() } });
+                setContactName("");
+                setShowAddContact(false);
+              }}
+            >
+              Save contact
+            </button>
+            <button type="button" className="btn" onClick={() => setShowAddContact(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <nav className="tabs" aria-label="Order tabs">
         {TABS.map((t) => (
@@ -561,13 +1152,19 @@ function OrderWorkspace({ orderNo }: { orderNo: string }) {
 
       {tab === "overview" && <OverviewTab orderNo={orderNo} />}
       {tab === "units" && <UnitsTab orderNo={orderNo} />}
+      {tab === "lines" && <LinesTab orderNo={orderNo} />}
       {tab === "tasks" && <TasksTab orderNo={orderNo} />}
+      {tab === "planner" && <OrderPlannerTab orderNo={orderNo} />}
       {tab === "activity" && <ActivityFeed orderNumber={orderNo} />}
       {tab === "materials" && <MaterialsTab orderNo={orderNo} />}
       {tab === "quality" && <QualityTab orderNo={orderNo} />}
       {tab === "documents" && <DocumentsTab orderNo={orderNo} />}
       {tab === "shipping" && <ShippingTab orderNo={orderNo} />}
       {tab === "audit" && <AuditTab orderNo={orderNo} />}
+
+      {showNewTask && (
+        <NewTaskDrawer onClose={() => setShowNewTask(false)} defaultOrderNumber={orderNo} />
+      )}
     </div>
   );
 }

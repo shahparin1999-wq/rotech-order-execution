@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "1.0",
+  "packageId": "PKG-Q-DEMO-1001-R3",
+  "publishedAt": "2026-07-18T14:30:00Z",
+  "publishedBy": "cpq-user:dana.quotes (fictional)",
+  "checksum": "chk_a909e3cd56731f69",
+  "source": {
+    "quoteId": "cpq-quote-4471",
+    "quoteNumber": "Q-DEMO-1001",
+    "revisionId": "cpq-rev-4471-3",
+    "revisionNumber": 3
+  },
+  "customer": {
+    "customerId": "cust-acme-sample",
+    "customerName": "Acme Sample Industries (fictional)",
+    "customerPo": "PO-ACME-88213"
+  },
+  "lines": [
+    {
+      "cpqLineId": "cpq-line-4471-1",
+      "lineNumber": 1,
+      "quantity": 2,
+      "product": {
+        "family": "1196",
+        "model": "1196",
+        "pumpSize": "3x4-13",
+        "description": "ANSI 1196 process pump, 3x4-13, close-coupled"
+      },
+      "configuration": {
+        "materialBuild": "316SS construction",
+        "casingMaterial": "316SS",
+        "impellerMaterial": "316SS",
+        "shaftMaterial": "316SS",
+        "seal": {
+          "type": "Cartridge",
+          "arrangement": "Single",
+          "code": "CRT-1"
+        },
+        "motor": {
+          "supply": "Rotech-supplied",
+          "power": "25 HP",
+          "enclosure": "TEFC",
+          "speed": "1800 rpm"
+        },
+        "baseplate": {
+          "type": "ANSI baseplate",
+          "material": "Fabricated steel"
+        },
+        "coupling": {
+          "type": "Spacer coupling",
+          "guard": "ANSI B15.1"
+        },
+        "testingRequirements": ["Hydrotest required", "Performance test - standard"],
+        "customerSuppliedItems": [],
+        "selectedOptions": [
+          { "code": "OPT-FLNG", "description": "Flange rating", "value": "150#" },
+          { "code": "OPT-PNT", "description": "Paint spec", "value": "Manufacturer standard" }
+        ]
+      },
+      "bom": [
+        { "partNumber": "CAS-1196-34", "description": "Casing 3x4-13", "quantity": 1, "material": "316SS" },
+        { "partNumber": "IMP-1196-34", "description": "Impeller 3x4-13", "quantity": 1, "material": "316SS" },
+        { "partNumber": "SHF-1196", "description": "Shaft", "quantity": 1, "material": "316SS" },
+        { "partNumber": "SEAL-CRT-1", "description": "Cartridge seal assembly", "quantity": 1 },
+        { "partNumber": "MTR-25-TEFC", "description": "Motor 25 HP TEFC", "quantity": 1 }
+      ],
+      "documents": [
+        { "type": "Drawing", "documentId": "DWG-1196-34-A", "title": "General arrangement 3x4-13", "revision": "A" },
+        { "type": "Curve", "documentId": "CRV-1196-34", "title": "Performance curve 3x4-13", "revision": "2" }
+      ],
+      "versions": {
+        "configurationRulesVersion": "cpq-rules-2026.06",
+        "pricingReleaseId": "price-2026.06-r2",
+        "documentManifestVersion": "docman-1196-2026.05"
+      }
+    },
+    {
+      "cpqLineId": "cpq-line-4471-2",
+      "lineNumber": 2,
+      "quantity": 1,
+      "product": {
+        "family": "1196",
+        "model": "1196",
+        "pumpSize": "2x3-10",
+        "description": "ANSI 1196 process pump, 2x3-10, bare pump end"
+      },
+      "configuration": {
+        "materialBuild": "CD4MCu construction",
+        "casingMaterial": "CD4MCu",
+        "impellerMaterial": "CD4MCu",
+        "shaftMaterial": "4140",
+        "seal": {
+          "type": "Component",
+          "arrangement": "Single",
+          "code": "CMP-2"
+        },
+        "motor": {
+          "supply": "Customer-supplied",
+          "notes": "Motor supplied by customer; mount and align only"
+        },
+        "baseplate": {
+          "type": "None",
+          "notes": "Bare pump end - no baseplate"
+        },
+        "coupling": {
+          "type": "None",
+          "notes": "Not in scope"
+        },
+        "testingRequirements": ["Witness test required", "Hydrotest required"],
+        "customerSuppliedItems": ["25 HP motor (customer-supplied)"],
+        "selectedOptions": [
+          { "code": "OPT-FLNG", "description": "Flange rating", "value": "300#" }
+        ]
+      },
+      "bom": [
+        { "partNumber": "CAS-1196-23", "description": "Casing 2x3-10", "quantity": 1, "material": "CD4MCu" },
+        { "partNumber": "IMP-1196-23", "description": "Impeller 2x3-10", "quantity": 1, "material": "CD4MCu" },
+        { "partNumber": "SHF-1196", "description": "Shaft", "quantity": 1, "material": "4140" },
+        { "partNumber": "SEAL-CMP-2", "description": "Component seal set", "quantity": 1 }
+      ],
+      "documents": [
+        { "type": "Drawing", "documentId": "DWG-1196-23-B", "title": "General arrangement 2x3-10", "revision": "B" },
+        { "type": "Datasheet", "documentId": "DS-1196-23", "title": "Pump datasheet 2x3-10", "revision": "1" }
+      ],
+      "versions": {
+        "configurationRulesVersion": "cpq-rules-2026.06",
+        "pricingReleaseId": "price-2026.06-r2",
+        "documentManifestVersion": "docman-1196-2026.05"
+      }
+    }
+  ]
+}

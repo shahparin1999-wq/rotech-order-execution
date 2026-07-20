@@ -1,14 +1,19 @@
 "use client";
 
-// Browser preview of 26SO00729_1.1_Unit_QC_and_Manufacturing_History.pdf.
+// Browser preview of SAMPLE1001_1.1_Unit_QC_and_Manufacturing_History.pdf.
 // This is a visual outline only — the production PDF pipeline (registered
 // assets, manifests, isolated jobs, immutable versions) is out of scope.
 
 import Link from "next/link";
 import { use } from "react";
 import { useAppState } from "@/store/StoreProvider";
-import { buildUnitHistorySnapshot } from "@/domain/documents";
-import { employeeName, humanizeStatus, measurementResult } from "@/domain/selectors";
+import { buildUnitHistorySnapshot, evaluateReleasePreview } from "@/domain/documents";
+import {
+  employeeName,
+  humanizeStatus,
+  measurementResult,
+  placeholderItemKeys
+} from "@/domain/selectors";
 import { Exact, MockPhoto } from "@/components/bits";
 
 function DocView({ unitId }: { unitId: string }) {
@@ -25,10 +30,14 @@ function DocView({ unitId }: { unitId: string }) {
     );
   }
 
-  const released = snap.unit.status === "Complete";
+  // Release presentation is derived from the Unit's actual quality record,
+  // never from a stored status, and is never presented as controlled while
+  // the 1196 rules (D-013) remain unapproved.
+  const release = evaluateReleasePreview(state, snap);
   const superseded = new Set(
     snap.responses.filter((r) => r.supersedesId).map((r) => r.supersedesId as string)
   );
+  const placeholderKeys = new Set(placeholderItemKeys(state));
 
   return (
     <div className="page">
@@ -36,13 +45,37 @@ function DocView({ unitId }: { unitId: string }) {
         <Link className="btn" href={`/units/${unitId}`}>
           ← Unit {unitId}
         </Link>
-        <span className={`badge ${released ? "save-saved" : "save-pending"}`} style={{ alignSelf: "center" }}>
-          {released ? "Final (mock release)" : "Draft preview"}
+        <span
+          className={`badge ${release.releaseEligible ? "save-needsreview" : "save-pending"}`}
+          style={{ alignSelf: "center" }}
+          data-testid="release-badge"
+        >
+          {release.label}
         </span>
       </div>
 
       <div className="doc-page" data-testid="qc-document">
-        {!released && <div className="doc-watermark">Draft — not a quality record</div>}
+        {/* Every preview is uncontrolled, whatever the quality state. */}
+        <div className="doc-watermark" data-testid="uncontrolled-banner">
+          Prototype preview — draft and uncontrolled — not a quality record
+        </div>
+        <div className="uncontrolled-note" data-testid="unapproved-rules-note">
+          <b>Not releasable.</b> The 1196 route, tolerances and evidence rules
+          (decision D-013) are unapproved placeholders, so this prototype cannot
+          perform a real quality release. Any release wording below is a
+          simulation for workshop review only.
+        </div>
+
+        {!release.releaseEligible && (
+          <div className="release-blockers" data-testid="release-blockers">
+            <b>This Unit is not release-eligible.</b>
+            <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+              {release.blockers.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Cover page */}
         <h1>Unit QC and Manufacturing History</h1>
@@ -138,7 +171,14 @@ function DocView({ unitId }: { unitId: string }) {
                 const def = state.checklistDefs.find((d) => d.key === r.itemKey);
                 return (
                   <tr key={r.id}>
-                    <td>{def?.label ?? r.itemKey}</td>
+                    <td>
+                      {def?.label ?? r.itemKey}
+                      {placeholderKeys.has(r.itemKey) && (
+                        <div className="placeholder-note" data-testid={`doc-placeholder-${r.itemKey}`}>
+                          Pilot placeholder - owner approval required
+                        </div>
+                      )}
+                    </td>
                     <td>
                       {typeof r.value === "number" ? `${r.value} ${def?.unit ?? ""}` : String(r.value)}
                       {r.note && <div style={{ fontSize: 12 }}>{r.note}</div>}
@@ -243,24 +283,26 @@ function DocView({ unitId }: { unitId: string }) {
         )}
 
         <h2>13. Shipping</h2>
-        {(() => {
-          const pallet = state.pallets.find((p) => p.orderNumber === snap.order.orderNumber);
-          return pallet && released ? (
-            <p>
-              Pallet {pallet.id} → {pallet.destination}
-              <br />
-              Weight {pallet.weight} · dimensions {pallet.dimensions} · {pallet.packageCount} package(s)
-            </p>
-          ) : (
-            <p>Shipping record not complete for this Unit.</p>
-          );
-        })()}
+        {/* Snapshot-scoped: resolved through the pallet's explicit Unit list.
+            A sibling Unit's shipment can never appear here. */}
+        {snap.shipping ? (
+          <p data-testid="doc-shipping">
+            Pallet {snap.shipping.id} → {snap.shipping.destination}
+            <br />
+            Weight {snap.shipping.weight} · dimensions {snap.shipping.dimensions} ·{" "}
+            {snap.shipping.packageCount} package(s)
+          </p>
+        ) : (
+          <p data-testid="doc-shipping-none">
+            No shipment record is associated with this Unit.
+          </p>
+        )}
 
         <h2>14. Final remarks</h2>
-        <p>
-          {released
-            ? "Unit released. This mock document would be frozen as an immutable version; corrections would produce a superseding version."
-            : "Unit not yet released. A final document may be generated only from a release-ready frozen snapshot."}
+        <p data-testid="doc-final-remarks">
+          {release.releaseEligible
+            ? "This Unit's own quality record contains no outstanding blocker, so a release is simulated for review. It is not a controlled release: no immutable version is frozen and no document is published while the 1196 rules remain unapproved."
+            : "This Unit is not release-eligible. A final document may be generated only from a release-ready frozen snapshot once every blocker above is cleared."}
         </p>
 
         <h2>Appendix — audit events for this Unit</h2>

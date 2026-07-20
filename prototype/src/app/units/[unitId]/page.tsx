@@ -236,9 +236,16 @@ function UnitView({ unitId }: { unitId: string }) {
               </div>
             </div>
 
-            {tasks.filter((t) => t.handoff).map((t) => (
-              <HandoffCard key={t.id} task={t} />
-            ))}
+            {/* Currently-paused tasks already show their handoff card inline
+                inside TaskControls above; only show it again here for tasks
+                that have handoff history but are no longer paused, so a
+                reviewer can still see how the work was handed off even after
+                it was resumed. */}
+            {tasks
+              .filter((t) => t.handoffs.length > 0 && t.status !== "Paused")
+              .map((t) => (
+                <HandoffCard key={t.id} task={t} />
+              ))}
 
             <div className="card">
               <h3>Recent activity for this Unit</h3>

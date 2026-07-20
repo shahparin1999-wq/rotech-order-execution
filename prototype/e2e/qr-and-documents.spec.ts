@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const ORDER = "26SO00729";
+const ORDER = "SAMPLE1001";
 const U = (n: number) => `${ORDER}_1.${n}`;
 
 test.describe("QR scan simulation", () => {
@@ -32,7 +32,7 @@ test.describe("QR scan simulation", () => {
     await page.goto("/r/UNKNOWNREF99");
     await expect(page.getByRole("heading", { name: "Reference not recognised" })).toBeVisible();
     await expect(page.getByText("No order or customer details are disclosed")).toBeVisible();
-    await expect(page.getByText("Knighten")).toHaveCount(0);
+    await expect(page.getByText("Acme Sample")).toHaveCount(0);
   });
 });
 
@@ -47,7 +47,7 @@ test.describe("Label previews", () => {
       await expect(label.getByRole("img", { name: /QR code/ })).toBeVisible();
     }
     // Master plan carries the order QR and the Unit summary.
-    await expect(page.getByTestId("work-order-plan")).toContainText("Knighten Industries - Odessa");
+    await expect(page.getByTestId("work-order-plan")).toContainText("Acme Sample Industries - Fairview");
     for (let i = 1; i <= 5; i++) {
       await expect(page.getByTestId("work-order-plan")).toContainText(U(i));
     }
@@ -73,9 +73,9 @@ test.describe("Document previews", () => {
     const doc = page.getByTestId("qc-document");
     await expect(doc).toBeVisible();
     await expect(page.getByTestId("doc-cover")).toContainText(
-      "26SO00729_1.1_Unit_QC_and_Manufacturing_History.pdf"
+      "SAMPLE1001_1.1_Unit_QC_and_Manufacturing_History.pdf"
     );
-    await expect(page.getByTestId("doc-cover")).toContainText("2607143053");
+    await expect(page.getByTestId("doc-cover")).toContainText("DEMO-SN-0001");
     await expect(page.getByTestId("doc-asbuilt")).toHaveText("CD4MCu");
     await expect(page.getByTestId("doc-change-mc-001")).toContainText("316SS → CD4MCu");
 

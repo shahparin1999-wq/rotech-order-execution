@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInitialState, ORDER_NO } from "@/domain/fixtures";
+import { buildInitialState, HOUSTON_ORDER_NO, ORDER_NO } from "@/domain/fixtures";
 import {
   addAttachment,
   addChecklistResponse,
@@ -88,7 +88,7 @@ describe("Unit isolation (criteria 3-4, 10)", () => {
       addAttachment(state, "e-alex", {
         kind: "photo",
         category: "General reference",
-        orderNumber: "26SO00735",
+        orderNumber: HOUSTON_ORDER_NO,
         unitId: U(2),
         targetRef: null,
         fileName: "wrong.jpg",

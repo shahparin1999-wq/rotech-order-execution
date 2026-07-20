@@ -8,12 +8,15 @@ import { use, useState } from "react";
 import { useAppState } from "@/store/StoreProvider";
 import {
   applyView,
+  currentHandoff,
+  customerName,
   employeeName,
-  myWork,
+  myWorkSections,
   search,
   type ViewId
 } from "@/domain/selectors";
-import { TaskStatusBadge, UnitStatusBadge } from "@/components/bits";
+import type { Task } from "@/domain/types";
+import { PriorityBadge, TaskStatusBadge, UnitStatusBadge } from "@/components/bits";
 
 const TITLES: Record<string, string> = {
   "my-work": "My Work",
@@ -54,25 +57,59 @@ function SearchView() {
   );
 }
 
+function TaskRow({ t }: { t: Task }) {
+  const state = useAppState();
+  // A Unit-linked task keeps its dedicated shop-floor operation view; other
+  // tasks route to Planner, where they can be worked from the board/grid.
+  const href = t.unitId ? `/tablet/${t.unitId}` : "/planner";
+  return (
+    <Link href={href} className="record-list-item" data-testid={`my-work-task-${t.id}`}>
+      <b>{t.name}</b> <TaskStatusBadge status={t.status} /> <PriorityBadge priority={t.priority} />
+      <div style={{ fontSize: 13, color: "var(--text-subtle)" }}>
+        {t.unitId ?? t.orderNumber ?? "Planner"} · owner {employeeName(state, t.ownerId)}
+        {t.dueDate && <> · due {new Date(t.dueDate).toLocaleDateString("en-CA")}</>}
+        {currentHandoff(t) && (
+          <> · handoff recorded by {employeeName(state, currentHandoff(t)!.byId)}</>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function MyWorkSection({ title, tasks }: { title: string; tasks: Task[] }) {
+  if (tasks.length === 0) return null;
+  return (
+    <div className="card">
+      <h3 style={{ marginTop: 0 }}>{title} ({tasks.length})</h3>
+      {tasks.map((t) => (
+        <TaskRow key={t.id} t={t} />
+      ))}
+    </div>
+  );
+}
+
 function MyWorkView() {
   const state = useAppState();
   const me = state.employees.find((e) => e.id === state.currentUserId)!;
-  const work = myWork(state, me.id);
+  const sections = myWorkSections(state, me.id);
+  const total =
+    sections.overdue.length + sections.dueToday.length + sections.dueThisWeek.length +
+    sections.inProgress.length + sections.blocked.length;
   return (
     <>
       <p style={{ color: "var(--text-subtle)" }}>
-        Assigned, claimable, and resumable work for <b>{me.name}</b>.
+        Work assigned to <b>{me.name}</b>, grouped by urgency. Unit-linked tasks open
+        the dedicated shop-floor operation view; other tasks open in Planner.
       </p>
-      {work.length === 0 && <p>Nothing assigned or claimable.</p>}
-      {work.map((t) => (
-        <Link key={t.id} href={`/tablet/${t.unitId}`} className="record-list-item">
-          <b>{t.name}</b> <TaskStatusBadge status={t.status} />
-          <div style={{ fontSize: 13, color: "var(--text-subtle)" }}>
-            {t.unitId} · owner {employeeName(state, t.ownerId)}
-            {t.handoff && <> · handoff recorded by {employeeName(state, t.handoff.byId)}</>}
-          </div>
-        </Link>
-      ))}
+      {total === 0 && (
+        <p>Nothing overdue, due soon, in progress, or blocked. Check Planner for the full backlog.</p>
+      )}
+      <MyWorkSection title="Overdue" tasks={sections.overdue} />
+      <MyWorkSection title="Due today" tasks={sections.dueToday} />
+      <MyWorkSection title="Due this week" tasks={sections.dueThisWeek} />
+      <MyWorkSection title="In progress" tasks={sections.inProgress} />
+      <MyWorkSection title="Blocked" tasks={sections.blocked} />
+      <MyWorkSection title="Recently completed" tasks={sections.recentlyCompleted} />
     </>
   );
 }
@@ -91,7 +128,7 @@ function FilteredView({ view }: { view: ViewId }) {
         {orders.length === 0 && <p>No orders match this view.</p>}
         {orders.map((o) => (
           <Link key={o.orderNumber} href={`/orders/${o.orderNumber}`} className="record-list-item">
-            <b>{o.orderNumber}</b> — {o.customer} · due {o.dueDate} · {o.facility}
+            <b>{o.orderNumber}</b> — {customerName(state, o.customerId)} · due {o.dueDate} · {o.facility}
           </Link>
         ))}
       </div>

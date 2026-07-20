@@ -28,6 +28,8 @@ export type TaskStatus =
 
 export type SaveState = "Saved" | "Pending" | "Error" | "NeedsReview";
 
+export type Priority = "Low" | "Medium" | "High" | "Urgent";
+
 export interface Employee {
   id: string;
   name: string;
@@ -36,18 +38,54 @@ export interface Employee {
   facility: Facility;
 }
 
+// Customer/Contact are new lightweight CRM-style entities. Orders reference
+// customers by ID (never a free-text copy) so a rename or contact change
+// never requires touching every Order record.
+export interface Customer {
+  id: string;
+  name: string;
+  city: string;
+  region: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface Contact {
+  id: string;
+  customerId: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+  createdAt: string;
+}
+
+// A first-class Work Order Line: the middle level between Order and Unit. Line
+// number is immutable within an Order and Unit sequence is immutable within a
+// Line (docs 03 identifier grammar). CPQ-imported lines carry provenance back
+// to the exact quote/revision/line and to their frozen ConfigurationSnapshot;
+// manually created lines set sourceSystem "Manual" and leave the cpq* fields
+// undefined.
 export interface OrderLine {
+  id: string;
   lineNumber: number;
+  sourceSystem: "CPQ" | "Manual";
   product: string;
   description: string;
+  family: string;
+  model: string;
   quantity: number;
   orderedMaterial: string;
   templateName: string;
+  cpqQuoteId?: string;
+  cpqRevisionId?: string;
+  cpqLineId?: string;
+  configurationSnapshotId?: string;
 }
 
 export interface Order {
   orderNumber: string;
-  customer: string;
+  customerId: string;
   customerPo: string;
   dueDate: string; // ISO date
   productFamily: string;
@@ -55,6 +93,8 @@ export interface Order {
   facility: Facility;
   coordinatorId: string;
   status: string;
+  priority: Priority;
+  updatedAt: string; // ISO, bumped whenever the order record itself changes
   teamsLinkPlaceholder: string;
   publicRef: string;
   lines: OrderLine[];
@@ -62,7 +102,7 @@ export interface Order {
 }
 
 export interface Unit {
-  unitId: string; // e.g. 26SO00729_1.1
+  unitId: string; // e.g. SAMPLE1001_1.1
   orderNumber: string;
   lineNumber: number;
   sequence: number;
@@ -87,7 +127,11 @@ export interface RouteOperation {
   status: "NotStarted" | "Ready" | "InProgress" | "Blocked" | "Complete";
 }
 
+// A handoff is controlled manufacturing history. It is never overwritten: a
+// later pause appends a new record that supersedes the previous one, and both
+// remain readable.
 export interface HandoffRecord {
+  id: string;
   reason: string;
   completedWork: string;
   remainingWork: string;
@@ -97,6 +141,7 @@ export interface HandoffRecord {
   note: string | null;
   byId: string;
   at: string;
+  supersedesId: string | null;
 }
 
 export interface TaskEvent {
@@ -106,17 +151,66 @@ export interface TaskEvent {
   note: string | null;
 }
 
+// Planner buckets are a coarser, cross-Unit view of work than the 1196 route
+// operations - a task's bucket is independent of any RouteOperation it may
+// also be linked to via operationId.
+export type PlannerBucket =
+  | "TBC"
+  | "OrderPlanning"
+  | "PartsPicked"
+  | "Machining"
+  | "AssemblyTesting"
+  | "Quality"
+  | "Packaging"
+  | "OnHold"
+  | "Complete";
+
+export interface ChecklistSubItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  authorId: string;
+  at: string;
+  body: string;
+}
+
 export interface Task {
   id: string;
-  unitId: string;
-  orderNumber: string;
+  // A task may target a Unit (shop-floor/QC work), a Customer (account-level
+  // follow-up), or neither (general order/planning work) - never more than
+  // one target family at once in practice, but all three stay independently
+  // nullable so a Unit-linked task's evidence can never be confused with a
+  // Customer-linked one.
+  unitId: string | null;
+  orderNumber: string | null;
+  customerId: string | null;
   name: string;
+  description: string | null;
   operationId: string | null;
+  bucket: PlannerBucket;
+  department: Department | null;
   status: TaskStatus;
   ownerId: string | null;
+  // Multi-assign for Planner; assignTask/unassignTask keep this and ownerId
+  // (the primary/shop-floor assignee) in sync so existing shop-floor reads of
+  // ownerId keep working unchanged.
+  assigneeIds: string[];
+  startDate: string | null;
+  dueDate: string | null;
+  priority: Priority;
+  labels: string[];
+  checklist: ChecklistSubItem[];
+  attachmentIds: string[];
+  comments: TaskComment[];
   status_beforeBlock: TaskStatus | null;
   blockReason: string | null;
-  handoff: HandoffRecord | null;
+  // Append-only. The active handoff is the last entry; earlier entries are
+  // retained and remain visible in history.
+  handoffs: HandoffRecord[];
   history: TaskEvent[];
   sourcePostId: string | null;
 }
@@ -315,6 +409,10 @@ export interface TransferRecord {
 export interface PalletRecord {
   id: string;
   orderNumber: string;
+  // Explicit Unit targeting. A pallet is order-scoped only for listing; every
+  // Unit-scoped read (notably document generation) must resolve through this
+  // list so a sibling Unit's shipping record can never be rendered.
+  unitIds: string[];
   destination: string;
   weight: string;
   dimensions: string;
@@ -322,9 +420,89 @@ export interface PalletRecord {
   publicRef: string;
 }
 
+// The frozen CPQ configuration for one imported Work Order Line. This is an
+// immutable released snapshot: the payload is never edited in place. A revised
+// CPQ quote produces a new, superseding snapshot rather than a mutation
+// (see docs/integration/CPQ_EXECUTION_CONTRACT.md). Manufacturing detail is
+// layered on top via ManufacturingNote and ConfigurationAdjustment, never by
+// touching this record.
+export interface ConfigurationSnapshot {
+  id: string;
+  workOrderLineId: string;
+  orderNumber: string;
+  lineNumber: number;
+
+  sourcePackageId: string;
+  sourceQuoteId: string;
+  sourceRevisionId: string;
+  sourceLineId: string;
+
+  schemaVersion: string;
+  checksum: string;
+
+  // The full imported line payload, stored verbatim. Typed as unknown here to
+  // keep the domain types independent of the executionPackage module; callers
+  // that need the shape import ExecutionLineV1 and narrow.
+  payload: unknown;
+
+  importedAt: string;
+  importedBy: string;
+}
+
+export type ManufacturingNoteCategory =
+  | "ShopInstruction"
+  | "EngineeringNote"
+  | "MachiningInstruction"
+  | "QualityRequirement"
+  | "PackagingInstruction";
+
+// A manufacturing note is layered detail, not part of the frozen CPQ baseline.
+// A WorkOrderLine-scoped note applies to every Unit on that line (resolved at
+// read time by scope - never copied onto each Unit). A Unit-scoped note is
+// isolated to that one Unit and must never appear on a sibling.
+export interface ManufacturingNote {
+  id: string;
+  scopeType: "WorkOrderLine" | "Unit";
+  scopeId: string; // OrderLine.id or Unit.unitId
+  orderNumber: string;
+  lineNumber: number;
+  category: ManufacturingNoteCategory;
+  title: string;
+  description: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export type AdjustmentApprovalStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "Superseded";
+
+// A proposed change to a configuration value, tracked separately from the
+// frozen CPQ snapshot. The snapshot payload is never edited; the as-built view
+// layers approved adjustments on top of the CPQ-ordered values.
+export interface ConfigurationAdjustment {
+  id: string;
+  scopeType: "WorkOrderLine" | "Unit";
+  scopeId: string;
+  orderNumber: string;
+  lineNumber: number;
+  configurationPath: string; // e.g. "configuration.impellerMaterial"
+  originalValue: unknown;
+  proposedValue: unknown;
+  reason: string;
+  approvalStatus: AdjustmentApprovalStatus;
+  commercialReviewRequired: boolean;
+  createdAt: string;
+  createdBy: string;
+}
+
 export interface AppState {
   currentUserId: string;
   employees: Employee[];
+  customers: Customer[];
+  contacts: Contact[];
   orders: Order[];
   units: Unit[];
   routeOps: RouteOperation[];
@@ -342,6 +520,9 @@ export interface AppState {
   materialLots: MaterialLot[];
   transfers: TransferRecord[];
   pallets: PalletRecord[];
+  configurationSnapshots: ConfigurationSnapshot[];
+  manufacturingNotes: ManufacturingNote[];
+  configurationAdjustments: ConfigurationAdjustment[];
   favourites: string[]; // view ids or order numbers
   followedOrders: string[];
   nextId: number;

@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-const ORDER = "26SO00729";
+const ORDER = "SAMPLE1001";
 
 test.describe("Order execution workspace", () => {
   test("header shows customer, PO, due date, facility and progress", async ({ page }) => {
     await page.goto(`/orders/${ORDER}`);
     await expect(page.getByRole("heading", { name: ORDER })).toBeVisible();
-    await expect(page.getByText("Knighten Industries - Odessa")).toBeVisible();
-    await expect(page.getByText("PO 432877")).toBeVisible();
+    await expect(page.getByText("Acme Sample Industries - Fairview")).toBeVisible();
+    await expect(page.getByText("PO DEMO-0001")).toBeVisible();
     await expect(page.getByText("Due 2026-07-28")).toBeVisible();
     await expect(page.getByText("ANSI 1196 · Bare pump end")).toBeVisible();
     await expect(page.getByTestId("fraction-Complete").first()).toContainText("1/5");
@@ -32,7 +32,7 @@ test.describe("Order execution workspace", () => {
     }
     await expect(page.locator("tbody tr")).toHaveCount(5);
     // Serial present on 1.1, pending on the rest.
-    await expect(page.getByTestId(`unit-row-${ORDER}_1.1`)).toContainText("2607143053");
+    await expect(page.getByTestId(`unit-row-${ORDER}_1.1`)).toContainText("DEMO-SN-0001");
     await expect(page.getByTestId(`unit-row-${ORDER}_1.2`)).toContainText("Serial pending");
   });
 
@@ -78,7 +78,7 @@ test.describe("Views are filters, not duplicate orders", () => {
 
     await page.goto("/views/houston");
     await expect(page.getByText("Orders in view (1)")).toBeVisible();
-    await expect(page.getByRole("link", { name: /^26SO00735 —/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /^SAMPLE1002 —/ })).toBeVisible();
     // The Mississauga order is filtered out — not duplicated into this view.
     await expect(page.getByRole("link", { name: new RegExp(`^${ORDER} —`) })).toHaveCount(0);
   });
@@ -91,7 +91,7 @@ test.describe("Views are filters, not duplicate orders", () => {
 
   test("search finds a Unit by serial number", async ({ page }) => {
     await page.goto("/views/search");
-    await page.getByTestId("search-input").fill("2607143053");
+    await page.getByTestId("search-input").fill("DEMO-SN-0001");
     await expect(page.getByTestId("search-results")).toContainText(`${ORDER}_1.1`);
   });
 });

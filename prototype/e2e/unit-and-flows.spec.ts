@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const ORDER = "26SO00729";
+const ORDER = "SAMPLE1001";
 const U = (n: number) => `${ORDER}_1.${n}`;
 
 test.describe("Unit detail", () => {
@@ -21,7 +21,7 @@ test.describe("Unit detail", () => {
   test("Unit 1.1 banner shows its serial and CD4MCu as-built material", async ({ page }) => {
     await page.goto(`/units/${U(1)}`);
     const banner = page.getByTestId("identity-banner");
-    await expect(banner).toContainText("2607143053");
+    await expect(banner).toContainText("DEMO-SN-0001");
     await expect(banner).toContainText("CD4MCu");
     await expect(banner).toContainText("ordered 316SS");
   });
@@ -160,7 +160,7 @@ test.describe("Photo capture target locking", () => {
     await expect(page.getByTestId("target-locked-note")).toBeVisible();
     await expect(page.getByTestId("capture-category")).toBeDisabled();
     await page.getByTestId("capture-save").click();
-    await expect(page.getByText("nameplate-26SO00729_1.5.jpg")).toBeVisible();
+    await expect(page.getByText("nameplate-SAMPLE1001_1.5.jpg")).toBeVisible();
 
     // It must not appear on a sibling. Navigate client-side so the store
     // stays live; a reload would reset it and hide a real leak.
@@ -169,7 +169,7 @@ test.describe("Photo capture target locking", () => {
     await page.getByRole("link", { name: U(3), exact: true }).click();
     await page.getByRole("link", { name: "Evidence", exact: true }).click();
     await expect(page.getByTestId("identity-banner")).toContainText(U(3));
-    await expect(page.getByText("nameplate-26SO00729_1.5.jpg")).toHaveCount(0);
+    await expect(page.getByText("nameplate-SAMPLE1001_1.5.jpg")).toHaveCount(0);
   });
 });
 
