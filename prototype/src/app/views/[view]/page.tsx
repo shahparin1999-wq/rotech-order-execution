@@ -8,6 +8,7 @@ import { use, useState } from "react";
 import { useAppState } from "@/store/StoreProvider";
 import {
   applyView,
+  currentHandoff,
   employeeName,
   myWork,
   search,
@@ -69,7 +70,9 @@ function MyWorkView() {
           <b>{t.name}</b> <TaskStatusBadge status={t.status} />
           <div style={{ fontSize: 13, color: "var(--text-subtle)" }}>
             {t.unitId} · owner {employeeName(state, t.ownerId)}
-            {t.handoff && <> · handoff recorded by {employeeName(state, t.handoff.byId)}</>}
+            {currentHandoff(t) && (
+              <> · handoff recorded by {employeeName(state, currentHandoff(t)!.byId)}</>
+            )}
           </div>
         </Link>
       ))}

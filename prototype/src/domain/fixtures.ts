@@ -190,7 +190,7 @@ const tasks: Task[] = [
     ownerId: "e-priya",
     status_beforeBlock: null,
     blockReason: null,
-    handoff: null,
+    handoffs: [],
     history: [
       { action: "Started", actorId: "e-priya", at: "2026-07-15T14:05:00Z", note: null },
       { action: "Completed", actorId: "e-priya", at: "2026-07-15T15:40:00Z", note: "All checklist items pass; release approved." }
@@ -207,17 +207,21 @@ const tasks: Task[] = [
     ownerId: "e-miguel",
     status_beforeBlock: null,
     blockReason: null,
-    handoff: {
-      reason: "End of shift",
-      completedWork: "Impeller mounted in lathe, rough cut to 12.58 in complete.",
-      remainingWork: "Finish cut to 12.50 in, deburr, record final measurement with photo.",
-      location: "Machining bay 2, lathe L-3",
-      storageState: "Impeller secured in chuck, machine locked out",
-      blockerItem: null,
-      note: "Inserts changed at start of cut - roughly 40 min of tool life used.",
-      byId: "e-miguel",
-      at: "2026-07-17T21:58:00Z"
-    },
+    handoffs: [
+      {
+        id: "ho-fixture-1201",
+        reason: "End of shift",
+        completedWork: "Impeller mounted in lathe, rough cut to 12.58 in complete.",
+        remainingWork: "Finish cut to 12.50 in, deburr, record final measurement with photo.",
+        location: "Machining bay 2, lathe L-3",
+        storageState: "Impeller secured in chuck, machine locked out",
+        blockerItem: null,
+        note: "Inserts changed at start of cut - roughly 40 min of tool life used.",
+        byId: "e-miguel",
+        at: "2026-07-17T21:58:00Z",
+        supersedesId: null
+      }
+    ],
     history: [
       { action: "Started", actorId: "e-miguel", at: "2026-07-17T19:12:00Z", note: null },
       { action: "Paused", actorId: "e-miguel", at: "2026-07-17T21:58:00Z", note: "End of shift handoff recorded." }
@@ -234,7 +238,7 @@ const tasks: Task[] = [
     ownerId: null,
     status_beforeBlock: "Ready",
     blockReason: "Impeller casting not received (supplier ETA Jul 22)",
-    handoff: null,
+    handoffs: [],
     history: [
       { action: "Blocked", actorId: "e-dave", at: "2026-07-16T13:20:00Z", note: "Casting missed the truck; new ETA Jul 22." }
     ],
@@ -250,7 +254,7 @@ const tasks: Task[] = [
     ownerId: "e-priya",
     status_beforeBlock: null,
     blockReason: null,
-    handoff: null,
+    handoffs: [],
     history: [],
     sourcePostId: null
   },
@@ -264,7 +268,7 @@ const tasks: Task[] = [
     ownerId: null,
     status_beforeBlock: null,
     blockReason: null,
-    handoff: null,
+    handoffs: [],
     history: [],
     sourcePostId: null
   },
@@ -278,7 +282,7 @@ const tasks: Task[] = [
     ownerId: "e-omar",
     status_beforeBlock: null,
     blockReason: null,
-    handoff: null,
+    handoffs: [],
     history: [{ action: "Started", actorId: "e-omar", at: "2026-07-17T16:30:00Z", note: null }],
     sourcePostId: null
   }
@@ -354,6 +358,13 @@ export function buildInitialState(): AppState {
       targetId: "PAL-0031",
       label: "Pallet PAL-0031",
       printEvents: [{ at: "2026-07-15T20:10:00Z", byId: "e-tom", reason: "Pallet label at packaging" }]
+    },
+    {
+      publicRef: mockPublicRef("pallet:PAL-0032"),
+      recordType: "Pallet",
+      targetId: "PAL-0032",
+      label: "Pallet PAL-0032",
+      printEvents: [{ at: "2026-07-16T19:40:00Z", byId: "e-tom", reason: "Pallet label at packaging" }]
     }
   ];
 
@@ -599,11 +610,26 @@ export function buildInitialState(): AppState {
       {
         id: "PAL-0031",
         orderNumber: ORDER_NO,
+        unitIds: [U(1)],
         destination: "Knighten Industries - Odessa, TX",
         weight: "1,240 lb",
         dimensions: "48 x 40 x 52 in",
         packageCount: 1,
         publicRef: mockPublicRef("pallet:PAL-0031")
+      },
+      // A second, deliberately different pallet on the same order. Its only
+      // purpose is to make cross-Unit shipping leakage detectable in both
+      // directions: Unit 1.1 must never show PAL-0032 and Unit 1.4 must never
+      // show PAL-0031.
+      {
+        id: "PAL-0032",
+        orderNumber: ORDER_NO,
+        unitIds: [U(4)],
+        destination: "Knighten Industries - Midland, TX",
+        weight: "1,305 lb",
+        dimensions: "52 x 44 x 55 in",
+        packageCount: 2,
+        publicRef: mockPublicRef("pallet:PAL-0032")
       }
     ],
     favourites: ["view:orders", "view:quality"],

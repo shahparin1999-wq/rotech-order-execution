@@ -21,6 +21,18 @@ import type { ChecklistItemDef } from "@/domain/types";
 import { Exact, MockPhoto, SaveStateBadge } from "./bits";
 import { PhotoCapture } from "./PhotoCapture";
 
+// An unapproved criterion must be flagged whatever its response type. The
+// hydrotest step is pass/fail and still carries unapproved pressure and
+// duration rules, so the flag cannot live inside the measurement range.
+function PlaceholderFlag({ def }: { def: ChecklistItemDef }) {
+  if (!def.placeholderTolerance) return null;
+  return (
+    <span className="placeholder-note" data-testid={`placeholder-${def.key}`}>
+      Pilot placeholder - owner approval required
+    </span>
+  );
+}
+
 function ExpectedRange({ def }: { def: ChecklistItemDef }) {
   if (def.responseType !== "measurement") return null;
   const parts: string[] = [];
@@ -30,14 +42,6 @@ function ExpectedRange({ def }: { def: ChecklistItemDef }) {
   return (
     <div style={{ fontSize: 12.5, color: "var(--text-subtle)" }}>
       Expected: {parts.join(" · ")} {def.unit}
-      {def.placeholderTolerance && (
-        <>
-          {" "}
-          <span className="placeholder-note">
-            Pilot placeholder - owner approval required
-          </span>
-        </>
-      )}
     </div>
   );
 }
@@ -94,6 +98,7 @@ function ItemRow({
           </span>
         )}
         {def.requiresNote && <span className="badge save-pending">note required</span>}
+        <PlaceholderFlag def={def} />
         {current && <SaveStateBadge state={current.state} />}
       </div>
       <ExpectedRange def={def} />

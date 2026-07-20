@@ -87,7 +87,11 @@ export interface RouteOperation {
   status: "NotStarted" | "Ready" | "InProgress" | "Blocked" | "Complete";
 }
 
+// A handoff is controlled manufacturing history. It is never overwritten: a
+// later pause appends a new record that supersedes the previous one, and both
+// remain readable.
 export interface HandoffRecord {
+  id: string;
   reason: string;
   completedWork: string;
   remainingWork: string;
@@ -97,6 +101,7 @@ export interface HandoffRecord {
   note: string | null;
   byId: string;
   at: string;
+  supersedesId: string | null;
 }
 
 export interface TaskEvent {
@@ -116,7 +121,9 @@ export interface Task {
   ownerId: string | null;
   status_beforeBlock: TaskStatus | null;
   blockReason: string | null;
-  handoff: HandoffRecord | null;
+  // Append-only. The active handoff is the last entry; earlier entries are
+  // retained and remain visible in history.
+  handoffs: HandoffRecord[];
   history: TaskEvent[];
   sourcePostId: string | null;
 }
@@ -315,6 +322,10 @@ export interface TransferRecord {
 export interface PalletRecord {
   id: string;
   orderNumber: string;
+  // Explicit Unit targeting. A pallet is order-scoped only for listing; every
+  // Unit-scoped read (notably document generation) must resolve through this
+  // list so a sibling Unit's shipping record can never be rendered.
+  unitIds: string[];
   destination: string;
   weight: string;
   dimensions: string;
