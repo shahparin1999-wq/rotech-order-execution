@@ -85,6 +85,49 @@ test.describe("Screenshot evidence", () => {
     await page.screenshot({ path: shot("13-order-summary-preview"), fullPage: true });
   });
 
+  // Evidence for the four defects fixed after the independent review.
+  test("review fix - Unit 1.1 document", async ({ page }) => {
+    await page.goto(`/documents/${U(1)}`);
+    await expect(page.getByTestId("qc-document")).toBeVisible();
+    await page.screenshot({ path: shot("18-fix-unit-1-1-document"), fullPage: true });
+  });
+
+  test("review fix - Unit 1.4 document", async ({ page }) => {
+    await page.goto(`/documents/${U(4)}`);
+    await expect(page.getByTestId("qc-document")).toBeVisible();
+    await page.screenshot({ path: shot("19-fix-unit-1-4-document"), fullPage: true });
+  });
+
+  test("review fix - hydrotest placeholder flagged", async ({ page }) => {
+    await page.goto(`/units/${U(1)}?tab=checklist`);
+    await expect(page.getByTestId("placeholder-hydrotest")).toBeVisible();
+    await page.screenshot({ path: shot("20-fix-placeholder-flags"), fullPage: true });
+  });
+
+  test("review fix - append-only handoff history", async ({ page }) => {
+    await page.goto(`/units/${U(5)}`);
+    await page.getByTestId("user-switcher").selectOption("e-miguel");
+    await page.getByRole("button", { name: /Start Work/ }).click();
+    await page.getByTestId("pause-t-15-intake").click();
+    await page.getByTestId("handoff-reason").fill("First pause - end of shift");
+    await page.getByTestId("handoff-completedWork").fill("Pick list checked");
+    await page.getByTestId("handoff-remainingWork").fill("Confirm casting");
+    await page.getByTestId("handoff-location").fill("Parts staging rack B");
+    await page.getByTestId("handoff-storageState").fill("Parts binned");
+    await page.getByTestId("confirm-pause").click();
+    await page.getByTestId("user-switcher").selectOption("e-alex");
+    await page.getByTestId("resume-t-15-intake").click();
+    await page.getByTestId("pause-t-15-intake").click();
+    await page.getByTestId("handoff-reason").fill("Second pause - waiting on crane");
+    await page.getByTestId("handoff-completedWork").fill("Casting confirmed and staged");
+    await page.getByTestId("handoff-remainingWork").fill("Move to assembly bay");
+    await page.getByTestId("handoff-location").fill("Assembly bay 1");
+    await page.getByTestId("handoff-storageState").fill("Slung and chocked");
+    await page.getByTestId("confirm-pause").click();
+    await page.getByTestId("handoff-history-t-15-intake").first().click();
+    await page.screenshot({ path: shot("21-fix-handoff-append-only"), fullPage: true });
+  });
+
   test("blocked work view", async ({ page }) => {
     await page.goto("/views/blocked");
     await expect(page.getByRole("heading", { name: "Blocked Work" })).toBeVisible();

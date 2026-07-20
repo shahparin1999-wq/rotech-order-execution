@@ -99,7 +99,11 @@ export function pauseTask(state: AppState, taskId: string, actorId: string, inpu
     if (!value || !value.trim()) throw new Error(`Handoff field "${field}" is required to pause`);
   }
   const ts = nowIso(at);
+  // Append a superseding handoff; never overwrite the previous record.
+  const prior = t.handoffs.at(-1) ?? null;
+  const [handoffId, s1] = takeId(state, "ho");
   const handoff: HandoffRecord = {
+    id: handoffId,
     reason: input.reason,
     completedWork: input.completedWork,
     remainingWork: input.remainingWork,
@@ -108,16 +112,26 @@ export function pauseTask(state: AppState, taskId: string, actorId: string, inpu
     blockerItem: input.blockerItem ?? null,
     note: input.note ?? null,
     byId: actorId,
-    at: ts
+    at: ts,
+    supersedesId: prior?.id ?? null
   };
-  let s = updateTask(state, taskId, {
+  const priorPauseEventId =
+    s1.auditEvents
+      .filter((e) => e.targetId === taskId && e.action === "task.paused")
+      .at(-1)?.id ?? null;
+
+  let s = updateTask(s1, taskId, {
     status: "Paused",
-    handoff,
+    handoffs: [...t.handoffs, handoff],
     ...withHistory(t, "Paused", actorId, ts, input.reason)
   });
   s = appendAudit(s, {
     at: ts, actorId, action: "task.paused", targetType: "Task", targetId: taskId,
-    unitId: t.unitId, detail: `Paused with handoff: ${input.reason}`, supersedesEventId: null
+    unitId: t.unitId,
+    detail: prior
+      ? `Paused with handoff: ${input.reason} (supersedes handoff ${prior.id}, which is retained).`
+      : `Paused with handoff: ${input.reason}`,
+    supersedesEventId: priorPauseEventId
   });
   return s;
 }
@@ -126,12 +140,19 @@ export function resumeTask(state: AppState, taskId: string, actorId: string, at?
   const t = mustFindTask(state, taskId);
   if (t.status !== "Paused") throw new Error(`Task ${taskId} cannot resume from ${t.status}`);
   const ts = nowIso(at);
-  // The handoff record is retained on the task history for traceability;
-  // the resuming employee becomes the owner.
+  // Every handoff record is retained for traceability; the resuming employee
+  // becomes the owner.
+  const active = t.handoffs.at(-1) ?? null;
   let s = updateTask(state, taskId, {
     status: "InProgress",
     ownerId: actorId,
-    ...withHistory(t, "Resumed", actorId, ts, t.handoff ? `Resumed from handoff by previous owner` : null)
+    ...withHistory(
+      t,
+      "Resumed",
+      actorId,
+      ts,
+      active ? `Resumed from handoff ${active.id} recorded by the previous owner` : null
+    )
   });
   s = appendAudit(s, {
     at: ts, actorId, action: "task.resumed", targetType: "Task", targetId: taskId,
@@ -426,7 +447,7 @@ export function convertPost(state: AppState, postId: string, actorId: string, in
       ownerId: null,
       status_beforeBlock: null,
       blockReason: null,
-      handoff: null,
+      handoffs: [],
       history: [{ action: "CreatedFromPost", actorId, at: ts, note: `Created from activity post ${postId}` }],
       sourcePostId: postId
     };

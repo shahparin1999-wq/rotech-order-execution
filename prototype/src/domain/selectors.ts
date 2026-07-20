@@ -5,6 +5,7 @@ import type {
   AppState,
   ChecklistItemDef,
   ChecklistResponse,
+  HandoffRecord,
   Order,
   QrIdentity,
   Task,
@@ -78,6 +79,23 @@ export function orderProgress(state: AppState, orderNumber: string): ProgressSum
 
 export function tasksForUnit(state: AppState, unitId: string): Task[] {
   return state.tasks.filter((t) => t.unitId === unitId);
+}
+
+// The active handoff is the most recent record. Earlier records are retained
+// and readable through `task.handoffs`.
+export function currentHandoff(task: Task): HandoffRecord | null {
+  return task.handoffs.at(-1) ?? null;
+}
+
+export function supersededHandoffs(task: Task): HandoffRecord[] {
+  return task.handoffs.slice(0, -1);
+}
+
+// Checklist items whose numeric limits or pass criteria are unapproved
+// placeholders (decision D-013 is still Proposed). This is independent of
+// response type: the hydrotest criterion is pass/fail and still unapproved.
+export function placeholderItemKeys(state: AppState): string[] {
+  return state.checklistDefs.filter((d) => d.placeholderTolerance).map((d) => d.key);
 }
 
 export function responsesForUnit(state: AppState, unitId: string): ChecklistResponse[] {

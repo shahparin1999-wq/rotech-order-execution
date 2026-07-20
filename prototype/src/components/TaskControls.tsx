@@ -5,8 +5,8 @@
 
 import { useState } from "react";
 import { useAppDispatch, useAppState } from "@/store/StoreProvider";
-import { employeeName } from "@/domain/selectors";
-import type { Task } from "@/domain/types";
+import { currentHandoff, employeeName, supersededHandoffs } from "@/domain/selectors";
+import type { HandoffRecord, Task } from "@/domain/types";
 import { Exact, TaskStatusBadge } from "./bits";
 
 function PauseDialog({ task, onClose, big }: { task: Task; onClose: () => void; big?: boolean }) {
@@ -86,27 +86,56 @@ function PauseDialog({ task, onClose, big }: { task: Task; onClose: () => void; 
   );
 }
 
+function HandoffFields({ h }: { h: HandoffRecord }) {
+  return (
+    <table className="data" style={{ marginTop: 6 }}>
+      <tbody>
+        <tr><td><b>Reason</b></td><td>{h.reason}</td></tr>
+        <tr><td><b>Completed</b></td><td>{h.completedWork}</td></tr>
+        <tr><td><b>Remaining</b></td><td>{h.remainingWork}</td></tr>
+        <tr><td><b>Location</b></td><td>{h.location}</td></tr>
+        <tr><td><b>Storage / safety</b></td><td>{h.storageState}</td></tr>
+        {h.blockerItem && <tr><td><b>Blocker</b></td><td>{h.blockerItem}</td></tr>}
+        {h.note && <tr><td><b>Note</b></td><td>{h.note}</td></tr>}
+      </tbody>
+    </table>
+  );
+}
+
 export function HandoffCard({ task }: { task: Task }) {
   const state = useAppState();
-  if (!task.handoff) return null;
-  const h = task.handoff;
+  const h = currentHandoff(task);
+  if (!h) return null;
+  const prior = supersededHandoffs(task);
   return (
     <div className="card" style={{ background: "var(--accent-soft)" }} data-testid={`handoff-card-${task.id}`}>
       <b>Handoff from {employeeName(state, h.byId)}</b>{" "}
       <span className="post-time">
         <Exact at={h.at} />
       </span>
-      <table className="data" style={{ marginTop: 6 }}>
-        <tbody>
-          <tr><td><b>Reason</b></td><td>{h.reason}</td></tr>
-          <tr><td><b>Completed</b></td><td>{h.completedWork}</td></tr>
-          <tr><td><b>Remaining</b></td><td>{h.remainingWork}</td></tr>
-          <tr><td><b>Location</b></td><td>{h.location}</td></tr>
-          <tr><td><b>Storage / safety</b></td><td>{h.storageState}</td></tr>
-          {h.blockerItem && <tr><td><b>Blocker</b></td><td>{h.blockerItem}</td></tr>}
-          {h.note && <tr><td><b>Note</b></td><td>{h.note}</td></tr>}
-        </tbody>
-      </table>
+      {h.supersedesId && (
+        <div className="badge save-needsreview" style={{ marginTop: 4 }}>
+          supersedes handoff {h.supersedesId} — earlier record retained below
+        </div>
+      )}
+      <HandoffFields h={h} />
+
+      {prior.length > 0 && (
+        <details style={{ marginTop: 8 }} data-testid={`handoff-history-${task.id}`}>
+          <summary>
+            Earlier handoffs ({prior.length}) — retained, never overwritten
+          </summary>
+          {prior.map((p) => (
+            <div key={p.id} style={{ marginTop: 8, borderTop: "1px solid var(--border)", paddingTop: 6 }}>
+              <b>Handoff from {employeeName(state, p.byId)}</b>{" "}
+              <span className="post-time">
+                <Exact at={p.at} />
+              </span>
+              <HandoffFields h={p} />
+            </div>
+          ))}
+        </details>
+      )}
     </div>
   );
 }

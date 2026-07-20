@@ -236,7 +236,7 @@ function UnitView({ unitId }: { unitId: string }) {
               </div>
             </div>
 
-            {tasks.filter((t) => t.handoff).map((t) => (
+            {tasks.filter((t) => t.handoffs.length > 0).map((t) => (
               <HandoffCard key={t.id} task={t} />
             ))}
 

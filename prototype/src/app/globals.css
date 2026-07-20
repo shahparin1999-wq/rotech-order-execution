@@ -616,6 +616,26 @@ input[type="number"] {
   margin-bottom: 10px;
 }
 
+.uncontrolled-note {
+  border: 2px solid #c05050;
+  background: #fbe9e9;
+  color: #7a2020;
+  border-radius: 6px;
+  padding: 10px 13px;
+  font-size: 13.5px;
+  margin-bottom: 14px;
+}
+
+.release-blockers {
+  border-left: 5px solid var(--warn);
+  background: var(--warn-soft);
+  color: #6b4100;
+  border-radius: 6px;
+  padding: 10px 13px;
+  font-size: 13.5px;
+  margin-bottom: 14px;
+}
+
 /* ---------- Mock photos ---------- */
 
 .mock-photo {
