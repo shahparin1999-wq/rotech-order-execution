@@ -60,13 +60,27 @@ export interface Contact {
   createdAt: string;
 }
 
+// A first-class Work Order Line: the middle level between Order and Unit. Line
+// number is immutable within an Order and Unit sequence is immutable within a
+// Line (docs 03 identifier grammar). CPQ-imported lines carry provenance back
+// to the exact quote/revision/line and to their frozen ConfigurationSnapshot;
+// manually created lines set sourceSystem "Manual" and leave the cpq* fields
+// undefined.
 export interface OrderLine {
+  id: string;
   lineNumber: number;
+  sourceSystem: "CPQ" | "Manual";
   product: string;
   description: string;
+  family: string;
+  model: string;
   quantity: number;
   orderedMaterial: string;
   templateName: string;
+  cpqQuoteId?: string;
+  cpqRevisionId?: string;
+  cpqLineId?: string;
+  configurationSnapshotId?: string;
 }
 
 export interface Order {
@@ -406,6 +420,84 @@ export interface PalletRecord {
   publicRef: string;
 }
 
+// The frozen CPQ configuration for one imported Work Order Line. This is an
+// immutable released snapshot: the payload is never edited in place. A revised
+// CPQ quote produces a new, superseding snapshot rather than a mutation
+// (see docs/integration/CPQ_EXECUTION_CONTRACT.md). Manufacturing detail is
+// layered on top via ManufacturingNote and ConfigurationAdjustment, never by
+// touching this record.
+export interface ConfigurationSnapshot {
+  id: string;
+  workOrderLineId: string;
+  orderNumber: string;
+  lineNumber: number;
+
+  sourcePackageId: string;
+  sourceQuoteId: string;
+  sourceRevisionId: string;
+  sourceLineId: string;
+
+  schemaVersion: string;
+  checksum: string;
+
+  // The full imported line payload, stored verbatim. Typed as unknown here to
+  // keep the domain types independent of the executionPackage module; callers
+  // that need the shape import ExecutionLineV1 and narrow.
+  payload: unknown;
+
+  importedAt: string;
+  importedBy: string;
+}
+
+export type ManufacturingNoteCategory =
+  | "ShopInstruction"
+  | "EngineeringNote"
+  | "MachiningInstruction"
+  | "QualityRequirement"
+  | "PackagingInstruction";
+
+// A manufacturing note is layered detail, not part of the frozen CPQ baseline.
+// A WorkOrderLine-scoped note applies to every Unit on that line (resolved at
+// read time by scope - never copied onto each Unit). A Unit-scoped note is
+// isolated to that one Unit and must never appear on a sibling.
+export interface ManufacturingNote {
+  id: string;
+  scopeType: "WorkOrderLine" | "Unit";
+  scopeId: string; // OrderLine.id or Unit.unitId
+  orderNumber: string;
+  lineNumber: number;
+  category: ManufacturingNoteCategory;
+  title: string;
+  description: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export type AdjustmentApprovalStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "Superseded";
+
+// A proposed change to a configuration value, tracked separately from the
+// frozen CPQ snapshot. The snapshot payload is never edited; the as-built view
+// layers approved adjustments on top of the CPQ-ordered values.
+export interface ConfigurationAdjustment {
+  id: string;
+  scopeType: "WorkOrderLine" | "Unit";
+  scopeId: string;
+  orderNumber: string;
+  lineNumber: number;
+  configurationPath: string; // e.g. "configuration.impellerMaterial"
+  originalValue: unknown;
+  proposedValue: unknown;
+  reason: string;
+  approvalStatus: AdjustmentApprovalStatus;
+  commercialReviewRequired: boolean;
+  createdAt: string;
+  createdBy: string;
+}
+
 export interface AppState {
   currentUserId: string;
   employees: Employee[];
@@ -428,6 +520,9 @@ export interface AppState {
   materialLots: MaterialLot[];
   transfers: TransferRecord[];
   pallets: PalletRecord[];
+  configurationSnapshots: ConfigurationSnapshot[];
+  manufacturingNotes: ManufacturingNote[];
+  configurationAdjustments: ConfigurationAdjustment[];
   favourites: string[]; // view ids or order numbers
   followedOrders: string[];
   nextId: number;

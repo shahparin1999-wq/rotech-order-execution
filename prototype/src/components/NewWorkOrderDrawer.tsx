@@ -6,12 +6,14 @@ import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import type { Facility, Priority } from "@/domain/types";
 import { Drawer, FieldGroup } from "./Drawer";
 import { NewCustomerDrawer } from "./NewCustomerDrawer";
+import { ImportCpqPackageDrawer } from "./ImportCpqPackageDrawer";
 
 export function NewWorkOrderDrawer({ onClose }: { onClose: () => void }) {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const router = useRouter();
 
+  const [mode, setMode] = useState<"manual" | "import">("manual");
   const [orderNumber, setOrderNumber] = useState("");
   const [customerId, setCustomerId] = useState(state.customers[0]?.id ?? "");
   const [customerPo, setCustomerPo] = useState("");
@@ -41,6 +43,33 @@ export function NewWorkOrderDrawer({ onClose }: { onClose: () => void }) {
     !state.orders.some((o) => o.orderNumber === orderNumber.trim());
 
   const orderNumberTaken = orderNumber.trim() && state.orders.some((o) => o.orderNumber === orderNumber.trim());
+
+  // Defined after all hooks so the early return below never skips a hook
+  // (React requires an unconditional, stable hook order).
+  const modeToggle = (
+    <div className="tabs" data-testid="new-order-mode" style={{ marginBottom: 12 }}>
+      <button
+        type="button"
+        className={`tab ${mode === "manual" ? "active" : ""}`}
+        data-testid="mode-manual"
+        onClick={() => setMode("manual")}
+      >
+        Create manually
+      </button>
+      <button
+        type="button"
+        className={`tab ${mode === "import" ? "active" : ""}`}
+        data-testid="import-cpq-toggle"
+        onClick={() => setMode("import")}
+      >
+        Import CPQ package
+      </button>
+    </div>
+  );
+
+  if (mode === "import") {
+    return <ImportCpqPackageDrawer onClose={onClose} toggle={modeToggle} />;
+  }
 
   return (
     <>
@@ -86,6 +115,7 @@ export function NewWorkOrderDrawer({ onClose }: { onClose: () => void }) {
           </>
         }
       >
+        {modeToggle}
         <FieldGroup label="Order number" required>
           <input
             data-testid="new-order-number"

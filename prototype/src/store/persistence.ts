@@ -18,7 +18,10 @@ export const STORAGE_KEY = "rotech-proto-state";
 // v2: added customers/contacts, Order.customerId (replacing the old
 // customer string field), and the extended Planner Task shape - a v1 save
 // would be missing all of these, so it must not be trusted.
-export const SCHEMA_VERSION = 2;
+// v3: CPQ import - first-class OrderLine fields (id/sourceSystem/family/model)
+// plus configurationSnapshots, manufacturingNotes, and configurationAdjustments
+// arrays. A v2 save lacks these, so it must not be trusted.
+export const SCHEMA_VERSION = 3;
 
 export interface StoredEnvelope {
   schemaVersion: number;
@@ -39,6 +42,9 @@ function looksLikeAppState(value: unknown): value is AppState {
     Array.isArray(v.routeOps) &&
     Array.isArray(v.customers) &&
     Array.isArray(v.contacts) &&
+    Array.isArray(v.configurationSnapshots) &&
+    Array.isArray(v.manufacturingNotes) &&
+    Array.isArray(v.configurationAdjustments) &&
     typeof v.nextId === "number" &&
     typeof v.currentUserId === "string"
   );

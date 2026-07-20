@@ -94,9 +94,13 @@ const mainOrder: Order = {
   publicRef: mockPublicRef(`order:${ORDER_NO}`),
   lines: [
     {
+      id: `${ORDER_NO}-L1`,
       lineNumber: 1,
+      sourceSystem: "Manual",
       product: "1196 3x4-13",
       description: "ANSI 1196 bare pump end, 3x4-13",
+      family: "1196",
+      model: "1196",
       quantity: 5,
       orderedMaterial: "316SS",
       templateName: "1196 bare pump end rev 1 (mock)"
@@ -125,9 +129,13 @@ const houstonOrder: Order = {
   publicRef: mockPublicRef(`order:${HOUSTON_ORDER_NO}`),
   lines: [
     {
+      id: `${HOUSTON_ORDER_NO}-L1`,
       lineNumber: 1,
+      sourceSystem: "Manual",
       product: "Stub shaft 4140",
       description: "Machined stub shafts per drawing (mock)",
+      family: "Machining",
+      model: "Stub shaft",
       quantity: 2,
       orderedMaterial: "4140",
       templateName: "Machining rev 1 (mock)"
@@ -989,6 +997,9 @@ export function buildInitialState(): AppState {
         publicRef: mockPublicRef("pallet:PAL-0032")
       }
     ],
+    configurationSnapshots: [],
+    manufacturingNotes: [],
+    configurationAdjustments: [],
     favourites: ["view:orders", "view:quality"],
     followedOrders: [ORDER_NO],
     nextId: 1000

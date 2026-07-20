@@ -24,6 +24,8 @@ import { parseStoredEnvelope, serializeEnvelope, STORAGE_KEY } from "./persisten
 import {
   addAttachment,
   addChecklistResponse,
+  addConfigurationAdjustment,
+  addManufacturingNote,
   addPost,
   addReply,
   addTaskChecklistItem,
@@ -41,6 +43,7 @@ import {
   createTask,
   createWorkOrder,
   editOrder,
+  importExecutionPackage,
   markPostRead,
   moveTaskBucket,
   pauseTask,
@@ -55,7 +58,10 @@ import {
   type AttachmentInput,
   type ContactInput,
   type ConvertInput,
+  type ConfigurationAdjustmentInput,
   type CustomerInput,
+  type ImportPackageInput,
+  type ManufacturingNoteInput,
   type OrderEditInput,
   type PauseInput,
   type ResponseInput,
@@ -84,6 +90,9 @@ export type Action =
   | { type: "createCustomer"; input: CustomerInput }
   | { type: "createContact"; customerId: string; input: ContactInput }
   | { type: "createWorkOrder"; input: WorkOrderInput }
+  | { type: "importExecutionPackage"; input: ImportPackageInput }
+  | { type: "addManufacturingNote"; input: ManufacturingNoteInput }
+  | { type: "addConfigurationAdjustment"; input: ConfigurationAdjustmentInput }
   | { type: "changeOrderDueDate"; orderNumber: string; dueDate: string }
   | { type: "editOrder"; orderNumber: string; input: OrderEditInput }
   | { type: "createTask"; input: TaskInput }
@@ -156,6 +165,12 @@ function buildReducer(onError: (message: string) => void) {
           return createContact(state, actor, action.customerId, action.input);
         case "createWorkOrder":
           return createWorkOrder(state, actor, action.input);
+        case "importExecutionPackage":
+          return importExecutionPackage(state, actor, action.input);
+        case "addManufacturingNote":
+          return addManufacturingNote(state, actor, action.input);
+        case "addConfigurationAdjustment":
+          return addConfigurationAdjustment(state, actor, action.input);
         case "changeOrderDueDate":
           return changeOrderDueDate(state, action.orderNumber, actor, action.dueDate);
         case "editOrder":

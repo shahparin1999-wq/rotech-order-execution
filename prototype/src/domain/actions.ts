@@ -11,24 +11,35 @@ import type {
   ChecklistResponse,
   ChecklistSubItem,
   ConvertedKind,
+  ConfigurationAdjustment,
+  ConfigurationSnapshot,
   Contact,
   Customer,
   Facility,
   HandoffRecord,
+  ManufacturingNote,
+  ManufacturingNoteCategory,
   MaterialChange,
   Order,
   OrderLine,
   PlannerBucket,
   Priority,
   Problem,
+  QrIdentity,
   RouteOperation,
   SaveState,
   SpecialInstruction,
   Task,
-  TaskStatus
+  TaskStatus,
+  Unit
 } from "./types";
 import { generateUnits, mockPublicRef } from "./ids";
 import { recomputeUnitProjection } from "./projections";
+import {
+  validateExecutionPackage,
+  type ExecutionLineV1,
+  type ExecutionPackageV1
+} from "./executionPackage";
 
 function nowIso(at?: string): string {
   return at ?? new Date().toISOString();
@@ -647,9 +658,13 @@ export function createWorkOrder(state: AppState, actorId: string, input: WorkOrd
 
   const ts = nowIso(at);
   const line: OrderLine = {
+    id: `${input.orderNumber}-L1`,
     lineNumber: 1,
+    sourceSystem: "Manual",
     product: `${input.model} ${input.size}`,
     description: input.description,
+    family: input.model,
+    model: input.model,
     quantity: input.quantity,
     orderedMaterial: input.material,
     templateName: "Generic work order (mock)"
@@ -757,6 +772,350 @@ export function createWorkOrder(state: AppState, actorId: string, input: WorkOrd
     });
     s = recomputeUnitProjection(s, u.unitId);
   }
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// CPQ execution-package import
+// ---------------------------------------------------------------------------
+
+export interface ImportPackageInput {
+  package: unknown; // untrusted, already-JSON-parsed upload
+  orderNumber: string;
+  customerPo?: string;
+  facility: Facility;
+  coordinatorId: string;
+}
+
+// Imports one approved CPQ execution package as a Work Order. Mirrors the
+// generate-exactly-once discipline of createWorkOrder, but creates N
+// first-class OrderLines (one per CPQ line), one immutable ConfigurationSnapshot
+// per line, and line.quantity isolated Units per line via generateUnits(). The
+// package is validated and its checksum verified first; any failure throws
+// (surfaced as an error toast) rather than importing partial data.
+export function importExecutionPackage(
+  state: AppState,
+  actorId: string,
+  input: ImportPackageInput,
+  at?: string
+): AppState {
+  const validation = validateExecutionPackage(input.package);
+  if (!validation.ok || !validation.package) {
+    throw new Error(`Execution package rejected: ${validation.errors.join("; ")}`);
+  }
+  const pkg: ExecutionPackageV1 = validation.package;
+
+  const orderNumber = input.orderNumber.trim();
+  if (!orderNumber) throw new Error("Order number is required");
+  if (state.orders.some((o) => o.orderNumber === orderNumber)) {
+    throw new Error(`Order ${orderNumber} already exists`);
+  }
+
+  const ts = nowIso(at);
+  let s: AppState = state;
+
+  // Resolve the customer by name, or create a lightweight record. CPQ is the
+  // system of record for the commercial customer; the imported city/region are
+  // placeholders pending owner approval.
+  let customerId = state.customers.find((c) => c.name === pkg.customer.customerName)?.id;
+  if (!customerId) {
+    const [custId, s1] = takeId(s, "cust");
+    s = {
+      ...s1,
+      customers: [
+        ...s1.customers,
+        {
+          id: custId,
+          name: pkg.customer.customerName,
+          city: "Pilot placeholder - owner approval required",
+          region: "Pilot placeholder - owner approval required",
+          notes: `Imported from CPQ quote ${pkg.source.quoteNumber} rev ${pkg.source.revisionNumber}`,
+          createdAt: ts
+        }
+      ]
+    };
+    customerId = custId;
+  }
+
+  const customerPo = (input.customerPo ?? pkg.customer.customerPo ?? "").trim();
+
+  const lines: OrderLine[] = [];
+  const snapshots: ConfigurationSnapshot[] = [];
+  const allUnits: Unit[] = [];
+
+  for (const pl of pkg.lines) {
+    const lineId = `${orderNumber}-L${pl.lineNumber}`;
+    const orderedMaterial =
+      pl.configuration.casingMaterial ?? pl.configuration.materialBuild ?? "See configuration";
+
+    const [snapId, s1] = takeId(s, "cfgsnap");
+    s = s1;
+    const snapshot: ConfigurationSnapshot = {
+      id: snapId,
+      workOrderLineId: lineId,
+      orderNumber,
+      lineNumber: pl.lineNumber,
+      sourcePackageId: pkg.packageId,
+      sourceQuoteId: pkg.source.quoteId,
+      sourceRevisionId: pkg.source.revisionId,
+      sourceLineId: pl.cpqLineId,
+      schemaVersion: pkg.schemaVersion,
+      checksum: pkg.checksum,
+      // Deep-cloned so a later edit to the source object (or the sample file)
+      // can never mutate the frozen snapshot held in state.
+      payload: JSON.parse(JSON.stringify(pl)) as ExecutionLineV1,
+      importedAt: ts,
+      importedBy: actorId
+    };
+    snapshots.push(snapshot);
+
+    lines.push({
+      id: lineId,
+      lineNumber: pl.lineNumber,
+      sourceSystem: "CPQ",
+      product: `${pl.product.model} ${pl.product.pumpSize}`,
+      description: pl.product.description,
+      family: pl.product.family,
+      model: pl.product.model,
+      quantity: pl.quantity,
+      orderedMaterial,
+      templateName: `CPQ ${pkg.source.quoteNumber} rev ${pkg.source.revisionNumber} (imported)`,
+      cpqQuoteId: pkg.source.quoteId,
+      cpqRevisionId: pkg.source.revisionId,
+      cpqLineId: pl.cpqLineId,
+      configurationSnapshotId: snapId
+    });
+
+    allUnits.push(
+      ...generateUnits(orderNumber, pl.lineNumber, pl.quantity, {
+        model: pl.product.model,
+        size: pl.product.pumpSize,
+        orderedMaterial,
+        location: `${input.facility} - Intake`
+      })
+    );
+  }
+
+  const order: Order = {
+    orderNumber,
+    customerId,
+    customerPo,
+    dueDate: "", // CPQ has no manufacturing due date; set later via the order workspace.
+    productFamily: pkg.lines[0].product.family,
+    orderType: "CPQ import",
+    facility: input.facility,
+    coordinatorId: input.coordinatorId,
+    status: "Open",
+    priority: "Medium",
+    updatedAt: ts,
+    teamsLinkPlaceholder: "Teams thread link (placeholder - no real Teams integration)",
+    publicRef: mockPublicRef(`order:${orderNumber}`),
+    lines,
+    risks: []
+  };
+
+  const routeOps = allUnits.flatMap((u) => buildGenericRoute(u.unitId));
+  const qrIdentities: QrIdentity[] = [
+    {
+      publicRef: order.publicRef,
+      recordType: "Order",
+      targetId: order.orderNumber,
+      label: `Master order ${order.orderNumber}`,
+      printEvents: []
+    },
+    ...allUnits.map((u) => ({
+      publicRef: u.publicRef,
+      recordType: "Unit" as const,
+      targetId: u.unitId,
+      label: `Unit ${u.unitId}`,
+      printEvents: []
+    }))
+  ];
+
+  s = {
+    ...s,
+    orders: [...s.orders, order],
+    units: [...s.units, ...allUnits],
+    routeOps: [...s.routeOps, ...routeOps],
+    qrIdentities: [...s.qrIdentities, ...qrIdentities],
+    configurationSnapshots: [...s.configurationSnapshots, ...snapshots]
+  };
+
+  for (const u of allUnits) {
+    const [taskId, s1] = takeId(s, "t");
+    const task: Task = {
+      id: taskId,
+      unitId: u.unitId,
+      orderNumber,
+      customerId: null,
+      name: "Intake review",
+      description: null,
+      operationId: `op-${u.unitId}-1`,
+      bucket: "TBC",
+      department: "Coordination",
+      status: "Ready",
+      ownerId: null,
+      assigneeIds: [],
+      startDate: null,
+      dueDate: null,
+      priority: "Medium",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [],
+      sourcePostId: null
+    };
+    s = { ...s1, tasks: [...s1.tasks, task] };
+  }
+
+  s = appendAudit(s, {
+    at: ts, actorId, action: "order.created", targetType: "Order", targetId: orderNumber,
+    unitId: null,
+    detail: `Order ${orderNumber} created by CPQ import of ${pkg.source.quoteNumber} rev ${pkg.source.revisionNumber}; ${lines.length} line(s), ${allUnits.length} independent Unit(s).`,
+    supersedesEventId: null
+  });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "package.imported", targetType: "Order", targetId: orderNumber,
+    unitId: null,
+    detail: `Imported CPQ package ${pkg.packageId} (checksum ${pkg.checksum}); configuration frozen as ${snapshots.length} immutable snapshot(s).`,
+    supersedesEventId: null
+  });
+  for (const u of allUnits) {
+    s = appendAudit(s, {
+      at: ts, actorId, action: "unit.created", targetType: "Unit", targetId: u.unitId,
+      unitId: u.unitId, detail: "Unit created with stable QR identity (pre-serial).", supersedesEventId: null
+    });
+    s = recomputeUnitProjection(s, u.unitId);
+  }
+
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// Manufacturing layer (notes + configuration adjustments)
+// ---------------------------------------------------------------------------
+
+export interface ManufacturingNoteInput {
+  scopeType: "WorkOrderLine" | "Unit";
+  scopeId: string; // OrderLine.id or Unit.unitId
+  orderNumber: string;
+  category: ManufacturingNoteCategory;
+  title: string;
+  description: string;
+}
+
+// Resolves the owning (order, lineNumber) for a scope and rejects inconsistent
+// ancestors - the same discipline addAttachment uses. A WorkOrderLine scope
+// must be a line on the named order; a Unit scope must be a Unit on the named
+// order. Returns the resolved lineNumber.
+function resolveScopeLine(
+  state: AppState,
+  scopeType: "WorkOrderLine" | "Unit",
+  scopeId: string,
+  orderNumber: string
+): number {
+  const order = state.orders.find((o) => o.orderNumber === orderNumber);
+  if (!order) throw new Error(`Unknown order ${orderNumber}`);
+  if (scopeType === "WorkOrderLine") {
+    const line = order.lines.find((l) => l.id === scopeId);
+    if (!line) throw new Error(`Inconsistent ancestors: line ${scopeId} is not on order ${orderNumber}`);
+    return line.lineNumber;
+  }
+  const unit = state.units.find((u) => u.unitId === scopeId);
+  if (!unit) throw new Error(`Unknown unit ${scopeId}`);
+  if (unit.orderNumber !== orderNumber) {
+    throw new Error(`Inconsistent ancestors: unit ${scopeId} is not on order ${orderNumber}`);
+  }
+  return unit.lineNumber;
+}
+
+export function addManufacturingNote(
+  state: AppState,
+  actorId: string,
+  input: ManufacturingNoteInput,
+  at?: string
+): AppState {
+  if (!input.title.trim()) throw new Error("Note title is required");
+  if (!input.description.trim()) throw new Error("Note description is required");
+  const lineNumber = resolveScopeLine(state, input.scopeType, input.scopeId, input.orderNumber);
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "mnote");
+  const note: ManufacturingNote = {
+    id,
+    scopeType: input.scopeType,
+    scopeId: input.scopeId,
+    orderNumber: input.orderNumber,
+    lineNumber,
+    category: input.category,
+    title: input.title.trim(),
+    description: input.description.trim(),
+    createdAt: ts,
+    createdBy: actorId
+  };
+  let s: AppState = { ...s0, manufacturingNotes: [...s0.manufacturingNotes, note] };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "manufacturingNote.added", targetType: input.scopeType, targetId: input.scopeId,
+    unitId: input.scopeType === "Unit" ? input.scopeId : null,
+    detail: `${input.category} note "${note.title}" added at ${input.scopeType} scope.`,
+    supersedesEventId: null
+  });
+  return s;
+}
+
+export interface ConfigurationAdjustmentInput {
+  scopeType: "WorkOrderLine" | "Unit";
+  scopeId: string;
+  orderNumber: string;
+  configurationPath: string;
+  originalValue: unknown;
+  proposedValue: unknown;
+  reason: string;
+  commercialReviewRequired?: boolean;
+}
+
+// A configuration path that touches material, seal, motor or testing scope is
+// commercially significant and defaults to requiring commercial review.
+function defaultCommercialReview(path: string): boolean {
+  return /material|casing|impeller|shaft|seal|motor|testing|hydrotest|witness/i.test(path);
+}
+
+export function addConfigurationAdjustment(
+  state: AppState,
+  actorId: string,
+  input: ConfigurationAdjustmentInput,
+  at?: string
+): AppState {
+  if (!input.configurationPath.trim()) throw new Error("Configuration path is required");
+  if (!input.reason.trim()) throw new Error("Adjustment reason is required");
+  const lineNumber = resolveScopeLine(state, input.scopeType, input.scopeId, input.orderNumber);
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "cfgadj");
+  const adjustment: ConfigurationAdjustment = {
+    id,
+    scopeType: input.scopeType,
+    scopeId: input.scopeId,
+    orderNumber: input.orderNumber,
+    lineNumber,
+    configurationPath: input.configurationPath.trim(),
+    originalValue: input.originalValue,
+    proposedValue: input.proposedValue,
+    reason: input.reason.trim(),
+    approvalStatus: "Pending",
+    commercialReviewRequired: input.commercialReviewRequired ?? defaultCommercialReview(input.configurationPath),
+    createdAt: ts,
+    createdBy: actorId
+  };
+  let s: AppState = { ...s0, configurationAdjustments: [...s0.configurationAdjustments, adjustment] };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "configurationAdjustment.proposed", targetType: input.scopeType, targetId: input.scopeId,
+    unitId: input.scopeType === "Unit" ? input.scopeId : null,
+    detail: `Proposed ${input.configurationPath}: ${JSON.stringify(input.originalValue)} → ${JSON.stringify(input.proposedValue)} (commercial review ${adjustment.commercialReviewRequired ? "required" : "not required"}).`,
+    supersedesEventId: null
+  });
   return s;
 }
 

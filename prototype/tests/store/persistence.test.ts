@@ -71,6 +71,26 @@ describe("parseStoredEnvelope - graceful fallback on anything untrustworthy", ()
     ).toBeNull();
   });
 
+  it("returns null for a v2-shaped envelope missing the CPQ import arrays (schema v3 requirement)", () => {
+    const state = buildInitialState();
+    const { configurationSnapshots, manufacturingNotes, configurationAdjustments, ...v2Shape } = state;
+    void configurationSnapshots;
+    void manufacturingNotes;
+    void configurationAdjustments;
+    expect(
+      parseStoredEnvelope(JSON.stringify({ schemaVersion: SCHEMA_VERSION, state: v2Shape }))
+    ).toBeNull();
+  });
+
+  it("a restored envelope preserves the CPQ import arrays", () => {
+    const state = buildInitialState();
+    const parsed = parseStoredEnvelope(serializeEnvelope(state));
+    expect(parsed).not.toBeNull();
+    expect(Array.isArray(parsed!.configurationSnapshots)).toBe(true);
+    expect(Array.isArray(parsed!.manufacturingNotes)).toBe(true);
+    expect(Array.isArray(parsed!.configurationAdjustments)).toBe(true);
+  });
+
   it("a restored envelope preserves customers, contacts, and customer-linked orders/tasks", () => {
     const state = buildInitialState();
     const raw = serializeEnvelope(state);
