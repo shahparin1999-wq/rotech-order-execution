@@ -105,6 +105,24 @@ export function Shell({ children }: { children: React.ReactNode }) {
             Demo switcher only. Real sign-in uses Entra; this prototype has no
             authentication or authorization.
           </div>
+          <button
+            type="button"
+            className="btn"
+            style={{ minHeight: 32, fontSize: 12, marginTop: 4, width: "100%" }}
+            data-testid="reset-to-fixtures"
+            onClick={() => {
+              if (window.confirm("Reset to sample data? This clears everything you've clicked through on this device.")) {
+                dispatch({ type: "resetToFixtures" });
+              }
+            }}
+          >
+            Reset to sample data
+          </button>
+          <div style={{ fontSize: 11, color: "var(--text-subtle)", padding: "4px 2px" }}>
+            Clears what you&apos;ve clicked through <b>on this device</b> and
+            reloads the sample data. Progress is saved only in this browser —
+            it is never shared with anyone else.
+          </div>
         </div>
 
         <div className="views-group">
