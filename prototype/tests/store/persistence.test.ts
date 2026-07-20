@@ -60,6 +60,26 @@ describe("parseStoredEnvelope - graceful fallback on anything untrustworthy", ()
     expect(parsed!.units).toHaveLength(state.units.length);
     expect(parsed!.nextId).toBe(state.nextId);
   });
+
+  it("returns null for a v1-shaped envelope missing customers/contacts (schema v2 requirement)", () => {
+    const state = buildInitialState();
+    const { customers, contacts, ...v1Shape } = state;
+    void customers;
+    void contacts;
+    expect(
+      parseStoredEnvelope(JSON.stringify({ schemaVersion: SCHEMA_VERSION, state: v1Shape }))
+    ).toBeNull();
+  });
+
+  it("a restored envelope preserves customers, contacts, and customer-linked orders/tasks", () => {
+    const state = buildInitialState();
+    const raw = serializeEnvelope(state);
+    const parsed = parseStoredEnvelope(raw);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.customers).toEqual(state.customers);
+    expect(parsed!.contacts).toEqual(state.contacts);
+    expect(parsed!.orders.every((o) => typeof o.customerId === "string")).toBe(true);
+  });
 });
 
 describe("Never persist transient browser objects", () => {

@@ -8,6 +8,8 @@ import { recomputeUnitProjection } from "./projections";
 import type {
   AppState,
   ChecklistItemDef,
+  Contact,
+  Customer,
   Employee,
   Order,
   QrIdentity,
@@ -18,6 +20,15 @@ import type {
 
 export const ORDER_NO = "SAMPLE1001";
 export const HOUSTON_ORDER_NO = "SAMPLE1002";
+
+// A few Planner-only task due dates are computed relative to "now" (not a
+// fixed fictional date) so the My Work overdue/due-soon sections stay
+// believable no matter when this prototype is actually opened.
+function addDaysIso(base: Date, days: number): string {
+  const d = new Date(base.getTime());
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString();
+}
 
 const employees: Employee[] = [
   { id: "e-alex", name: "Alex Nguyen", role: "Technician", department: "Assembly", facility: "Mississauga" },
@@ -30,9 +41,46 @@ const employees: Employee[] = [
   { id: "e-omar", name: "Omar Haddad", role: "Machinist", department: "Machining", facility: "Houston" }
 ];
 
+export const CUSTOMER_ACME = "cust-acme";
+export const CUSTOMER_SAMPLE_PUMP = "cust-samplepump";
+export const CUSTOMER_THIRDCO = "cust-thirdco";
+
+const customers: Customer[] = [
+  {
+    id: CUSTOMER_ACME,
+    name: "Acme Sample Industries",
+    city: "Fairview",
+    region: "TX",
+    notes: "Primary demo customer. Fictional - not a real Rotech account.",
+    createdAt: "2026-06-01T13:00:00Z"
+  },
+  {
+    id: CUSTOMER_SAMPLE_PUMP,
+    name: "Sample Pump Services",
+    city: "Houston",
+    region: "TX",
+    notes: "Fictional demo customer for the Houston facility view.",
+    createdAt: "2026-06-02T09:00:00Z"
+  },
+  {
+    id: CUSTOMER_THIRDCO,
+    name: "Thirdco Fabrication (mock)",
+    city: "Example City",
+    region: "TX",
+    notes: "No orders yet - demonstrates an empty order/task history on the customer page.",
+    createdAt: "2026-07-01T10:00:00Z"
+  }
+];
+
+const contacts: Contact[] = [
+  { id: "cont-acme-1", customerId: CUSTOMER_ACME, name: "Jordan Blake", email: "jordan.blake@example.com", phone: "555-0101", role: "Purchasing", createdAt: "2026-06-01T13:05:00Z" },
+  { id: "cont-acme-2", customerId: CUSTOMER_ACME, name: "Riley Chen", email: "riley.chen@example.com", phone: "555-0102", role: "Plant Engineer", createdAt: "2026-06-01T13:06:00Z" },
+  { id: "cont-sample-1", customerId: CUSTOMER_SAMPLE_PUMP, name: "Morgan Diaz", email: "morgan.diaz@example.com", phone: "555-0201", role: "Operations", createdAt: "2026-06-02T09:05:00Z" }
+];
+
 const mainOrder: Order = {
   orderNumber: ORDER_NO,
-  customer: "Acme Sample Industries - Fairview",
+  customerId: CUSTOMER_ACME,
   customerPo: "DEMO-0001",
   dueDate: "2026-07-28",
   productFamily: "ANSI 1196",
@@ -40,6 +88,8 @@ const mainOrder: Order = {
   facility: "Mississauga",
   coordinatorId: "e-sarah",
   status: "In production",
+  priority: "High",
+  updatedAt: "2026-07-17T21:58:00Z",
   teamsLinkPlaceholder: "Teams thread link (placeholder - no real Teams integration)",
   publicRef: mockPublicRef(`order:${ORDER_NO}`),
   lines: [
@@ -61,7 +111,7 @@ const mainOrder: Order = {
 
 const houstonOrder: Order = {
   orderNumber: HOUSTON_ORDER_NO,
-  customer: "Sample Pump Services (mock)",
+  customerId: CUSTOMER_SAMPLE_PUMP,
   customerPo: "DEMO-0002",
   dueDate: "2026-08-14",
   productFamily: "Machining",
@@ -69,6 +119,8 @@ const houstonOrder: Order = {
   facility: "Houston",
   coordinatorId: "e-sarah",
   status: "In production",
+  priority: "Medium",
+  updatedAt: "2026-07-17T16:35:00Z",
   teamsLinkPlaceholder: "Teams thread link (placeholder - no real Teams integration)",
   publicRef: mockPublicRef(`order:${HOUSTON_ORDER_NO}`),
   lines: [
@@ -180,15 +232,31 @@ const routeOps: RouteOperation[] = [
 
 const U = (seq: number) => unitIdFor(ORDER_NO, 1, seq);
 
-const tasks: Task[] = [
+// Shop-floor tasks (Unit-linked, route-driven). Every task now carries the
+// full Planner field set; fields not meaningful for a route task (labels,
+// checklist, comments, dueDate) default to empty/null rather than being
+// backfilled with invented content.
+const shopFloorTasks: Task[] = [
   {
     id: "t-11-final",
     unitId: U(1),
     orderNumber: ORDER_NO,
+    customerId: null,
     name: "Final quality inspection",
+    description: null,
     operationId: `op-${U(1)}-10`,
+    bucket: "Complete",
+    department: "Quality",
     status: "Complete",
     ownerId: "e-priya",
+    assigneeIds: ["e-priya"],
+    startDate: null,
+    dueDate: null,
+    priority: "Medium",
+    labels: [],
+    checklist: [],
+    attachmentIds: [],
+    comments: [],
     status_beforeBlock: null,
     blockReason: null,
     handoffs: [],
@@ -202,10 +270,22 @@ const tasks: Task[] = [
     id: "t-12-trim",
     unitId: U(2),
     orderNumber: ORDER_NO,
+    customerId: null,
     name: "Machine impeller trim to 12.50 in",
+    description: null,
     operationId: `op-${U(2)}-5`,
+    bucket: "Machining",
+    department: "Machining",
     status: "Paused",
     ownerId: "e-miguel",
+    assigneeIds: ["e-miguel"],
+    startDate: null,
+    dueDate: null,
+    priority: "High",
+    labels: [],
+    checklist: [],
+    attachmentIds: [],
+    comments: [],
     status_beforeBlock: null,
     blockReason: null,
     handoffs: [
@@ -233,10 +313,22 @@ const tasks: Task[] = [
     id: "t-13-verify",
     unitId: U(3),
     orderNumber: ORDER_NO,
+    customerId: null,
     name: "Verify impeller material",
+    description: null,
     operationId: `op-${U(3)}-3`,
+    bucket: "PartsPicked",
+    department: "Assembly",
     status: "Blocked",
     ownerId: null,
+    assigneeIds: [],
+    startDate: null,
+    dueDate: null,
+    priority: "High",
+    labels: [],
+    checklist: [],
+    attachmentIds: [],
+    comments: [],
     status_beforeBlock: "Ready",
     blockReason: "Impeller casting not received (supplier ETA Jul 22)",
     handoffs: [],
@@ -249,10 +341,22 @@ const tasks: Task[] = [
     id: "t-14-quality",
     unitId: U(4),
     orderNumber: ORDER_NO,
+    customerId: null,
     name: "Final quality inspection",
+    description: null,
     operationId: `op-${U(4)}-10`,
+    bucket: "Quality",
+    department: "Quality",
     status: "Ready",
     ownerId: "e-priya",
+    assigneeIds: ["e-priya"],
+    startDate: null,
+    dueDate: null,
+    priority: "Medium",
+    labels: [],
+    checklist: [],
+    attachmentIds: [],
+    comments: [],
     status_beforeBlock: null,
     blockReason: null,
     handoffs: [],
@@ -263,10 +367,22 @@ const tasks: Task[] = [
     id: "t-15-intake",
     unitId: U(5),
     orderNumber: ORDER_NO,
+    customerId: null,
     name: "Intake review",
+    description: null,
     operationId: `op-${U(5)}-1`,
+    bucket: "TBC",
+    department: "Coordination",
     status: "Ready",
     ownerId: null,
+    assigneeIds: [],
+    startDate: null,
+    dueDate: null,
+    priority: "Medium",
+    labels: [],
+    checklist: [],
+    attachmentIds: [],
+    comments: [],
     status_beforeBlock: null,
     blockReason: null,
     handoffs: [],
@@ -277,10 +393,22 @@ const tasks: Task[] = [
     id: "t-h1-machine",
     unitId: unitIdFor(HOUSTON_ORDER_NO, 1, 1),
     orderNumber: HOUSTON_ORDER_NO,
+    customerId: null,
     name: "Machine stub shaft per drawing",
+    description: null,
     operationId: null,
+    bucket: "Machining",
+    department: "Machining",
     status: "InProgress",
     ownerId: "e-omar",
+    assigneeIds: ["e-omar"],
+    startDate: null,
+    dueDate: null,
+    priority: "Medium",
+    labels: [],
+    checklist: [],
+    attachmentIds: [],
+    comments: [],
     status_beforeBlock: null,
     blockReason: null,
     handoffs: [],
@@ -310,6 +438,232 @@ const checklistDefs: ChecklistItemDef[] = [
 
 export function buildInitialState(): AppState {
   const units = [...mainUnits, ...houstonUnits];
+  const now = new Date();
+
+  // Planner-only tasks: no Unit link, exercising every bucket/section this
+  // expansion adds. Several are deliberately assigned to the default acting
+  // employee (e-alex) so My Work's six sections all have something to show
+  // out of the box.
+  const plannerTasks: Task[] = [
+    {
+      id: "t-plan-overdue",
+      unitId: null,
+      orderNumber: ORDER_NO,
+      customerId: null,
+      name: "Confirm hydrotest fixture availability",
+      description: "Coordinate with Quality to reserve the hydrotest rig before Unit 1.4 reaches that step.",
+      operationId: null,
+      bucket: "OrderPlanning",
+      department: "Coordination",
+      status: "Ready",
+      ownerId: "e-alex",
+      assigneeIds: ["e-alex"],
+      startDate: addDaysIso(now, -7),
+      dueDate: addDaysIso(now, -3),
+      priority: "High",
+      labels: ["Fixture"],
+      checklist: [
+        { id: "cl-1", text: "Check fixture calendar", done: true },
+        { id: "cl-2", text: "Confirm with Quality lead", done: false }
+      ],
+      attachmentIds: [],
+      comments: [
+        { id: "cm-1", authorId: "e-dave", at: addDaysIso(now, -5), body: "Rig is booked through Thursday - check with Priya." }
+      ],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [{ action: "CreatedFromPlanner", actorId: "e-sarah", at: addDaysIso(now, -7), note: null }],
+      sourcePostId: null
+    },
+    {
+      id: "t-plan-duetoday",
+      unitId: null,
+      orderNumber: ORDER_NO,
+      customerId: null,
+      name: "Confirm crate specs with shipping",
+      description: null,
+      operationId: null,
+      bucket: "Packaging",
+      department: "Shipping",
+      status: "Ready",
+      ownerId: "e-alex",
+      assigneeIds: ["e-alex", "e-tom"],
+      startDate: null,
+      dueDate: addDaysIso(now, 0),
+      priority: "Medium",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [{ action: "CreatedFromPlanner", actorId: "e-sarah", at: addDaysIso(now, -2), note: null }],
+      sourcePostId: null
+    },
+    {
+      id: "t-plan-dueweek",
+      unitId: null,
+      orderNumber: ORDER_NO,
+      customerId: null,
+      name: "Review Unit 1.5 intake paperwork",
+      description: null,
+      operationId: null,
+      bucket: "Quality",
+      department: "Quality",
+      status: "Ready",
+      ownerId: "e-alex",
+      assigneeIds: ["e-alex"],
+      startDate: null,
+      dueDate: addDaysIso(now, 3),
+      priority: "Medium",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [{ action: "CreatedFromPlanner", actorId: "e-sarah", at: addDaysIso(now, -1), note: null }],
+      sourcePostId: null
+    },
+    {
+      id: "t-plan-inprogress",
+      unitId: null,
+      orderNumber: ORDER_NO,
+      customerId: null,
+      name: "Draft Unit 1.2 special instruction verification report",
+      description: null,
+      operationId: null,
+      bucket: "AssemblyTesting",
+      department: "Assembly",
+      status: "InProgress",
+      ownerId: "e-alex",
+      assigneeIds: ["e-alex"],
+      startDate: addDaysIso(now, -1),
+      dueDate: addDaysIso(now, 5),
+      priority: "Medium",
+      labels: ["Report"],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [{ action: "Started", actorId: "e-alex", at: addDaysIso(now, -1), note: null }],
+      sourcePostId: null
+    },
+    {
+      id: "t-plan-blocked",
+      unitId: null,
+      orderNumber: ORDER_NO,
+      customerId: null,
+      name: "Await customer sign-off on CD4MCu change letter",
+      description: null,
+      operationId: null,
+      bucket: "OnHold",
+      department: "Coordination",
+      status: "Blocked",
+      ownerId: "e-alex",
+      assigneeIds: ["e-alex"],
+      startDate: null,
+      dueDate: addDaysIso(now, 4),
+      priority: "High",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: "Ready",
+      blockReason: "Waiting on customer sign-off",
+      handoffs: [],
+      history: [{ action: "Blocked", actorId: "e-alex", at: addDaysIso(now, -1), note: "Waiting on customer sign-off" }],
+      sourcePostId: null
+    },
+    {
+      id: "t-plan-completed",
+      unitId: null,
+      orderNumber: ORDER_NO,
+      customerId: null,
+      name: "Send milestone update to coordinator",
+      description: null,
+      operationId: null,
+      bucket: "Complete",
+      department: "Coordination",
+      status: "Complete",
+      ownerId: "e-alex",
+      assigneeIds: ["e-alex"],
+      startDate: null,
+      dueDate: addDaysIso(now, -2),
+      priority: "Low",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [
+        { action: "Started", actorId: "e-alex", at: addDaysIso(now, -3), note: null },
+        { action: "Completed", actorId: "e-alex", at: addDaysIso(now, -2), note: null }
+      ],
+      sourcePostId: null
+    },
+    {
+      id: "t-plan-customer",
+      unitId: null,
+      orderNumber: null,
+      customerId: CUSTOMER_ACME,
+      name: "Follow up on Q3 duplex material pricing",
+      description: "Customer asked about CD4MCu pricing for future orders - not tied to a specific work order yet.",
+      operationId: null,
+      bucket: "TBC",
+      department: null,
+      status: "Ready",
+      ownerId: null,
+      assigneeIds: [],
+      startDate: null,
+      dueDate: addDaysIso(now, 2),
+      priority: "Medium",
+      labels: ["Account"],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [{ action: "CreatedFromCustomer", actorId: "e-sarah", at: addDaysIso(now, -4), note: null }],
+      sourcePostId: null
+    },
+    {
+      id: "t-plan-houston",
+      unitId: null,
+      orderNumber: HOUSTON_ORDER_NO,
+      customerId: null,
+      name: "Source replacement lathe insert",
+      description: null,
+      operationId: null,
+      bucket: "Machining",
+      department: "Machining",
+      status: "InProgress",
+      ownerId: "e-omar",
+      assigneeIds: ["e-omar"],
+      startDate: null,
+      dueDate: addDaysIso(now, 6),
+      priority: "Low",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [{ action: "CreatedFromPlanner", actorId: "e-sarah", at: addDaysIso(now, -1), note: null }],
+      sourcePostId: null
+    }
+  ];
+
+  const tasks: Task[] = [...shopFloorTasks, ...plannerTasks];
 
   const qrIdentities: QrIdentity[] = [
     {
@@ -372,6 +726,8 @@ export function buildInitialState(): AppState {
   const initial: AppState = {
     currentUserId: "e-alex",
     employees,
+    customers,
+    contacts,
     orders: [mainOrder, houstonOrder],
     units,
     routeOps,

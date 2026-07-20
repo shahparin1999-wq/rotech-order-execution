@@ -2,8 +2,8 @@
 
 // Small shared presentation components.
 
-import type { SaveState, TaskStatus, UnitStatus } from "@/domain/types";
-import { humanizeStatus, unitStatusLabel } from "@/domain/selectors";
+import type { PlannerBucket, Priority, SaveState, TaskStatus, UnitStatus } from "@/domain/types";
+import { humanizeStatus, PLANNER_BUCKET_LABELS, unitStatusLabel } from "@/domain/selectors";
 
 export function UnitStatusBadge({ status }: { status: UnitStatus }) {
   return <span className={`badge s-${status.toLowerCase()}`}>{unitStatusLabel(status)}</span>;
@@ -15,6 +15,14 @@ export function TaskStatusBadge({ status }: { status: TaskStatus }) {
 
 export function OperationStatusBadge({ status }: { status: string }) {
   return <span className={`badge s-${status.toLowerCase()}`}>{humanizeStatus(status)}</span>;
+}
+
+export function PriorityBadge({ priority }: { priority: Priority }) {
+  return <span className={`pill pill-priority-${priority.toLowerCase()}`}>{priority}</span>;
+}
+
+export function PlannerBucketBadge({ bucket }: { bucket: PlannerBucket }) {
+  return <span className="pill pill-neutral">{PLANNER_BUCKET_LABELS[bucket]}</span>;
 }
 
 export function SaveStateBadge({ state }: { state: SaveState }) {

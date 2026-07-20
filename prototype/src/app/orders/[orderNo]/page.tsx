@@ -3,33 +3,42 @@
 import Link from "next/link";
 import { Suspense, use, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAppState } from "@/store/StoreProvider";
+import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import {
   checklistProgress,
   currentResponses,
+  customerNameWithCity,
   employeeName,
   orderByNumber,
   orderProgress,
+  PLANNER_BUCKETS,
+  PLANNER_BUCKET_LABELS,
+  tasksForOrder,
   unitsForOrder
 } from "@/domain/selectors";
-import type { Unit, UnitStatus } from "@/domain/types";
+import type { PlannerBucket, Unit, UnitStatus } from "@/domain/types";
 import {
   Exact,
+  PriorityBadge,
   SaveStateBadge,
   TaskStatusBadge,
   UnitStatusBadge
 } from "@/components/bits";
 import { ActivityFeed } from "@/components/ActivityFeed";
+import { NewTaskDrawer } from "@/components/NewTaskDrawer";
+import { FieldGroup } from "@/components/Drawer";
+import { PlusIcon } from "@/components/icons";
 
 const TABS = [
   "overview",
   "units",
   "tasks",
-  "activity",
+  "planner",
   "materials",
   "quality",
-  "documents",
   "shipping",
+  "documents",
+  "activity",
   "audit"
 ] as const;
 type Tab = (typeof TABS)[number];
@@ -490,12 +499,68 @@ function AuditTab({ orderNo }: { orderNo: string }) {
   );
 }
 
+function OrderPlannerTab({ orderNo }: { orderNo: string }) {
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const tasks = tasksForOrder(state, orderNo);
+  return (
+    <div className="planner-board" data-testid="order-planner-board">
+      {PLANNER_BUCKETS.map((bucket) => {
+        const bucketTasks = tasks.filter((t) => t.bucket === bucket);
+        return (
+          <div key={bucket} className="planner-column" data-testid={`order-planner-column-${bucket}`}>
+            <div className="planner-column-header">
+              {PLANNER_BUCKET_LABELS[bucket]} ({bucketTasks.length})
+            </div>
+            {bucketTasks.map((t) => (
+              <div key={t.id} className="planner-card" data-testid={`order-planner-card-${t.id}`}>
+                <div className="planner-card-title">
+                  {t.unitId ? <Link href={`/units/${t.unitId}`}>{t.name}</Link> : t.name}
+                </div>
+                <div className="planner-card-meta">
+                  <TaskStatusBadge status={t.status} />
+                  <PriorityBadge priority={t.priority} />
+                </div>
+                <div className="planner-card-meta">
+                  <span style={{ fontSize: 11.5 }}>{employeeName(state, t.ownerId)}</span>
+                  <select
+                    className="move-select"
+                    value={t.bucket}
+                    aria-label={`Move ${t.name} to bucket`}
+                    onChange={(e) => dispatch({ type: "moveTaskBucket", taskId: t.id, bucket: e.target.value as PlannerBucket })}
+                  >
+                    {PLANNER_BUCKETS.map((b) => (
+                      <option key={b} value={b}>{PLANNER_BUCKET_LABELS[b]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function OrderWorkspace({ orderNo }: { orderNo: string }) {
   const state = useAppState();
+  const dispatch = useAppDispatch();
   const params = useSearchParams();
   const tab = (params.get("tab") ?? "overview") as Tab;
   const order = orderByNumber(state, orderNo);
   const [showUnits, setShowUnits] = useState(false);
+  const [showNewTask, setShowNewTask] = useState(false);
+  const [showEditOrder, setShowEditOrder] = useState(false);
+  const [showUnitNote, setShowUnitNote] = useState(false);
+  const [showDueDate, setShowDueDate] = useState(false);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [editPo, setEditPo] = useState("");
+  const [editOrderType, setEditOrderType] = useState("");
+  const [noteUnitId, setNoteUnitId] = useState("");
+  const [noteBody, setNoteBody] = useState("");
+  const [newDueDate, setNewDueDate] = useState("");
+  const [contactName, setContactName] = useState("");
   if (!order) {
     return (
       <div className="page">
@@ -514,7 +579,7 @@ function OrderWorkspace({ orderNo }: { orderNo: string }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 18px", alignItems: "baseline" }}>
           <h1 style={{ margin: 0 }}>{order.orderNumber}</h1>
           <span>
-            <b>{order.customer}</b> · PO {order.customerPo}
+            <b>{customerNameWithCity(state, order.customerId)}</b> · PO {order.customerPo}
           </span>
           <span>Due {order.dueDate}</span>
           <span className="badge s-notstarted">{order.facility}</span>
@@ -532,9 +597,6 @@ function OrderWorkspace({ orderNo }: { orderNo: string }) {
           <button className="pill-link" onClick={() => setShowUnits((v) => !v)}>
             {showUnits ? "Hide" : "Show"} Unit set
           </button>
-          <Link className="btn" style={{ minHeight: 38, marginLeft: "auto" }} href={`/labels?order=${orderNo}`}>
-            🖨️ Print Work Order Plan
-          </Link>
         </div>
         {showUnits && (
           <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }} data-testid="header-unit-set">
@@ -546,6 +608,134 @@ function OrderWorkspace({ orderNo }: { orderNo: string }) {
           </div>
         )}
       </div>
+
+      <div className="command-bar">
+        <Link className="btn" href={`/labels?order=${orderNo}`}>
+          Print Work Order Plan
+        </Link>
+        <button type="button" className="btn btn-primary" data-testid="order-new-task" onClick={() => setShowNewTask(true)}>
+          <PlusIcon size={13} /> New task
+        </button>
+        <button type="button" className="btn" data-testid="order-edit" onClick={() => { setEditPo(order.customerPo); setEditOrderType(order.orderType); setShowEditOrder((v) => !v); }}>
+          Edit order
+        </button>
+        <button type="button" className="btn" data-testid="order-add-unit-note" onClick={() => setShowUnitNote((v) => !v)}>
+          Add Unit note
+        </button>
+        <button type="button" className="btn" data-testid="order-change-duedate" onClick={() => { setNewDueDate(order.dueDate); setShowDueDate((v) => !v); }}>
+          Change due date
+        </button>
+        <button type="button" className="btn" data-testid="order-add-contact" onClick={() => setShowAddContact((v) => !v)}>
+          Add customer contact
+        </button>
+      </div>
+
+      {showEditOrder && (
+        <div className="card" data-testid="order-edit-panel">
+          <div className="field-row">
+            <FieldGroup label="Customer PO">
+              <input value={editPo} onChange={(e) => setEditPo(e.target.value)} />
+            </FieldGroup>
+            <FieldGroup label="Order type">
+              <input value={editOrderType} onChange={(e) => setEditOrderType(e.target.value)} />
+            </FieldGroup>
+          </div>
+          <div className="composer-actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              data-testid="order-edit-save"
+              onClick={() => {
+                dispatch({ type: "editOrder", orderNumber: orderNo, input: { customerPo: editPo, orderType: editOrderType } });
+                setShowEditOrder(false);
+              }}
+            >
+              Save
+            </button>
+            <button type="button" className="btn" onClick={() => setShowEditOrder(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {showUnitNote && (
+        <div className="card" data-testid="order-unit-note-panel">
+          <FieldGroup label="Unit">
+            <select value={noteUnitId} onChange={(e) => setNoteUnitId(e.target.value)} data-testid="order-unit-note-select">
+              <option value="">Select a Unit…</option>
+              {unitsForOrder(state, orderNo).map((u) => (
+                <option key={u.unitId} value={u.unitId}>{u.unitId}</option>
+              ))}
+            </select>
+          </FieldGroup>
+          <FieldGroup label="Note">
+            <textarea rows={2} value={noteBody} onChange={(e) => setNoteBody(e.target.value)} data-testid="order-unit-note-body" />
+          </FieldGroup>
+          <div className="composer-actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!noteUnitId || !noteBody.trim()}
+              data-testid="order-unit-note-save"
+              onClick={() => {
+                dispatch({ type: "addPost", orderNumber: orderNo, unitId: noteUnitId, body: noteBody.trim() });
+                setNoteBody("");
+                setNoteUnitId("");
+                setShowUnitNote(false);
+              }}
+            >
+              Save note
+            </button>
+            <button type="button" className="btn" onClick={() => setShowUnitNote(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {showDueDate && (
+        <div className="card" data-testid="order-duedate-panel">
+          <FieldGroup label="New due date">
+            <input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} data-testid="order-duedate-input" />
+          </FieldGroup>
+          <div className="composer-actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!newDueDate}
+              data-testid="order-duedate-save"
+              onClick={() => {
+                dispatch({ type: "changeOrderDueDate", orderNumber: orderNo, dueDate: newDueDate });
+                setShowDueDate(false);
+              }}
+            >
+              Save
+            </button>
+            <button type="button" className="btn" onClick={() => setShowDueDate(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {showAddContact && (
+        <div className="card" data-testid="order-add-contact-panel">
+          <FieldGroup label="Contact name">
+            <input value={contactName} onChange={(e) => setContactName(e.target.value)} data-testid="order-contact-name" />
+          </FieldGroup>
+          <div className="composer-actions" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!contactName.trim()}
+              data-testid="order-contact-save"
+              onClick={() => {
+                dispatch({ type: "createContact", customerId: order.customerId, input: { name: contactName.trim() } });
+                setContactName("");
+                setShowAddContact(false);
+              }}
+            >
+              Save contact
+            </button>
+            <button type="button" className="btn" onClick={() => setShowAddContact(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <nav className="tabs" aria-label="Order tabs">
         {TABS.map((t) => (
@@ -562,12 +752,17 @@ function OrderWorkspace({ orderNo }: { orderNo: string }) {
       {tab === "overview" && <OverviewTab orderNo={orderNo} />}
       {tab === "units" && <UnitsTab orderNo={orderNo} />}
       {tab === "tasks" && <TasksTab orderNo={orderNo} />}
+      {tab === "planner" && <OrderPlannerTab orderNo={orderNo} />}
       {tab === "activity" && <ActivityFeed orderNumber={orderNo} />}
       {tab === "materials" && <MaterialsTab orderNo={orderNo} />}
       {tab === "quality" && <QualityTab orderNo={orderNo} />}
       {tab === "documents" && <DocumentsTab orderNo={orderNo} />}
       {tab === "shipping" && <ShippingTab orderNo={orderNo} />}
       {tab === "audit" && <AuditTab orderNo={orderNo} />}
+
+      {showNewTask && (
+        <NewTaskDrawer onClose={() => setShowNewTask(false)} defaultOrderNumber={orderNo} />
+      )}
     </div>
   );
 }

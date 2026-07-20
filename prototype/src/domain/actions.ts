@@ -9,15 +9,25 @@ import type {
   AttachmentCategory,
   AuditEvent,
   ChecklistResponse,
+  ChecklistSubItem,
   ConvertedKind,
+  Contact,
+  Customer,
+  Facility,
   HandoffRecord,
   MaterialChange,
+  Order,
+  OrderLine,
+  PlannerBucket,
+  Priority,
   Problem,
+  RouteOperation,
   SaveState,
   SpecialInstruction,
   Task,
   TaskStatus
 } from "./types";
+import { generateUnits, mockPublicRef } from "./ids";
 import { recomputeUnitProjection } from "./projections";
 
 function nowIso(at?: string): string {
@@ -71,7 +81,7 @@ export function startTask(state: AppState, taskId: string, actorId: string, at?:
     at: ts, actorId, action: "task.started", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Started "${t.name}".`, supersedesEventId: null
   });
-  s = recomputeUnitProjection(s, t.unitId);
+  if (t.unitId) s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -135,7 +145,7 @@ export function pauseTask(state: AppState, taskId: string, actorId: string, inpu
       : `Paused with handoff: ${input.reason}`,
     supersedesEventId: priorPauseEventId
   });
-  s = recomputeUnitProjection(s, t.unitId);
+  if (t.unitId) s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -161,7 +171,7 @@ export function resumeTask(state: AppState, taskId: string, actorId: string, at?
     at: ts, actorId, action: "task.resumed", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Resumed "${t.name}".`, supersedesEventId: null
   });
-  s = recomputeUnitProjection(s, t.unitId);
+  if (t.unitId) s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -177,7 +187,7 @@ export function completeTask(state: AppState, taskId: string, actorId: string, a
     at: ts, actorId, action: "task.completed", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Completed "${t.name}".`, supersedesEventId: null
   });
-  s = recomputeUnitProjection(s, t.unitId);
+  if (t.unitId) s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -198,7 +208,7 @@ export function blockTask(state: AppState, taskId: string, actorId: string, reas
     at: ts, actorId, action: "task.blocked", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Blocked: ${reason}`, supersedesEventId: null
   });
-  s = recomputeUnitProjection(s, t.unitId);
+  if (t.unitId) s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -217,7 +227,7 @@ export function resolveBlocker(state: AppState, taskId: string, actorId: string,
     at: ts, actorId, action: "task.blockerResolved", targetType: "Task", targetId: taskId,
     unitId: t.unitId, detail: `Blocker resolved; task returned to ${restored}.`, supersedesEventId: null
   });
-  s = recomputeUnitProjection(s, t.unitId);
+  if (t.unitId) s = recomputeUnitProjection(s, t.unitId);
   return s;
 }
 
@@ -448,10 +458,22 @@ export function convertPost(state: AppState, postId: string, actorId: string, in
       id,
       unitId: unitId!,
       orderNumber: post.orderNumber,
+      customerId: null,
       name: input.name ?? post.body.slice(0, 80),
+      description: null,
       operationId: null,
+      bucket: "TBC",
+      department: null,
       status: "Ready",
       ownerId: null,
+      assigneeIds: [],
+      startDate: null,
+      dueDate: null,
+      priority: "Medium",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
       status_beforeBlock: null,
       blockReason: null,
       handoffs: [],
@@ -473,6 +495,12 @@ export function convertPost(state: AppState, postId: string, actorId: string, in
     detail: `Activity post ${postId} converted to ${input.kind} ${recordId}; original comment preserved.`,
     supersedesEventId: null
   });
+  // Closes a previously-documented gap: a Task created here (unlike
+  // MaterialChange/SpecialInstruction/Problem) can affect a zero-RouteOperation
+  // Unit's calculated status via the Task-only fallback, so recompute it.
+  if (input.kind === "Task" && unitId) {
+    s = recomputeUnitProjection(s, unitId);
+  }
   return s;
 }
 
@@ -496,4 +524,507 @@ export function reprintLabel(state: AppState, publicRef: string, actorId: string
     detail: `Label reprinted for ${qr.label}; identity unchanged.`, supersedesEventId: null
   });
   return s;
+}
+
+// ---------------------------------------------------------------------------
+// Customers and contacts
+// ---------------------------------------------------------------------------
+
+export interface CustomerInput {
+  name: string;
+  city: string;
+  region: string;
+  notes?: string | null;
+}
+
+export function createCustomer(state: AppState, actorId: string, input: CustomerInput, at?: string): AppState {
+  if (!input.name.trim()) throw new Error("Customer name is required");
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "cust");
+  const customer: Customer = {
+    id,
+    name: input.name,
+    city: input.city,
+    region: input.region,
+    notes: input.notes ?? null,
+    createdAt: ts
+  };
+  let s = { ...s0, customers: [...s0.customers, customer] };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "customer.created", targetType: "Customer", targetId: id,
+    unitId: null, detail: `Customer "${customer.name}" created.`, supersedesEventId: null
+  });
+  return s;
+}
+
+export interface ContactInput {
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  role?: string | null;
+}
+
+export function createContact(state: AppState, actorId: string, customerId: string, input: ContactInput, at?: string): AppState {
+  if (!state.customers.some((c) => c.id === customerId)) {
+    throw new Error(`Unknown customer ${customerId}`);
+  }
+  if (!input.name.trim()) throw new Error("Contact name is required");
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "cont");
+  const contact: Contact = {
+    id,
+    customerId,
+    name: input.name,
+    email: input.email ?? null,
+    phone: input.phone ?? null,
+    role: input.role ?? null,
+    createdAt: ts
+  };
+  let s = { ...s0, contacts: [...s0.contacts, contact] };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "contact.created", targetType: "Contact", targetId: id,
+    unitId: null, detail: `Contact "${contact.name}" added to customer ${customerId}.`, supersedesEventId: null
+  });
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// Work order creation
+// ---------------------------------------------------------------------------
+
+// A minimal, generic route used only for orders created through the New Work
+// Order drawer - deliberately not the approved 1196 route (that stays fixture
+// data pending template governance). Every step starts NotStarted except the
+// first, which is Ready, matching the same seed convention as the fixtures.
+const GENERIC_ROUTE: Array<{ name: string; department: RouteOperation["department"] }> = [
+  { name: "Intake review", department: "Coordination" },
+  { name: "Production", department: "Assembly" },
+  { name: "Quality inspection", department: "Quality" },
+  { name: "Packaging", department: "Shipping" }
+];
+
+function buildGenericRoute(unitId: string): RouteOperation[] {
+  return GENERIC_ROUTE.map((step, i) => ({
+    id: `op-${unitId}-${i + 1}`,
+    unitId,
+    seq: i + 1,
+    name: step.name,
+    department: step.department,
+    status: i === 0 ? "Ready" : "NotStarted"
+  }));
+}
+
+export interface WorkOrderInput {
+  orderNumber: string;
+  customerId: string;
+  customerPo: string;
+  description: string;
+  facility: Facility;
+  orderType: string;
+  priority: Priority;
+  dueDate: string;
+  coordinatorId: string;
+  instructions?: string;
+  quantity: number;
+  model: string;
+  size: string;
+  material: string;
+}
+
+// Confirms a new work order exactly once: creates the Order, generates N
+// isolated Units with stable Unit IDs (never a shared/aggregate QC object),
+// a generic route per Unit, and an audit trail - mirroring the same
+// generate-exactly-once discipline as the seeded fixture order.
+export function createWorkOrder(state: AppState, actorId: string, input: WorkOrderInput, at?: string): AppState {
+  if (!input.orderNumber.trim()) throw new Error("Order number is required");
+  if (state.orders.some((o) => o.orderNumber === input.orderNumber)) {
+    throw new Error(`Order ${input.orderNumber} already exists`);
+  }
+  if (!state.customers.some((c) => c.id === input.customerId)) {
+    throw new Error(`Unknown customer ${input.customerId}`);
+  }
+  if (input.quantity < 1) throw new Error("Quantity must be at least 1");
+
+  const ts = nowIso(at);
+  const line: OrderLine = {
+    lineNumber: 1,
+    product: `${input.model} ${input.size}`,
+    description: input.description,
+    quantity: input.quantity,
+    orderedMaterial: input.material,
+    templateName: "Generic work order (mock)"
+  };
+  const order: Order = {
+    orderNumber: input.orderNumber,
+    customerId: input.customerId,
+    customerPo: input.customerPo,
+    dueDate: input.dueDate,
+    productFamily: input.model,
+    orderType: input.orderType,
+    facility: input.facility,
+    coordinatorId: input.coordinatorId,
+    status: "Open",
+    priority: input.priority,
+    updatedAt: ts,
+    teamsLinkPlaceholder: "Teams thread link (placeholder - no real Teams integration)",
+    publicRef: mockPublicRef(`order:${input.orderNumber}`),
+    lines: [line],
+    risks: []
+  };
+
+  const units = generateUnits(
+    input.orderNumber,
+    1,
+    input.quantity,
+    {
+      model: input.model,
+      size: input.size,
+      orderedMaterial: input.material,
+      location: `${input.facility} - Intake`
+    },
+    {}
+  );
+  const routeOps = units.flatMap((u) => buildGenericRoute(u.unitId));
+  const qrIdentities = [
+    {
+      publicRef: order.publicRef,
+      recordType: "Order" as const,
+      targetId: order.orderNumber,
+      label: `Master order ${order.orderNumber}`,
+      printEvents: []
+    },
+    ...units.map((u) => ({
+      publicRef: u.publicRef,
+      recordType: "Unit" as const,
+      targetId: u.unitId,
+      label: `Unit ${u.unitId}`,
+      printEvents: []
+    }))
+  ];
+
+  let s: AppState = {
+    ...state,
+    orders: [...state.orders, order],
+    units: [...state.units, ...units],
+    routeOps: [...state.routeOps, ...routeOps],
+    qrIdentities: [...state.qrIdentities, ...qrIdentities]
+  };
+
+  // One intake Task per Unit, each with its own id via takeId() so there is
+  // no chance of two Units in the same order (or a later action in the same
+  // session) colliding on an id.
+  for (const u of units) {
+    const [taskId, s1] = takeId(s, "t");
+    const task: Task = {
+      id: taskId,
+      unitId: u.unitId,
+      orderNumber: input.orderNumber,
+      customerId: null,
+      name: "Intake review",
+      description: input.instructions ?? null,
+      operationId: `op-${u.unitId}-1`,
+      bucket: "TBC",
+      department: "Coordination",
+      status: "Ready",
+      ownerId: null,
+      assigneeIds: [],
+      startDate: null,
+      dueDate: null,
+      priority: input.priority,
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [],
+      sourcePostId: null
+    };
+    s = { ...s1, tasks: [...s1.tasks, task] };
+  }
+
+  s = appendAudit(s, {
+    at: ts, actorId, action: "order.created", targetType: "Order", targetId: order.orderNumber,
+    unitId: null,
+    detail: `Order ${order.orderNumber} created for quantity ${input.quantity}; generated ${units.length} independent Unit(s).`,
+    supersedesEventId: null
+  });
+  for (const u of units) {
+    s = appendAudit(s, {
+      at: ts, actorId, action: "unit.created", targetType: "Unit", targetId: u.unitId,
+      unitId: u.unitId, detail: "Unit created with stable QR identity (pre-serial).", supersedesEventId: null
+    });
+    s = recomputeUnitProjection(s, u.unitId);
+  }
+  return s;
+}
+
+export function changeOrderDueDate(state: AppState, orderNumber: string, actorId: string, dueDate: string, at?: string): AppState {
+  const order = state.orders.find((o) => o.orderNumber === orderNumber);
+  if (!order) throw new Error(`Unknown order ${orderNumber}`);
+  const ts = nowIso(at);
+  let s: AppState = {
+    ...state,
+    orders: state.orders.map((o) =>
+      o.orderNumber === orderNumber ? { ...o, dueDate, updatedAt: ts } : o
+    )
+  };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "order.dueDateChanged", targetType: "Order", targetId: orderNumber,
+    unitId: null, detail: `Due date changed from ${order.dueDate} to ${dueDate}.`, supersedesEventId: null
+  });
+  return s;
+}
+
+export interface OrderEditInput {
+  customerPo?: string;
+  orderType?: string;
+  priority?: Priority;
+  coordinatorId?: string;
+}
+
+// A small, explicit set of order-header fields editable from the order
+// workspace's "Edit order" action - deliberately not a generic patch of
+// every field, so identifiers, lines, and status stay governed by their own
+// dedicated actions.
+export function editOrder(state: AppState, orderNumber: string, actorId: string, input: OrderEditInput, at?: string): AppState {
+  const order = state.orders.find((o) => o.orderNumber === orderNumber);
+  if (!order) throw new Error(`Unknown order ${orderNumber}`);
+  const ts = nowIso(at);
+  let s: AppState = {
+    ...state,
+    orders: state.orders.map((o) =>
+      o.orderNumber === orderNumber ? { ...o, ...input, updatedAt: ts } : o
+    )
+  };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "order.edited", targetType: "Order", targetId: orderNumber,
+    unitId: null, detail: `Order details updated: ${Object.keys(input).join(", ")}.`, supersedesEventId: null
+  });
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// Planner tasks
+// ---------------------------------------------------------------------------
+
+export interface TaskInput {
+  name: string;
+  description?: string | null;
+  orderNumber?: string | null;
+  unitId?: string | null;
+  customerId?: string | null;
+  bucket?: PlannerBucket;
+  department?: Task["department"];
+  priority?: Priority;
+  dueDate?: string | null;
+  startDate?: string | null;
+  assigneeIds?: string[];
+  labels?: string[];
+}
+
+// General task creator used from Planner, an Order, a Unit, a Customer, and
+// My Work. A Unit-linked task must belong to the stated order (ancestor
+// consistency, same rule as addAttachment) so a task can never silently
+// attach to the wrong Unit's order.
+export function createTask(state: AppState, actorId: string, input: TaskInput, at?: string): AppState {
+  if (!input.name.trim()) throw new Error("Task name is required");
+  if (input.unitId) {
+    const unit = state.units.find((u) => u.unitId === input.unitId);
+    if (!unit) throw new Error(`Unknown unit ${input.unitId}`);
+    if (input.orderNumber && unit.orderNumber !== input.orderNumber) {
+      throw new Error(`Inconsistent ancestors: ${input.unitId} does not belong to ${input.orderNumber}`);
+    }
+  }
+  if (input.customerId && !state.customers.some((c) => c.id === input.customerId)) {
+    throw new Error(`Unknown customer ${input.customerId}`);
+  }
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "t");
+  const assigneeIds = input.assigneeIds ?? [];
+  const task: Task = {
+    id,
+    unitId: input.unitId ?? null,
+    orderNumber: input.orderNumber ?? (input.unitId ? state.units.find((u) => u.unitId === input.unitId)!.orderNumber : null),
+    customerId: input.customerId ?? null,
+    name: input.name,
+    description: input.description ?? null,
+    operationId: null,
+    bucket: input.bucket ?? "TBC",
+    department: input.department ?? null,
+    status: "Ready",
+    ownerId: assigneeIds[0] ?? null,
+    assigneeIds,
+    startDate: input.startDate ?? null,
+    dueDate: input.dueDate ?? null,
+    priority: input.priority ?? "Medium",
+    labels: input.labels ?? [],
+    checklist: [],
+    attachmentIds: [],
+    comments: [],
+    status_beforeBlock: null,
+    blockReason: null,
+    handoffs: [],
+    history: [{ action: "Created", actorId, at: ts, note: null }],
+    sourcePostId: null
+  };
+  let s = { ...s0, tasks: [...s0.tasks, task] };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "task.created", targetType: "Task", targetId: id,
+    unitId: task.unitId, detail: `Task "${task.name}" created.`, supersedesEventId: null
+  });
+  if (task.unitId) s = recomputeUnitProjection(s, task.unitId);
+  return s;
+}
+
+export function assignTask(state: AppState, taskId: string, actorId: string, employeeId: string, at?: string): AppState {
+  const t = mustFindTask(state, taskId);
+  if (t.assigneeIds.includes(employeeId)) return state;
+  const ts = nowIso(at);
+  const assigneeIds = [...t.assigneeIds, employeeId];
+  let s = updateTask(state, taskId, {
+    assigneeIds,
+    ownerId: t.ownerId ?? employeeId,
+    ...withHistory(t, "Assigned", actorId, ts, employeeId)
+  });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "task.assigned", targetType: "Task", targetId: taskId,
+    unitId: t.unitId, detail: `Assigned to ${employeeId}.`, supersedesEventId: null
+  });
+  return s;
+}
+
+export function unassignTask(state: AppState, taskId: string, actorId: string, employeeId: string, at?: string): AppState {
+  const t = mustFindTask(state, taskId);
+  const ts = nowIso(at);
+  const assigneeIds = t.assigneeIds.filter((id) => id !== employeeId);
+  let s = updateTask(state, taskId, {
+    assigneeIds,
+    ownerId: t.ownerId === employeeId ? (assigneeIds[0] ?? null) : t.ownerId,
+    ...withHistory(t, "Unassigned", actorId, ts, employeeId)
+  });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "task.unassigned", targetType: "Task", targetId: taskId,
+    unitId: t.unitId, detail: `Unassigned ${employeeId}.`, supersedesEventId: null
+  });
+  return s;
+}
+
+export function changeTaskDueDate(state: AppState, taskId: string, actorId: string, dueDate: string | null, at?: string): AppState {
+  const t = mustFindTask(state, taskId);
+  const ts = nowIso(at);
+  let s = updateTask(state, taskId, {
+    dueDate,
+    ...withHistory(t, "DueDateChanged", actorId, ts, dueDate)
+  });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "task.dueDateChanged", targetType: "Task", targetId: taskId,
+    unitId: t.unitId, detail: `Due date changed to ${dueDate ?? "(none)"}.`, supersedesEventId: null
+  });
+  return s;
+}
+
+export function changeTaskPriority(state: AppState, taskId: string, actorId: string, priority: Priority, at?: string): AppState {
+  const t = mustFindTask(state, taskId);
+  const ts = nowIso(at);
+  let s = updateTask(state, taskId, {
+    priority,
+    ...withHistory(t, "PriorityChanged", actorId, ts, priority)
+  });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "task.priorityChanged", targetType: "Task", targetId: taskId,
+    unitId: t.unitId, detail: `Priority changed to ${priority}.`, supersedesEventId: null
+  });
+  return s;
+}
+
+// The Planner board move. Purely a bucket change - it does not, by itself,
+// alter Task.status (moving into/out of the Complete bucket is a distinct,
+// explicit action - see completeTaskDirect/reopenTaskDirect - so a board
+// drag never silently completes or reopens work).
+export function moveTaskBucket(state: AppState, taskId: string, actorId: string, bucket: PlannerBucket, at?: string): AppState {
+  const t = mustFindTask(state, taskId);
+  if (t.bucket === bucket) return state;
+  const ts = nowIso(at);
+  let s = updateTask(state, taskId, {
+    bucket,
+    ...withHistory(t, "BucketMoved", actorId, ts, bucket)
+  });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "task.bucketMoved", targetType: "Task", targetId: taskId,
+    unitId: t.unitId, detail: `Moved from ${t.bucket} to ${bucket}.`, supersedesEventId: null
+  });
+  return s;
+}
+
+// Lenient Planner completion: unlike the strict shop-floor completeTask
+// (which requires InProgress), a Planner task can be marked complete from
+// any non-Complete state. Reopening restores the bucket it was in before
+// completion via history, defaulting to TBC if that can't be determined.
+export function completeTaskDirect(state: AppState, taskId: string, actorId: string, at?: string): AppState {
+  const t = mustFindTask(state, taskId);
+  if (t.status === "Complete") throw new Error(`Task ${taskId} is already complete`);
+  const ts = nowIso(at);
+  let s = updateTask(state, taskId, {
+    status: "Complete",
+    bucket: "Complete",
+    ...withHistory(t, "Completed", actorId, ts, null)
+  });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "task.completed", targetType: "Task", targetId: taskId,
+    unitId: t.unitId, detail: `Completed "${t.name}".`, supersedesEventId: null
+  });
+  if (t.unitId) s = recomputeUnitProjection(s, t.unitId);
+  return s;
+}
+
+export function reopenTaskDirect(state: AppState, taskId: string, actorId: string, at?: string): AppState {
+  const t = mustFindTask(state, taskId);
+  if (t.status !== "Complete") throw new Error(`Task ${taskId} is not complete`);
+  const ts = nowIso(at);
+  let s = updateTask(state, taskId, {
+    status: "Ready",
+    bucket: "TBC",
+    ...withHistory(t, "Reopened", actorId, ts, null)
+  });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "task.reopened", targetType: "Task", targetId: taskId,
+    unitId: t.unitId, detail: `Reopened "${t.name}".`, supersedesEventId: null
+  });
+  if (t.unitId) s = recomputeUnitProjection(s, t.unitId);
+  return s;
+}
+
+export function addTaskChecklistItem(state: AppState, taskId: string, actorId: string, text: string, at?: string): AppState {
+  const t = mustFindTask(state, taskId);
+  if (!text.trim()) throw new Error("Checklist item text is required");
+  const ts = nowIso(at);
+  const item: ChecklistSubItem = { id: `cl-${state.nextId}`, text, done: false };
+  let s: AppState = { ...state, nextId: state.nextId + 1 };
+  s = updateTask(s, taskId, { checklist: [...t.checklist, item] });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "task.checklistItemAdded", targetType: "Task", targetId: taskId,
+    unitId: t.unitId, detail: `Checklist item "${text}" added.`, supersedesEventId: null
+  });
+  return s;
+}
+
+export function toggleTaskChecklistItem(state: AppState, taskId: string, itemId: string): AppState {
+  const t = mustFindTask(state, taskId);
+  const item = t.checklist.find((c) => c.id === itemId);
+  if (!item) throw new Error(`Unknown checklist item ${itemId}`);
+  return updateTask(state, taskId, {
+    checklist: t.checklist.map((c) => (c.id === itemId ? { ...c, done: !c.done } : c))
+  });
+}
+
+export function addTaskComment(state: AppState, taskId: string, actorId: string, body: string, at?: string): AppState {
+  const t = mustFindTask(state, taskId);
+  if (!body.trim()) throw new Error("Comment body is required");
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "tc");
+  return updateTask(s0, taskId, {
+    comments: [...t.comments, { id, authorId: actorId, at: ts, body }]
+  });
 }

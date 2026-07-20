@@ -5,14 +5,27 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import { unreadCountForOrder } from "@/domain/selectors";
+import {
+  CustomersIcon,
+  HomeIcon,
+  MyWorkIcon,
+  OrdersIcon,
+  PlannerIcon,
+  QualityIcon,
+  ReportsIcon,
+  ScanIcon,
+  SearchIcon
+} from "./icons";
 
 const railItems = [
-  { href: "/", icon: "🏠", label: "Home" },
-  { href: "/views/my-work", icon: "🗂️", label: "My Work" },
-  { href: "/orders", icon: "📋", label: "Orders" },
-  { href: "/scan", icon: "🔳", label: "Scan" },
-  { href: "/labels", icon: "🏷️", label: "Labels" },
-  { href: "/views/search", icon: "🔍", label: "Search" }
+  { href: "/", icon: HomeIcon, label: "Home" },
+  { href: "/views/my-work", icon: MyWorkIcon, label: "My Work" },
+  { href: "/orders", icon: OrdersIcon, label: "Orders" },
+  { href: "/planner", icon: PlannerIcon, label: "Planner" },
+  { href: "/customers", icon: CustomersIcon, label: "Customers" },
+  { href: "/views/quality", icon: QualityIcon, label: "Quality" },
+  { href: "/scan", icon: ScanIcon, label: "Scan" },
+  { href: "/reports", icon: ReportsIcon, label: "Reports" }
 ];
 
 const locationViews = [
@@ -60,23 +73,26 @@ export function Shell({ children }: { children: React.ReactNode }) {
           </span>
           Views
         </button>
-        {railItems.map((it) => (
-          <Link
-            key={it.href}
-            href={it.href}
-            className={`rail-item ${isActive(it.href) ? "active" : ""}`}
-          >
-            {it.label === "Orders" && totalUnread > 0 && (
-              <span className="rail-badge" aria-label={`${totalUnread} unread`}>
-                {totalUnread}
+        {railItems.map((it) => {
+          const Icon = it.icon;
+          return (
+            <Link
+              key={it.href}
+              href={it.href}
+              className={`rail-item ${isActive(it.href) ? "active" : ""}`}
+            >
+              {it.label === "Orders" && totalUnread > 0 && (
+                <span className="rail-badge" aria-label={`${totalUnread} unread`}>
+                  {totalUnread}
+                </span>
+              )}
+              <span className="rail-icon">
+                <Icon size={18} />
               </span>
-            )}
-            <span className="rail-icon" aria-hidden>
-              {it.icon}
-            </span>
-            {it.label}
-          </Link>
-        ))}
+              {it.label}
+            </Link>
+          );
+        })}
         <div style={{ marginTop: "auto", padding: "10px 4px", fontSize: 10.5, color: "#8fa1b8", textAlign: "center" }}>
           {me?.name}
           <br />({me?.role})
@@ -123,6 +139,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
             reloads the sample data. Progress is saved only in this browser —
             it is never shared with anyone else.
           </div>
+        </div>
+
+        <div className="views-group">
+          <Link href="/views/search" className={`view-link ${isActive("/views/search") ? "active" : ""}`}>
+            <SearchIcon size={14} /> Search
+          </Link>
         </div>
 
         <div className="views-group">

@@ -19,27 +19,48 @@ import React, {
 } from "react";
 import { buildInitialState } from "@/domain/fixtures";
 import { recomputeUnitProjection } from "@/domain/projections";
-import type { AppState } from "@/domain/types";
+import type { AppState, PlannerBucket, Priority } from "@/domain/types";
 import { parseStoredEnvelope, serializeEnvelope, STORAGE_KEY } from "./persistence";
 import {
   addAttachment,
   addChecklistResponse,
   addPost,
   addReply,
+  addTaskChecklistItem,
+  addTaskComment,
+  assignTask,
   blockTask,
+  changeOrderDueDate,
+  changeTaskDueDate,
+  changeTaskPriority,
   completeTask,
+  completeTaskDirect,
   convertPost,
+  createContact,
+  createCustomer,
+  createTask,
+  createWorkOrder,
+  editOrder,
   markPostRead,
+  moveTaskBucket,
   pauseTask,
+  reopenTaskDirect,
   reprintLabel,
   resolveBlocker,
   resumeTask,
   startTask,
   toggleFollowOrder,
+  toggleTaskChecklistItem,
+  unassignTask,
   type AttachmentInput,
+  type ContactInput,
   type ConvertInput,
+  type CustomerInput,
+  type OrderEditInput,
   type PauseInput,
-  type ResponseInput
+  type ResponseInput,
+  type TaskInput,
+  type WorkOrderInput
 } from "@/domain/actions";
 
 export type Action =
@@ -59,7 +80,23 @@ export type Action =
   | { type: "reprintLabel"; publicRef: string; reason: string }
   | { type: "switchUser"; employeeId: string }
   | { type: "hydrateState"; state: AppState }
-  | { type: "resetToFixtures" };
+  | { type: "resetToFixtures" }
+  | { type: "createCustomer"; input: CustomerInput }
+  | { type: "createContact"; customerId: string; input: ContactInput }
+  | { type: "createWorkOrder"; input: WorkOrderInput }
+  | { type: "changeOrderDueDate"; orderNumber: string; dueDate: string }
+  | { type: "editOrder"; orderNumber: string; input: OrderEditInput }
+  | { type: "createTask"; input: TaskInput }
+  | { type: "assignTask"; taskId: string; employeeId: string }
+  | { type: "unassignTask"; taskId: string; employeeId: string }
+  | { type: "changeTaskDueDate"; taskId: string; dueDate: string | null }
+  | { type: "changeTaskPriority"; taskId: string; priority: Priority }
+  | { type: "moveTaskBucket"; taskId: string; bucket: PlannerBucket }
+  | { type: "completeTaskDirect"; taskId: string }
+  | { type: "reopenTaskDirect"; taskId: string }
+  | { type: "addTaskChecklistItem"; taskId: string; text: string }
+  | { type: "toggleTaskChecklistItem"; taskId: string; itemId: string }
+  | { type: "addTaskComment"; taskId: string; body: string };
 
 // A saved/hydrated state's cached Unit/Operation statuses are never trusted
 // as-is - always recomputed fresh before use, so a stale save (from before a
@@ -113,6 +150,38 @@ function buildReducer(onError: (message: string) => void) {
           return recomputeAllProjections(action.state);
         case "resetToFixtures":
           return buildInitialState();
+        case "createCustomer":
+          return createCustomer(state, actor, action.input);
+        case "createContact":
+          return createContact(state, actor, action.customerId, action.input);
+        case "createWorkOrder":
+          return createWorkOrder(state, actor, action.input);
+        case "changeOrderDueDate":
+          return changeOrderDueDate(state, action.orderNumber, actor, action.dueDate);
+        case "editOrder":
+          return editOrder(state, action.orderNumber, actor, action.input);
+        case "createTask":
+          return createTask(state, actor, action.input);
+        case "assignTask":
+          return assignTask(state, action.taskId, actor, action.employeeId);
+        case "unassignTask":
+          return unassignTask(state, action.taskId, actor, action.employeeId);
+        case "changeTaskDueDate":
+          return changeTaskDueDate(state, action.taskId, actor, action.dueDate);
+        case "changeTaskPriority":
+          return changeTaskPriority(state, action.taskId, actor, action.priority);
+        case "moveTaskBucket":
+          return moveTaskBucket(state, action.taskId, actor, action.bucket);
+        case "completeTaskDirect":
+          return completeTaskDirect(state, action.taskId, actor);
+        case "reopenTaskDirect":
+          return reopenTaskDirect(state, action.taskId, actor);
+        case "addTaskChecklistItem":
+          return addTaskChecklistItem(state, action.taskId, actor, action.text);
+        case "toggleTaskChecklistItem":
+          return toggleTaskChecklistItem(state, action.taskId, action.itemId);
+        case "addTaskComment":
+          return addTaskComment(state, action.taskId, actor, action.body);
         default:
           return state;
       }

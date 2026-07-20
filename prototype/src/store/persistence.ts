@@ -15,7 +15,10 @@ export const STORAGE_KEY = "rotech-proto-state";
 // Bump manually whenever AppState's shape changes in a way that could make
 // an old save invalid (new required fields, renamed fields, etc.). A saved
 // envelope from a different version is discarded rather than trusted.
-export const SCHEMA_VERSION = 1;
+// v2: added customers/contacts, Order.customerId (replacing the old
+// customer string field), and the extended Planner Task shape - a v1 save
+// would be missing all of these, so it must not be trusted.
+export const SCHEMA_VERSION = 2;
 
 export interface StoredEnvelope {
   schemaVersion: number;
@@ -34,6 +37,8 @@ function looksLikeAppState(value: unknown): value is AppState {
     Array.isArray(v.orders) &&
     Array.isArray(v.tasks) &&
     Array.isArray(v.routeOps) &&
+    Array.isArray(v.customers) &&
+    Array.isArray(v.contacts) &&
     typeof v.nextId === "number" &&
     typeof v.currentUserId === "string"
   );

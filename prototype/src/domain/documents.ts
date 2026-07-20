@@ -14,7 +14,7 @@ import type {
   Task,
   Unit
 } from "./types";
-import { currentResponses, orderByNumber } from "./selectors";
+import { currentResponses, customerName, orderByNumber } from "./selectors";
 
 export interface UnitHistorySnapshot {
   unit: Unit;
@@ -55,7 +55,7 @@ export function buildUnitHistorySnapshot(
     unit,
     order: {
       orderNumber: order.orderNumber,
-      customer: order.customer,
+      customer: customerName(state, order.customerId),
       customerPo: order.customerPo,
       dueDate: order.dueDate,
       productFamily: order.productFamily,
@@ -169,7 +169,7 @@ export function buildOrderSummarySnapshot(
   if (!order) throw new Error(`Unknown order ${orderNumber}`);
   return {
     orderNumber,
-    customer: order.customer,
+    customer: customerName(state, order.customerId),
     customerPo: order.customerPo,
     units: state.units
       .filter((u) => u.orderNumber === orderNumber)

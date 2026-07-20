@@ -9,7 +9,7 @@ import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import { ORDER_NO } from "@/domain/fixtures";
-import { orderByNumber, orderProgress, unitStatusLabel, unitsForOrder } from "@/domain/selectors";
+import { customerName, customerNameWithCity, orderByNumber, orderProgress, unitStatusLabel, unitsForOrder } from "@/domain/selectors";
 import { QrSvg } from "@/components/bits";
 
 const LABEL_REV = "Label rev 1 (mock)";
@@ -90,7 +90,7 @@ function LabelsView() {
             <p style={{ fontSize: 15, lineHeight: 1.8 }}>
               <b>Order:</b> {order.orderNumber}
               <br />
-              <b>Customer:</b> {order.customer}
+              <b>Customer:</b> {customerNameWithCity(state, order.customerId)}
               <br />
               <b>Customer PO:</b> {order.customerPo}
               <br />
@@ -151,7 +151,7 @@ function LabelsView() {
           <br />
           Order {unit12.orderNumber}
           <br />
-          {order.customer}
+          {customerName(state, order.customerId)}
           <br />
           {unit12.model} {unit12.size}
           <br />
@@ -172,7 +172,7 @@ function LabelsView() {
           <br />
           Order {order.orderNumber}
           <br />
-          {order.customer}
+          {customerName(state, order.customerId)}
           <br />
           Package 1 of 1
           <br />
@@ -242,7 +242,7 @@ function LabelsView() {
           <br />
           Order {pallet.orderNumber}
           <br />
-          {order.customer}
+          {customerName(state, order.customerId)}
           <br />
           Destination: {pallet.destination}
           <br />

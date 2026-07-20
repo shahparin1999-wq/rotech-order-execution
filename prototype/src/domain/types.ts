@@ -28,12 +28,36 @@ export type TaskStatus =
 
 export type SaveState = "Saved" | "Pending" | "Error" | "NeedsReview";
 
+export type Priority = "Low" | "Medium" | "High" | "Urgent";
+
 export interface Employee {
   id: string;
   name: string;
   role: string;
   department: Department;
   facility: Facility;
+}
+
+// Customer/Contact are new lightweight CRM-style entities. Orders reference
+// customers by ID (never a free-text copy) so a rename or contact change
+// never requires touching every Order record.
+export interface Customer {
+  id: string;
+  name: string;
+  city: string;
+  region: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface Contact {
+  id: string;
+  customerId: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+  createdAt: string;
 }
 
 export interface OrderLine {
@@ -47,7 +71,7 @@ export interface OrderLine {
 
 export interface Order {
   orderNumber: string;
-  customer: string;
+  customerId: string;
   customerPo: string;
   dueDate: string; // ISO date
   productFamily: string;
@@ -55,6 +79,8 @@ export interface Order {
   facility: Facility;
   coordinatorId: string;
   status: string;
+  priority: Priority;
+  updatedAt: string; // ISO, bumped whenever the order record itself changes
   teamsLinkPlaceholder: string;
   publicRef: string;
   lines: OrderLine[];
@@ -111,14 +137,61 @@ export interface TaskEvent {
   note: string | null;
 }
 
+// Planner buckets are a coarser, cross-Unit view of work than the 1196 route
+// operations - a task's bucket is independent of any RouteOperation it may
+// also be linked to via operationId.
+export type PlannerBucket =
+  | "TBC"
+  | "OrderPlanning"
+  | "PartsPicked"
+  | "Machining"
+  | "AssemblyTesting"
+  | "Quality"
+  | "Packaging"
+  | "OnHold"
+  | "Complete";
+
+export interface ChecklistSubItem {
+  id: string;
+  text: string;
+  done: boolean;
+}
+
+export interface TaskComment {
+  id: string;
+  authorId: string;
+  at: string;
+  body: string;
+}
+
 export interface Task {
   id: string;
-  unitId: string;
-  orderNumber: string;
+  // A task may target a Unit (shop-floor/QC work), a Customer (account-level
+  // follow-up), or neither (general order/planning work) - never more than
+  // one target family at once in practice, but all three stay independently
+  // nullable so a Unit-linked task's evidence can never be confused with a
+  // Customer-linked one.
+  unitId: string | null;
+  orderNumber: string | null;
+  customerId: string | null;
   name: string;
+  description: string | null;
   operationId: string | null;
+  bucket: PlannerBucket;
+  department: Department | null;
   status: TaskStatus;
   ownerId: string | null;
+  // Multi-assign for Planner; assignTask/unassignTask keep this and ownerId
+  // (the primary/shop-floor assignee) in sync so existing shop-floor reads of
+  // ownerId keep working unchanged.
+  assigneeIds: string[];
+  startDate: string | null;
+  dueDate: string | null;
+  priority: Priority;
+  labels: string[];
+  checklist: ChecklistSubItem[];
+  attachmentIds: string[];
+  comments: TaskComment[];
   status_beforeBlock: TaskStatus | null;
   blockReason: string | null;
   // Append-only. The active handoff is the last entry; earlier entries are
@@ -336,6 +409,8 @@ export interface PalletRecord {
 export interface AppState {
   currentUserId: string;
   employees: Employee[];
+  customers: Customer[];
+  contacts: Contact[];
   orders: Order[];
   units: Unit[];
   routeOps: RouteOperation[];
