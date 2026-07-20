@@ -62,7 +62,7 @@ export interface Order {
 }
 
 export interface Unit {
-  unitId: string; // e.g. 26SO00729_1.1
+  unitId: string; // e.g. SAMPLE1001_1.1
   orderNumber: string;
   lineNumber: number;
   sequence: number;

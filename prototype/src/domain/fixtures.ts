@@ -1,9 +1,10 @@
 // Deterministic mock fixture data for the vertical-slice prototype.
-// Everything below is fabricated demonstration data based on the approved
-// sample work order 26SO00729. No customer-sensitive data beyond the approved
-// mock fixture is present.
+// Every order number, customer, PO, serial, and pallet destination below is
+// invented demonstration data and does not correspond to any real Rotech
+// order, customer, or shipment. No customer-sensitive data is present.
 
 import { generateUnits, mockPublicRef, unitIdFor } from "./ids";
+import { recomputeUnitProjection } from "./projections";
 import type {
   AppState,
   ChecklistItemDef,
@@ -15,8 +16,8 @@ import type {
   Unit
 } from "./types";
 
-export const ORDER_NO = "26SO00729";
-export const HOUSTON_ORDER_NO = "26SO00735";
+export const ORDER_NO = "SAMPLE1001";
+export const HOUSTON_ORDER_NO = "SAMPLE1002";
 
 const employees: Employee[] = [
   { id: "e-alex", name: "Alex Nguyen", role: "Technician", department: "Assembly", facility: "Mississauga" },
@@ -31,8 +32,8 @@ const employees: Employee[] = [
 
 const mainOrder: Order = {
   orderNumber: ORDER_NO,
-  customer: "Knighten Industries - Odessa",
-  customerPo: "432877",
+  customer: "Acme Sample Industries - Fairview",
+  customerPo: "DEMO-0001",
   dueDate: "2026-07-28",
   productFamily: "ANSI 1196",
   orderType: "Bare pump end",
@@ -60,8 +61,8 @@ const mainOrder: Order = {
 
 const houstonOrder: Order = {
   orderNumber: HOUSTON_ORDER_NO,
-  customer: "Permian Basin Pump Services - Houston (mock)",
-  customerPo: "118845",
+  customer: "Sample Pump Services (mock)",
+  customerPo: "DEMO-0002",
   dueDate: "2026-08-14",
   productFamily: "Machining",
   orderType: "Stub shaft machining",
@@ -98,7 +99,7 @@ const mainUnits: Unit[] = generateUnits(
   },
   {
     1: {
-      serial: "2607143053",
+      serial: "DEMO-SN-0001",
       status: "Complete",
       asBuiltMaterial: "CD4MCu",
       location: "Mississauga - Shipping staging",
@@ -368,7 +369,7 @@ export function buildInitialState(): AppState {
     }
   ];
 
-  return {
+  const initial: AppState = {
     currentUserId: "e-alex",
     employees,
     orders: [mainOrder, houstonOrder],
@@ -421,7 +422,7 @@ export function buildInitialState(): AppState {
         unitId: U(1),
         authorId: "e-sarah",
         at: "2026-07-10T16:12:00Z",
-        body: "Use CD4 for Unit 1.1 - customer confirmed duplex upgrade against PO 432877. Applies to Unit 1.1 only; 1.2 through 1.5 stay 316SS.",
+        body: "Use CD4 for Unit 1.1 - customer confirmed duplex upgrade against PO DEMO-0001. Applies to Unit 1.1 only; 1.2 through 1.5 stay 316SS.",
         category: "Decision",
         attachmentIds: [],
         mentions: ["e-priya", "e-dave"],
@@ -551,13 +552,13 @@ export function buildInitialState(): AppState {
       { id: "a-material-11", kind: "photo", category: "Material marking", orderNumber: ORDER_NO, unitId: U(1), targetRef: "casing-material", fileName: "cd4-heat-stamp.jpg", employeeId: "e-alex", at: "2026-07-11T15:08:00Z", placeholderArt: "stamp" },
       { id: "a-freerot-11", kind: "photo", category: "Free rotation", orderNumber: ORDER_NO, unitId: U(1), targetRef: "free-rotation", fileName: "free-rotation-11.jpg", employeeId: "e-miguel", at: "2026-07-12T15:44:00Z", placeholderArt: "pump" },
       { id: "a-trim-11", kind: "photo", category: "Measurement evidence", orderNumber: ORDER_NO, unitId: U(1), targetRef: "impeller-trim", fileName: "caliper-12-51.jpg", employeeId: "e-miguel", at: "2026-07-13T14:18:00Z", placeholderArt: "caliper" },
-      { id: "a-nameplate-11", kind: "photo", category: "Nameplate", orderNumber: ORDER_NO, unitId: U(1), targetRef: "nameplate", fileName: "nameplate-2607143053.jpg", employeeId: "e-alex", at: "2026-07-14T18:00:00Z", placeholderArt: "nameplate" },
+      { id: "a-nameplate-11", kind: "photo", category: "Nameplate", orderNumber: ORDER_NO, unitId: U(1), targetRef: "nameplate", fileName: "nameplate-DEMO-SN-0001.jpg", employeeId: "e-alex", at: "2026-07-14T18:00:00Z", placeholderArt: "nameplate" },
       { id: "a-packaging-11", kind: "photo", category: "Packaging", orderNumber: ORDER_NO, unitId: U(1), targetRef: "packaging-photo", fileName: "crate-11.jpg", employeeId: "e-tom", at: "2026-07-15T19:28:00Z", placeholderArt: "crate" },
       { id: "a-before-12", kind: "photo", category: "Before", orderNumber: ORDER_NO, unitId: U(2), targetRef: "swi-001", fileName: "stub-shaft-before.jpg", employeeId: "e-miguel", at: "2026-07-16T14:00:00Z", placeholderArt: "shaft" },
       { id: "a-freerot-14", kind: "photo", category: "Free rotation", orderNumber: ORDER_NO, unitId: U(4), targetRef: "free-rotation", fileName: "free-rotation-14.jpg", employeeId: "e-alex", at: "2026-07-13T19:28:00Z", placeholderArt: "pump" },
       { id: "a-hydro-14", kind: "photo", category: "Measurement evidence", orderNumber: ORDER_NO, unitId: U(4), targetRef: "hydrotest", fileName: "hydro-gauge-14.jpg", employeeId: "e-priya", at: "2026-07-16T14:58:00Z", placeholderArt: "gauge" },
       { id: "a-nameplate-14", kind: "photo", category: "Nameplate", orderNumber: ORDER_NO, unitId: U(4), targetRef: "nameplate", fileName: "nameplate-14.jpg", employeeId: "e-alex", at: "2026-07-16T17:00:00Z", placeholderArt: "nameplate" },
-      { id: "a-wo-pdf", kind: "file", category: "General reference", orderNumber: ORDER_NO, unitId: null, targetRef: null, fileName: "26SO00729-WO.pdf (mock source document)", employeeId: "e-sarah", at: "2026-07-10T14:30:00Z", placeholderArt: "pdf" }
+      { id: "a-wo-pdf", kind: "file", category: "General reference", orderNumber: ORDER_NO, unitId: null, targetRef: null, fileName: `${ORDER_NO}-WO.pdf (mock source document)`, employeeId: "e-sarah", at: "2026-07-10T14:30:00Z", placeholderArt: "pdf" }
     ],
     auditEvents: [
       { id: "ae-1", at: "2026-07-10T15:02:00Z", actorId: "e-sarah", action: "order.confirmed", targetType: "Order", targetId: ORDER_NO, unitId: null, detail: "Import draft confirmed; line 1 quantity 5 generated 5 Units.", supersedesEventId: null },
@@ -569,7 +570,7 @@ export function buildInitialState(): AppState {
       { id: "ae-7", at: "2026-07-10T19:00:00Z", actorId: "e-priya", action: "materialChange.approved", targetType: "MaterialChange", targetId: "mc-001", unitId: U(1), detail: "316SS -> CD4MCu approved for Unit 1.1 only.", supersedesEventId: null },
       { id: "ae-8", at: "2026-07-13T14:20:00Z", actorId: "e-miguel", action: "checklistResponse.superseded", targetType: "ChecklistResponse", targetId: "r-11-trim-v2", unitId: U(1), detail: "Impeller trim corrected 12.56 -> 12.51 in; original retained.", supersedesEventId: "ae-8a" },
       { id: "ae-8a", at: "2026-07-13T14:00:00Z", actorId: "e-miguel", action: "checklistResponse.recorded", targetType: "ChecklistResponse", targetId: "r-11-trim-v1", unitId: U(1), detail: "Impeller trim recorded 12.56 in.", supersedesEventId: null },
-      { id: "ae-9", at: "2026-07-14T18:15:00Z", actorId: "e-dave", action: "unit.serialAssigned", targetType: "Unit", targetId: U(1), unitId: U(1), detail: "Serial 2607143053 assigned; QR identity unchanged.", supersedesEventId: null },
+      { id: "ae-9", at: "2026-07-14T18:15:00Z", actorId: "e-dave", action: "unit.serialAssigned", targetType: "Unit", targetId: U(1), unitId: U(1), detail: "Serial DEMO-SN-0001 assigned; QR identity unchanged.", supersedesEventId: null },
       { id: "ae-10", at: "2026-07-14T18:20:00Z", actorId: "e-dave", action: "label.reprinted", targetType: "QrIdentity", targetId: U(1), unitId: U(1), detail: "Unit tag reprinted after serial assignment; same publicRef.", supersedesEventId: null },
       { id: "ae-11", at: "2026-07-16T13:20:00Z", actorId: "e-dave", action: "task.blocked", targetType: "Task", targetId: "t-13-verify", unitId: U(3), detail: "Blocked: impeller casting not received (ETA Jul 22).", supersedesEventId: null },
       { id: "ae-12", at: "2026-07-17T21:58:00Z", actorId: "e-miguel", action: "task.paused", targetType: "Task", targetId: "t-12-trim", unitId: U(2), detail: "Paused with full handoff (end of shift).", supersedesEventId: null }
@@ -611,7 +612,7 @@ export function buildInitialState(): AppState {
         id: "PAL-0031",
         orderNumber: ORDER_NO,
         unitIds: [U(1)],
-        destination: "Knighten Industries - Odessa, TX",
+        destination: "Acme Sample Industries - Example City, TX",
         weight: "1,240 lb",
         dimensions: "48 x 40 x 52 in",
         packageCount: 1,
@@ -625,7 +626,7 @@ export function buildInitialState(): AppState {
         id: "PAL-0032",
         orderNumber: ORDER_NO,
         unitIds: [U(4)],
-        destination: "Knighten Industries - Midland, TX",
+        destination: "Acme Sample Industries - Sample City, TX",
         weight: "1,305 lb",
         dimensions: "52 x 44 x 55 in",
         packageCount: 2,
@@ -636,4 +637,11 @@ export function buildInitialState(): AppState {
     followedOrders: [ORDER_NO],
     nextId: 1000
   };
+
+  // Seed the calculated Unit/Operation statuses the same way live mutations
+  // do, so the demo narrative and the projection can never silently disagree.
+  return units.reduce(
+    (s, u) => recomputeUnitProjection(s, u.unitId),
+    initial
+  );
 }

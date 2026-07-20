@@ -9,7 +9,7 @@ import {
 
 describe("Unit generation (criteria 1-2)", () => {
   it("quantity five produces exactly five independent Units", () => {
-    const units = generateUnits("26SO00729", 1, 5, {
+    const units = generateUnits("TEST-0001", 1, 5, {
       model: "1196",
       size: "3x4-13",
       orderedMaterial: "316SS",
@@ -27,11 +27,11 @@ describe("Unit generation (criteria 1-2)", () => {
     const state = buildInitialState();
     const units = unitsForOrder(state, ORDER_NO);
     expect(units.map((u) => u.unitId)).toEqual([
-      "26SO00729_1.1",
-      "26SO00729_1.2",
-      "26SO00729_1.3",
-      "26SO00729_1.4",
-      "26SO00729_1.5"
+      `${ORDER_NO}_1.1`,
+      `${ORDER_NO}_1.2`,
+      `${ORDER_NO}_1.3`,
+      `${ORDER_NO}_1.4`,
+      `${ORDER_NO}_1.5`
     ]);
   });
 
@@ -45,7 +45,7 @@ describe("Unit generation (criteria 1-2)", () => {
       "AwaitingQuality",
       "NotStarted"
     ]);
-    expect(units[0].serial).toBe("2607143053");
+    expect(units[0].serial).toBe("DEMO-SN-0001");
     expect(units[1].serial).toBeNull(); // renders as "Serial pending"
   });
 });
@@ -55,13 +55,13 @@ describe("Progress drill-down (criterion 5)", () => {
     const state = buildInitialState();
     const p = orderProgress(state, ORDER_NO);
     expect(p.total).toBe(5);
-    expect(p.complete.map((u) => u.unitId)).toEqual(["26SO00729_1.1"]);
-    expect(p.blocked.map((u) => u.unitId)).toEqual(["26SO00729_1.3"]);
-    expect(p.inProgress.map((u) => u.unitId)).toEqual(["26SO00729_1.2"]);
-    expect(p.awaitingQuality.map((u) => u.unitId)).toEqual(["26SO00729_1.4"]);
-    expect(p.notStarted.map((u) => u.unitId)).toEqual(["26SO00729_1.5"]);
+    expect(p.complete.map((u) => u.unitId)).toEqual([`${ORDER_NO}_1.1`]);
+    expect(p.blocked.map((u) => u.unitId)).toEqual([`${ORDER_NO}_1.3`]);
+    expect(p.inProgress.map((u) => u.unitId)).toEqual([`${ORDER_NO}_1.2`]);
+    expect(p.awaitingQuality.map((u) => u.unitId)).toEqual([`${ORDER_NO}_1.4`]);
+    expect(p.notStarted.map((u) => u.unitId)).toEqual([`${ORDER_NO}_1.5`]);
     expect(unitsInStatus(state, ORDER_NO, "Blocked").map((u) => u.unitId)).toEqual([
-      "26SO00729_1.3"
+      `${ORDER_NO}_1.3`
     ]);
   });
 });

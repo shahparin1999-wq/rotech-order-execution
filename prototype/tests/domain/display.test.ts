@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInitialState, ORDER_NO } from "@/domain/fixtures";
+import { buildInitialState, HOUSTON_ORDER_NO, ORDER_NO } from "@/domain/fixtures";
 import {
   applyView,
   humanizeStatus,
@@ -27,7 +27,7 @@ describe("Views are filters over master orders", () => {
     const miss = applyView(state, "mississauga");
     const hou = applyView(state, "houston");
     expect(miss.orders.map((o) => o.orderNumber)).toEqual([ORDER_NO]);
-    expect(hou.orders.map((o) => o.orderNumber)).toEqual(["26SO00735"]);
+    expect(hou.orders.map((o) => o.orderNumber)).toEqual([HOUSTON_ORDER_NO]);
     // The same master order object is reused, not copied per facility.
     expect(miss.orders[0]).toBe(state.orders[0]);
     // Total orders in the system is unchanged by filtering.
@@ -44,8 +44,8 @@ describe("Views are filters over master orders", () => {
 describe("Search", () => {
   it("finds a Unit by serial, an order by PO, and a comment by text", () => {
     const state = buildInitialState();
-    expect(search(state, "2607143053").some((h) => h.id === `${ORDER_NO}_1.1`)).toBe(true);
-    expect(search(state, "432877").some((h) => h.type === "Order")).toBe(true);
+    expect(search(state, "DEMO-SN-0001").some((h) => h.id === `${ORDER_NO}_1.1`)).toBe(true);
+    expect(search(state, "DEMO-0001").some((h) => h.type === "Order")).toBe(true);
     expect(search(state, "CD4").some((h) => h.type === "Post")).toBe(true);
   });
 

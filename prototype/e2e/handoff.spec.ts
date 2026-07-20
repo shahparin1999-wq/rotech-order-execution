@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 // Criterion 6 end to end: one employee pauses with a full handoff, a
 // different employee resumes and sees that handoff.
 
-const U = "26SO00729_1.5";
+const U = "SAMPLE1001_1.5";
 
 test("one employee pauses with a handoff and a different employee resumes it", async ({ page }) => {
   await page.goto(`/units/${U}`);

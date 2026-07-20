@@ -5,11 +5,11 @@ import { expect, test } from "@playwright/test";
 // so the in-memory store stays live throughout: a hard reload would reset it
 // and make these assertions meaningless.
 
-const ORDER = "26SO00729";
+const ORDER = "SAMPLE1001";
 const U = (n: number) => `${ORDER}_1.${n}`;
 
 // Values that exist on exactly one of the two sibling Units.
-const ONLY_ON_11 = ["2607143053", "CD4MCu", "PAL-0031", "1,240 lb", "48 x 40 x 52", "12.51"];
+const ONLY_ON_11 = ["DEMO-SN-0001", "CD4MCu", "PAL-0031", "1,240 lb", "48 x 40 x 52", "12.51"];
 const ONLY_ON_14 = ["PAL-0032", "1,305 lb", "52 x 44 x 55", "12.49"];
 
 async function expectAbsent(text: string, values: string[]) {
@@ -36,7 +36,7 @@ test.describe("C1 - two sibling Unit documents in one live session", () => {
     await page.getByTestId("capture-category").selectOption("Material marking");
     await page.getByTestId("capture-now").click();
     await page.getByTestId("capture-save").click();
-    await expect(page.getByText("material-marking-26SO00729_1.1.jpg")).toBeVisible();
+    await expect(page.getByText("material-marking-SAMPLE1001_1.1.jpg")).toBeVisible();
 
     // ---- Unit 1.1 document ----
     await page.getByRole("link", { name: /Unit QC history preview/ }).click();
@@ -70,7 +70,7 @@ test.describe("C1 - two sibling Unit documents in one live session", () => {
     await page.getByRole("link", { name: "Units", exact: true }).click();
     await page.getByRole("link", { name: U(1), exact: true }).click();
     await page.getByRole("link", { name: "Evidence", exact: true }).click();
-    await expect(page.getByText("material-marking-26SO00729_1.1.jpg")).toBeVisible();
+    await expect(page.getByText("material-marking-SAMPLE1001_1.1.jpg")).toBeVisible();
   });
 
   test("a Unit with no shipment shows none rather than a sibling's pallet", async ({ page }) => {

@@ -4,7 +4,7 @@ import path from "node:path";
 // Captures browser evidence into artifacts/preview/. Screenshots contain only
 // the approved mock fixture data.
 
-const ORDER = "26SO00729";
+const ORDER = "SAMPLE1001";
 const U = (n: number) => `${ORDER}_1.${n}`;
 const OUT = path.resolve(__dirname, "../../artifacts/preview");
 

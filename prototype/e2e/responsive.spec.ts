@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 // Layout behaviour across desktop, tablet landscape, and tablet portrait.
 
-const U = "26SO00729_1.2";
+const U = "SAMPLE1001_1.2";
 
 test.describe("Responsive layout", () => {
   test("desktop shows the views column without a toggle", async ({ page }) => {
@@ -37,8 +37,8 @@ test.describe("Responsive layout", () => {
 
   test("order workspace tables stay usable at tablet portrait", async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
-    await page.goto("/orders/26SO00729?tab=units");
-    await expect(page.getByTestId("unit-row-26SO00729_1.1")).toBeVisible();
+    await page.goto("/orders/SAMPLE1001?tab=units");
+    await expect(page.getByTestId("unit-row-SAMPLE1001_1.1")).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     );

@@ -1,6 +1,6 @@
 "use client";
 
-// Browser preview of 26SO00729_1.1_Unit_QC_and_Manufacturing_History.pdf.
+// Browser preview of SAMPLE1001_1.1_Unit_QC_and_Manufacturing_History.pdf.
 // This is a visual outline only — the production PDF pipeline (registered
 // assets, manifests, isolated jobs, immutable versions) is out of scope.
 

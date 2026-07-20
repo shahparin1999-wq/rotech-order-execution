@@ -1,9 +1,11 @@
 # Rotech Order Execution — Vertical-Slice Prototype
 
 A self-contained, locally runnable prototype of the Rotech Order Execution and
-Digital Traveler. It demonstrates the intended workflow with deterministic
-**mock data** based on work order `26SO00729` (five independent Units in five
-different states).
+Digital Traveler. It demonstrates the intended workflow with deterministic,
+entirely **fictional demo data** — order `SAMPLE1001` for the invented
+customer "Acme Sample Industries" (five independent Units in five different
+states). No value in this fixture corresponds to any real Rotech order,
+customer, or shipment.
 
 **This is not the production system.** There is no AIMCOR, Azure, PostgreSQL,
 Entra, Teams, Graph, Blob Storage, camera, or PDF-pipeline integration. All
@@ -45,19 +47,19 @@ npx playwright install chromium
 | --- | --- |
 | Teams-inspired shell + Home | `/` |
 | Orders list | `/orders` |
-| Order workspace (tabs, drill-downs) | `/orders/26SO00729` |
-| Unit detail (identity banner) | `/units/26SO00729_1.2` |
-| Shop-floor tablet | `/tablet/26SO00729_1.2` |
+| Order workspace (tabs, drill-downs) | `/orders/SAMPLE1001` |
+| Unit detail (identity banner) | `/units/SAMPLE1001_1.2` |
+| Shop-floor tablet | `/tablet/SAMPLE1001_1.2` |
 | Simulate QR scan | `/scan` |
 | QR resolver landing | `/r/<publicRef>` (via Scan page) |
 | Label print previews (7 profiles) | `/labels` |
-| Unit QC history PDF preview | `/documents/26SO00729_1.1` |
-| Order completion summary preview | `/documents/order-summary/26SO00729` |
+| Unit QC history PDF preview | `/documents/SAMPLE1001_1.1` |
+| Order completion summary preview | `/documents/order-summary/SAMPLE1001` |
 | Location/department/blocked views | `/views/mississauga`, `/views/quality`, … |
 
 ## Guardrails demonstrated
 
-- Quantity 5 ⇒ exactly five independent Units `26SO00729_1.1 … _1.5`.
+- Quantity 5 ⇒ exactly five independent Units `SAMPLE1001_1.1 … _1.5`.
 - Unit 1.1 carries an approved 316SS→CD4MCu change; siblings stay 316SS.
 - Checklist responses, photos, and documents are Unit-scoped; cross-Unit
   targeting is rejected by the mock repository.
