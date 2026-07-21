@@ -24,13 +24,17 @@ Branch `prototype/cpq-import-contract` (off `prototype/fluent-work-management`).
 | `bb8fa4b` | CPQ execution-package import (contract + manual JSON, first slice) |
 | `83f289b` | docs: CPQ export onboarding plan + output questionnaire |
 | `1c763b7` | align CPQ import to handshake decisions (SHA-256, v1.1, ZIP, notes) |
-| _(next)_ | line types (pump/pump-package, fail-closed), full-bundle import, packageId + hashes verification, acceptedPoSubmissionId idempotency, real 26CPQ0003 handshake fixture |
+| `2ea8e2b` | docs: cross-system status summary |
+| `c0eb5de` | complete handshake: line types, full ZIP bundle, PO idempotency, real 26CPQ0003 fixture |
 
-Implemented + tested (`npm run verify` green: **145 unit, build, 89 e2e**):
+Implemented + tested (`npm run verify` green: **153 unit, build, 90 e2e**):
 
 - `ExecutionPackageV1` schema + pure validation; accepts `schemaVersion` `"1.0"` and `"1.1"`.
 - **Checksum = canonical SHA-256** (recursive key sort, arrays preserved, compact UTF-8),
-  lowercase hex. Parity-verified with Node + Python `hashlib`. Tampered packages rejected.
+  lowercase hex. Parity-verified with Node + Python `hashlib` **on CPQ's real exports**
+  (fixture `68f106c7…` and a fresh export `b7d1b02b…`). Tampered packages rejected.
+- **Required `lineType`** (`"pump"` / `"pump-package"`); spare/unsupported types rejected
+  fail-closed (never turned into Units).
 - `versions.configurationRulesVersion` is **optional** (never fabricated).
 - **v1.1 per-line classified notes** → seeds `ManufacturingNote`s for the 5 actionable
   classes; `Provenance` stays read-only in the frozen snapshot; notes on a `1.0` package
@@ -38,59 +42,76 @@ Implemented + tested (`npm run verify` green: **145 unit, build, 89 e2e**):
 - Import creates 1 Order → N first-class `OrderLine`s → `line.quantity` isolated Units,
   one **immutable `ConfigurationSnapshot`** per line (deep-cloned; edits to the source can
   never mutate it). Unit isolation + append-only audit preserved.
-- **Transfer envelope (ZIP):** reads `execution-package.json` + `customer-po/<file>` +
-  `transfer-manifest.json`; verifies SHA-256 of package **and** PO against the manifest;
-  stores the PO as an Order attachment (metadata + hash only, never raw bytes).
-- **Source-tuple idempotency:** rejects a 2nd import of the same `(quoteId, revisionId)`,
-  fail-closed, even under a different order number.
+- **Full ZIP transfer bundle import:** reads `execution-package.json` +
+  `customer-po/<file>` + `transfer-manifest.json`; verifies **both** file SHA-256 hashes and
+  byte sizes, cross-checks `manifest.packageId == package.packageId`, verifies the package's
+  canonical checksum, and stores the PO as an Order attachment (metadata + hash only, never
+  raw bytes).
+- **Idempotency** key `(quoteId, revisionId, acceptedPoSubmissionId)`: rejects a 2nd import
+  of the same revision fail-closed, even under a different order number.
 - Three-layer Lines view (Configuration / Manufacturing notes / Approved changes / BOM /
   Documents / As built); CPQ config read-only with a frozen checksum label.
 
-`prototype/sample-data/cpq-execution-package-v1.json` is **fictional test scaffolding
-only** — not evidence that CPQ fields exist.
+Fixtures: `cpq-execution-package-v1.json` is fictional scaffolding; `cpq-handshake-bundle.zip`
+is CPQ's **real sanitized** inner transfer bundle for `26CPQ0003`.
 
-## 2. CPQ (Codex) — Phase 1 done; Baseline gate done; Lifecycle gate next
+## 2. CPQ (Codex) — all gates done at the manual-export stop
 
-- **Phase 1 discovery:** branch `codex/OrderProcessing` @ `6095515` (report only; worktree
-  dirty). Key findings (all accurate vs this side): no native line quantity; no
-  customer-confirm / PO-accept lifecycle; generic attachments unsafe for POs; no
-  configuration-rules provenance; `award.customerPoNumber` is admin-entered, not a customer
-  submission.
-- **Baseline gate** (decision #1): branch `codex/OrderProcessing-phase2` @ `b111e28`, merge
-  of approved `6095515` + `aaf2e77`, clean worktree, original branch untouched. Green:
-  79 Python + 9 ANSI-1196 + `node --check` + document typecheck + 69 document tests.
-- **Next:** Lifecycle gate (state machine, immutable `PoSubmission`, customer/admin
-  boundary), then Publication gate (adapter → `ExecutionPackage`, canonical SHA-256, ZIP
-  publication, idempotency).
+- **Phase 1 discovery** (`codex/OrderProcessing` @ `6095515`): findings all accurate vs this
+  side — no native line quantity; no customer-confirm / PO-accept lifecycle; unsafe generic
+  attachments; no configuration-rules provenance; admin-entered PO ≠ customer submission.
+- **Baseline gate** (`codex/OrderProcessing-phase2` @ `b111e28`): merge of `6095515` +
+  `aaf2e77`, clean, original branch untouched.
+- **Lifecycle gate:** dedicated `orderProcessing` state machine, immutable `PoSubmission`
+  versions, in-lock re-checks, customer/auditor accept+export denied before quote lookup,
+  auditor read-only + download, `SUPERSEDED`-not-deleted, partial-award block, `501`
+  publication stop.
+- **Publication gate** (finalized, @ `f75e275`; one doc uncommitted): adapter →
+  `ExecutionPackageV1`, canonical SHA-256, ZIP envelope + manifest, immutable publication
+  records, manual export only. **No auto-export** (publisher reached only from the
+  authenticated `POST …/export` "Create Manufacturing ZIP" button + tests; no scheduler /
+  hook / queue / Teams / Work Order API / retry).
+- Validation: focused lifecycle/publication/award 47, document typecheck, 69 document, 42
+  frontend; full Python 377 run / 375 passed (2 pre-existing failures from missing
+  `Terms_Conditions.pdf`, unrelated).
 
 ## 3. Locked owner decisions (both sides aligned)
 
 1. Baseline: `origin/integration/cpq-current-baseline` (`aaf2e77`). **[done]**
-2. Line quantity: first-class **required** positive integer, frozen per revision. **[CPQ todo]**
-3. Admin authority: `rotech_quote_admin` + `rotech_system_admin` for review/accept/export.
-4. Auditors: read-only history + PO/file **download**; **no** review/accept/export.
-5. Partial awards: **block** when `awardedQuantity` ≠ frozen quoted quantity.
-6. PO transfer: **ZIP envelope**; `acceptedPoSubmissionId` in `transfer-manifest`, not the JSON.
-7. Config-rules version: **optional** on this side; CPQ omits when unavailable.
+2. Line quantity: first-class **required** positive integer, frozen per revision. **[done]**
+3. Admin authority: `rotech_quote_admin` + `rotech_system_admin` for review/accept/export. **[done]**
+4. Auditors: read-only history + PO/file **download**; **no** review/accept/export. **[done]**
+5. Partial awards: **block** when `awardedQuantity` ≠ frozen quoted quantity. **[done]**
+6. PO transfer: **ZIP envelope**; `acceptedPoSubmissionId` in `transfer-manifest`, not the JSON. **[done]**
+7. Config-rules version: **optional** on this side; CPQ omits when unavailable. **[done]**
 8. Document manifest version: optional for milestone 1.
-9. Notes: **ExecutionPackage v1.1** optional classified per-line notes.
-10. Checksum: **canonical SHA-256** both sides. **[done this side]**
+9. Notes: **ExecutionPackage v1.1** optional classified per-line notes. **[both sides ready]**
+10. Checksum: **canonical SHA-256** both sides. **[done]**
 11. Already-imported-after-revision: no automation; fail closed; reviewed supersession later.
-12. Customer name: frozen header name cross-checked against `company_id`.
+12. Customer name: frozen header name cross-checked against `company_id`. **[done]**
 
 PO file policy: **PDF only, max 25 MB**; reject executables/scripts/archives/macros/MIME
 mismatches/empty/traversal; store SHA-256; no external scanning.
 
 ## 4. Idempotency key
 
-- Target: `(sourceSystem="CPQ", source.quoteId, source.revisionId, acceptedPoSubmissionId)`.
-- Temporary (until the envelope carries the submission id end-to-end):
-  `(CPQ, quoteId, revisionId)` — already enforced on this side, fail-closed.
+`(sourceSystem="CPQ", source.quoteId, source.revisionId, acceptedPoSubmissionId)` —
+enforced on this side, fail-closed. A newly accepted PO for the same revision is rejected
+pending a reviewed supersession (not automated).
 
-## 5. Open / next
+## 5. Fresh-export parity evidence (independent re-verification, 2026-07-21)
 
-- **CPQ:** proceed to Lifecycle gate; add first-class line quantity; hand over the
-  **partial native sample now** (frozen `26CPQ0003` / `QVER-210D3107FB6D` snapshot, minus
-  quantity/PO) so this side can validate config/BOM/product mapping in parallel.
-- The **full two-line handshake fixture** waits until CPQ has quantity + PO lifecycle.
-- Neither side has merged to its `main`/production branch.
+A fresh CPQ export (`Q-CPQ-FRESH-FINAL`, package `cfd52daa…`, publication `f5357e41…`, PO
+`POSUB-1752B77FA0A54EAAA42ABE2C65851963`) was re-verified on this side:
+
+- `sha256(CPQ's canonical checksum input)` = `b7d1b02b561a8a88a98cb68d585b2a76dcd8f7ecb6c76a0b4c292ab0976418d2` = CPQ's declared package checksum. ✅
+- **Our canonicalization reproduces CPQ's canonical string byte-for-byte** — the algorithms
+  agree, not just one hash. Confirmed across two different exports.
+
+## 6. Status: milestone complete at the manual-export stop
+
+- **Work Order (this side):** `prototype/cpq-import-contract` @ `c0eb5de`; 153 unit + 90 e2e green.
+- **CPQ (Codex):** all gates finalized @ `f75e275`; manual export only, no auto-export.
+- Neither side merged to `main`/production. Deferred (both sides, not built): spare lines as
+  a non-Unit type; real config-rules / doc-manifest provenance; reviewed supersession of an
+  already-imported revision.
