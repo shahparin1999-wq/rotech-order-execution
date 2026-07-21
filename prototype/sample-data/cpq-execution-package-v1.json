@@ -3,7 +3,7 @@
   "packageId": "PKG-Q-DEMO-1001-R3",
   "publishedAt": "2026-07-18T14:30:00Z",
   "publishedBy": "cpq-user:dana.quotes (fictional)",
-  "checksum": "ff3d777f96ec52236d37fd9384a290e7ebfd1aecaeef9f9ab4e993f746422962",
+  "checksum": "a1533d2ae19cdcd1866a72a6cf5092da1efab0ef94ed71e355a54e13fc872795",
   "source": {
     "quoteId": "cpq-quote-4471",
     "quoteNumber": "Q-DEMO-1001",
@@ -19,6 +19,7 @@
     {
       "cpqLineId": "cpq-line-4471-1",
       "lineNumber": 1,
+      "lineType": "pump",
       "quantity": 2,
       "product": {
         "family": "1196",
@@ -77,6 +78,7 @@
     {
       "cpqLineId": "cpq-line-4471-2",
       "lineNumber": 2,
+      "lineType": "pump",
       "quantity": 1,
       "product": {
         "family": "1196",

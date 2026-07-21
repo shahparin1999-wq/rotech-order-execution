@@ -1,6 +1,12 @@
 # CPQ ↔ Work Order Integration — Status
 
-As of 2026-07-20. Two repos, manual file handoff (no live API yet):
+As of 2026-07-21. Two repos, manual file handoff (no live API yet).
+
+> **End-to-end handshake proven.** CPQ's Publication-gate ZIP bundle for
+> `26CPQ0003` was imported by the Work Order System: transfer envelope verified
+> (both file hashes + sizes), canonical SHA-256 checksum reproduced byte-for-byte
+> (`68f106c7…`), `lineType` pump/pump-package accepted, quantities 2 + 1 → **3
+> isolated Units**, accepted PO stored as provenance, and idempotency enforced.
 
 - **Work Order System** (this repo): `C:\...\Rotech Work Order System`
 - **CPQ** (Codex): `C:\...\New project` (+ a sibling worktree for Phase 2)
@@ -18,6 +24,7 @@ Branch `prototype/cpq-import-contract` (off `prototype/fluent-work-management`).
 | `bb8fa4b` | CPQ execution-package import (contract + manual JSON, first slice) |
 | `83f289b` | docs: CPQ export onboarding plan + output questionnaire |
 | `1c763b7` | align CPQ import to handshake decisions (SHA-256, v1.1, ZIP, notes) |
+| _(next)_ | line types (pump/pump-package, fail-closed), full-bundle import, packageId + hashes verification, acceptedPoSubmissionId idempotency, real 26CPQ0003 handshake fixture |
 
 Implemented + tested (`npm run verify` green: **145 unit, build, 89 e2e**):
 

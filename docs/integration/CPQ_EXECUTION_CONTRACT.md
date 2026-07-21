@@ -72,6 +72,10 @@ persisted), and uses `acceptedPoSubmissionId` for idempotency.
 
 ## 4. Quantity → Unit rules
 
+- Only **manufacturing line types** cross the contract: `lineType` must be
+  `"pump"` or `"pump-package"`. Spare and any other CPQ line types are excluded
+  by the CPQ export and **rejected fail-closed** on import — a non-pump line
+  never becomes Units.
 - A line's `quantity` creates exactly that many **independent Units** under that
   line (D-005): `Line lineNumber, quantity N → {orderNumber}_{lineNumber}.1 …
   .N`. No shared/aggregate Unit is ever created.
@@ -127,7 +131,8 @@ Audit is append-only; corrections supersede, nothing is overwritten.
 | `customer.customerPo` | Quote / order | Optional | May be attached at import instead. |
 | `lines[].cpqLineId` | Quote line | Yes | Stable line identity. |
 | `lines[].lineNumber` | Quote line | Yes | Immutable within order. |
-| `lines[].quantity` | Quote line quantity | Yes | Creates Units. |
+| `lines[].lineType` | Quote line type | Yes | `"pump"` or `"pump-package"` only. Spare/other types are excluded on the CPQ side and **rejected fail-closed** on import (never turned into Units). |
+| `lines[].quantity` | Quote line quantity | Yes | Positive integer; creates that many Units. |
 | `product.family` / `model` / `pumpSize` / `description` | Configured product | Yes | Template selection / display. |
 | `configuration.materialBuild` + casing/impeller/shaft | Configuration selection | Yes (build) | Manufacturing material. |
 | `configuration.seal` | Seal configuration | Preferred | Free-form object in v1. |

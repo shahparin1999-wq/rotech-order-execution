@@ -103,6 +103,14 @@ export function ImportCpqPackageDrawer({
           setErrors(verified.errors);
           return;
         }
+        const candidate = JSON.parse(new TextDecoder().decode(pkgBytes));
+        // Cross-check: the manifest and the package must name the same package.
+        if (candidate?.packageId !== verified.manifest.packageId) {
+          setErrors([
+            `packageId mismatch: manifest ${verified.manifest.packageId} vs package ${candidate?.packageId}.`
+          ]);
+          return;
+        }
         const poInput: ImportedPoInput = {
           fileName: verified.manifest.files.customerPo.name,
           sha256: verified.manifest.files.customerPo.sha256,
@@ -110,7 +118,7 @@ export function ImportCpqPackageDrawer({
           mediaType: verified.manifest.files.customerPo.mediaType,
           acceptedPoSubmissionId: verified.manifest.acceptedPoSubmissionId
         };
-        acceptPackage(JSON.parse(new TextDecoder().decode(pkgBytes)), poInput);
+        acceptPackage(candidate, poInput);
       } catch (err) {
         setErrors([`Could not read bundle: ${(err as Error).message}`]);
       }

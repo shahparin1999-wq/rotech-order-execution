@@ -70,6 +70,9 @@ export interface OrderLine {
   id: string;
   lineNumber: number;
   sourceSystem: "CPQ" | "Manual";
+  // CPQ manufacturing line type ("pump" | "pump-package"); undefined for manual
+  // lines. Spare/unsupported types never reach a line (rejected at import).
+  lineType?: string;
   product: string;
   description: string;
   family: string;
@@ -445,6 +448,11 @@ export interface ConfigurationSnapshot {
 
   schemaVersion: string;
   checksum: string;
+
+  // Accepted-PO submission id from the transfer envelope, when imported from a
+  // bundle. Part of the manufacturing idempotency key
+  // (quoteId, revisionId, acceptedPoSubmissionId).
+  acceptedPoSubmissionId?: string;
 
   // The full imported line payload, stored verbatim. Typed as unknown here to
   // keep the domain types independent of the executionPackage module; callers

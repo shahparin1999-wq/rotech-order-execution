@@ -60,6 +60,22 @@ describe("execution package validation", () => {
     expect(result.errors.some((e) => e.includes("quantity"))).toBe(true);
   });
 
+  it("rejects a spare line type fail-closed", () => {
+    const bad = loadSample();
+    (bad.lines[0] as { lineType: string }).lineType = "spare";
+    const result = validateExecutionPackage(bad);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes("lineType"))).toBe(true);
+  });
+
+  it("rejects a missing line type", () => {
+    const bad = loadSample();
+    delete (bad.lines[0] as { lineType?: string }).lineType;
+    const result = validateExecutionPackage(bad);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes("lineType"))).toBe(true);
+  });
+
   it("rejects a tampered package (checksum mismatch)", () => {
     const bad = loadSample();
     bad.lines[0].configuration.casingMaterial = "TamperedMaterial";

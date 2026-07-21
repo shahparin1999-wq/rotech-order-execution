@@ -55,9 +55,16 @@ export interface ExecutionPackageV1 {
   lines: ExecutionLineV1[];
 }
 
+// Only manufacturing (Unit-generating) line types cross the contract. Spare and
+// any other CPQ line types are excluded on the CPQ side and rejected fail-closed
+// here — the Work Order System never turns a non-pump line into Units.
+export const EXECUTION_LINE_TYPES = ["pump", "pump-package"] as const;
+export type ExecutionLineType = (typeof EXECUTION_LINE_TYPES)[number];
+
 export interface ExecutionLineV1 {
   cpqLineId: string;
   lineNumber: number;
+  lineType: ExecutionLineType;
   quantity: number;
 
   product: {
@@ -188,6 +195,13 @@ function validateLine(line: unknown, index: number, errors: string[]): void {
   requireString(line.cpqLineId, `${p}.cpqLineId`, errors);
   if (typeof line.lineNumber !== "number" || !Number.isInteger(line.lineNumber) || line.lineNumber < 1) {
     errors.push(`${p}.lineNumber must be a positive integer`);
+  }
+  // Fail closed on unsupported/spare line types: only pump and pump-package are
+  // manufacturing lines that may create Units.
+  if (!EXECUTION_LINE_TYPES.includes(line.lineType as ExecutionLineType)) {
+    errors.push(
+      `${p}.lineType must be one of ${EXECUTION_LINE_TYPES.join(", ")} (got ${JSON.stringify(line.lineType)}); spare/unsupported line types are rejected`
+    );
   }
   if (typeof line.quantity !== "number" || !Number.isInteger(line.quantity) || line.quantity < 1) {
     errors.push(`${p}.quantity must be an integer >= 1 (each Unit is created from it)`);

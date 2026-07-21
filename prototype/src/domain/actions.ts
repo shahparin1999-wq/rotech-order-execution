@@ -839,16 +839,24 @@ export function importExecutionPackage(
     throw new Error(`Order ${orderNumber} already exists`);
   }
 
-  // Source-tuple idempotency (fail closed). A revision may be imported into
-  // manufacturing exactly once; a second import of the same (quoteId,
-  // revisionId) is rejected rather than silently creating a divergent order.
-  // The full key adds acceptedPoSubmissionId once the transfer contract lands.
+  // Source-tuple idempotency (fail closed). The manufacturing key is
+  // (quoteId, revisionId, acceptedPoSubmissionId). A revision may be imported
+  // into manufacturing exactly once; a second import of the same (quoteId,
+  // revisionId) is rejected. The acceptedPoSubmissionId classifies the rejection
+  // as an exact duplicate vs a conflicting re-authorization; supersession is a
+  // separate, reviewed action (not automated in this slice).
+  const incomingPoId = input.po?.acceptedPoSubmissionId;
   const priorForRevision = state.configurationSnapshots.find(
     (snap) => snap.sourceQuoteId === pkg.source.quoteId && snap.sourceRevisionId === pkg.source.revisionId
   );
   if (priorForRevision) {
+    const priorPoId = priorForRevision.acceptedPoSubmissionId;
+    const sameAuthorization = incomingPoId !== undefined && priorPoId === incomingPoId;
+    const detail = sameAuthorization
+      ? `duplicate of accepted PO submission ${incomingPoId}`
+      : `already imported under PO submission ${priorPoId ?? "(none)"}${incomingPoId ? `; incoming PO submission ${incomingPoId} would require a reviewed supersession` : ""}`;
     throw new Error(
-      `CPQ revision already imported: quote ${pkg.source.quoteId} revision ${pkg.source.revisionId} was already imported as order ${priorForRevision.orderNumber}.`
+      `CPQ revision already imported: quote ${pkg.source.quoteId} revision ${pkg.source.revisionId} was imported as order ${priorForRevision.orderNumber} (${detail}).`
     );
   }
 
@@ -902,6 +910,7 @@ export function importExecutionPackage(
       sourceLineId: pl.cpqLineId,
       schemaVersion: pkg.schemaVersion,
       checksum: pkg.checksum,
+      acceptedPoSubmissionId: incomingPoId,
       // Deep-cloned so a later edit to the source object (or the sample file)
       // can never mutate the frozen snapshot held in state.
       payload: JSON.parse(JSON.stringify(pl)) as ExecutionLineV1,
@@ -914,6 +923,7 @@ export function importExecutionPackage(
       id: lineId,
       lineNumber: pl.lineNumber,
       sourceSystem: "CPQ",
+      lineType: pl.lineType,
       product: `${pl.product.model} ${pl.product.pumpSize}`,
       description: pl.product.description,
       family: pl.product.family,
