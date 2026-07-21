@@ -7,12 +7,32 @@
 // It never throws on bad input and never silently coerces: validation returns
 // structured, field-level errors and the caller decides what to do.
 
-import { fnv1a32 } from "./ids";
+import { sha256Hex } from "./sha256";
 
-export const EXECUTION_PACKAGE_SCHEMA_VERSION = "1.0" as const;
+// v1.0 and v1.1 share the same core shape. v1.1 adds the optional per-line
+// `notes` array (classified manufacturing notes). A package that carries any
+// note MUST declare "1.1"; a package with no notes may stay "1.0".
+export const EXECUTION_PACKAGE_SCHEMA_VERSIONS = ["1.0", "1.1"] as const;
+export type ExecutionSchemaVersion = (typeof EXECUTION_PACKAGE_SCHEMA_VERSIONS)[number];
+
+export const EXECUTION_NOTE_CLASSIFICATIONS = [
+  "ShopInstruction",
+  "EngineeringNote",
+  "MachiningInstruction",
+  "QualityRequirement",
+  "PackagingInstruction",
+  "Provenance"
+] as const;
+export type ExecutionNoteClassification = (typeof EXECUTION_NOTE_CLASSIFICATIONS)[number];
+
+export interface ExecutionNoteV11 {
+  classification: ExecutionNoteClassification;
+  text: string;
+  source: string;
+}
 
 export interface ExecutionPackageV1 {
-  schemaVersion: "1.0";
+  schemaVersion: ExecutionSchemaVersion;
 
   packageId: string;
   publishedAt: string;
@@ -82,10 +102,20 @@ export interface ExecutionLineV1 {
   }>;
 
   versions: {
-    configurationRulesVersion: string;
+    // Optional: the CPQ has no configuration-rules provenance today (only a
+    // pricing-rules version, which is not equivalent). When a real value
+    // exists it is emitted; otherwise the field is omitted, never fabricated.
+    configurationRulesVersion?: string;
     pricingReleaseId?: string;
     documentManifestVersion?: string;
   };
+
+  // v1.1 only. Explicitly classified notes to surface CPQ backend/engineering
+  // intent commercially. Only classified entries are exported; free-form
+  // internal/costing/diagnostic text is never auto-included. "Provenance" notes
+  // are read-only context (kept in the frozen snapshot, not seeded as
+  // actionable shop notes); the other classifications seed ManufacturingNotes.
+  notes?: ExecutionNoteV11[];
 }
 
 export interface ValidationResult {
@@ -113,17 +143,16 @@ function canonicalize(value: unknown): unknown {
   return value;
 }
 
-// A deterministic mock checksum over the whole package payload except the
-// checksum field itself. A real integration would use SHA-256; this stays
-// dependency-free and reproducible. Two salted FNV passes widen the digest so
-// small edits are very likely to change it.
+// Lowercase-hex SHA-256 over the canonical JSON of the whole package payload,
+// excluding the checksum field itself. Both sides of the CPQ handshake use this
+// exact rule (recursive key sort, arrays preserved, compact UTF-8 JSON), so a
+// Python hashlib.sha256 of the same canonical string produces an identical
+// digest.
 export function computeChecksum(pkg: ExecutionPackageV1): string {
   const { checksum: _omit, ...rest } = pkg;
   void _omit;
   const canonical = JSON.stringify(canonicalize(rest));
-  const a = fnv1a32(canonical).toString(16).padStart(8, "0");
-  const b = fnv1a32(`salt:${canonical}`).toString(16).padStart(8, "0");
-  return `chk_${a}${b}`;
+  return sha256Hex(canonical);
 }
 
 export function verifyChecksum(pkg: ExecutionPackageV1): boolean {
@@ -191,8 +220,33 @@ function validateLine(line: unknown, index: number, errors: string[]): void {
   }
   if (!isObject(line.versions)) {
     errors.push(`${p}.versions must be an object`);
-  } else {
-    requireString(line.versions.configurationRulesVersion, `${p}.versions.configurationRulesVersion`, errors);
+  } else if (
+    line.versions.configurationRulesVersion !== undefined &&
+    typeof line.versions.configurationRulesVersion !== "string"
+  ) {
+    // Optional: the CPQ may not have configuration-rules provenance. When
+    // present it must be a string; when absent it is simply omitted.
+    errors.push(`${p}.versions.configurationRulesVersion, when present, must be a string`);
+  }
+
+  // v1.1 notes (optional). Validate shape if present.
+  if (line.notes !== undefined) {
+    if (!Array.isArray(line.notes)) {
+      errors.push(`${p}.notes, when present, must be an array`);
+    } else {
+      line.notes.forEach((note, ni) => {
+        const np = `${p}.notes[${ni}]`;
+        if (!isObject(note)) {
+          errors.push(`${np} must be an object`);
+          return;
+        }
+        if (!EXECUTION_NOTE_CLASSIFICATIONS.includes(note.classification as ExecutionNoteClassification)) {
+          errors.push(`${np}.classification must be one of ${EXECUTION_NOTE_CLASSIFICATIONS.join(", ")}`);
+        }
+        requireString(note.text, `${np}.text`, errors);
+        requireString(note.source, `${np}.source`, errors);
+      });
+    }
   }
 }
 
@@ -207,9 +261,9 @@ export function validateExecutionPackage(raw: unknown): ValidationResult {
     return { ok: false, errors: ["Package must be a JSON object"] };
   }
 
-  if (raw.schemaVersion !== EXECUTION_PACKAGE_SCHEMA_VERSION) {
+  if (!EXECUTION_PACKAGE_SCHEMA_VERSIONS.includes(raw.schemaVersion as ExecutionSchemaVersion)) {
     errors.push(
-      `Unsupported schemaVersion ${JSON.stringify(raw.schemaVersion)}; expected "${EXECUTION_PACKAGE_SCHEMA_VERSION}"`
+      `Unsupported schemaVersion ${JSON.stringify(raw.schemaVersion)}; expected one of ${EXECUTION_PACKAGE_SCHEMA_VERSIONS.map((v) => `"${v}"`).join(", ")}`
     );
     // Without a matching schema version we cannot trust any other field.
     return { ok: false, errors };
@@ -241,6 +295,13 @@ export function validateExecutionPackage(raw: unknown): ValidationResult {
     errors.push("lines must be a non-empty array");
   } else {
     raw.lines.forEach((line, i) => validateLine(line, i, errors));
+    // Notes are a v1.1 feature; a "1.0" package must not carry them.
+    if (
+      raw.schemaVersion === "1.0" &&
+      raw.lines.some((line) => isObject(line) && Array.isArray((line as Record<string, unknown>).notes) && ((line as Record<string, unknown>).notes as unknown[]).length > 0)
+    ) {
+      errors.push('lines[].notes require schemaVersion "1.1"; a "1.0" package must not carry notes');
+    }
   }
 
   if (errors.length > 0) {

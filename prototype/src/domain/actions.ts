@@ -38,8 +38,23 @@ import { recomputeUnitProjection } from "./projections";
 import {
   validateExecutionPackage,
   type ExecutionLineV1,
+  type ExecutionNoteClassification,
   type ExecutionPackageV1
 } from "./executionPackage";
+
+// A classified CPQ note maps 1:1 to a ManufacturingNote category, except
+// "Provenance", which is read-only context kept only in the frozen snapshot and
+// never seeded as an actionable shop note.
+const NOTE_CLASSIFICATION_TO_CATEGORY: Record<
+  Exclude<ExecutionNoteClassification, "Provenance">,
+  ManufacturingNoteCategory
+> = {
+  ShopInstruction: "ShopInstruction",
+  EngineeringNote: "EngineeringNote",
+  MachiningInstruction: "MachiningInstruction",
+  QualityRequirement: "QualityRequirement",
+  PackagingInstruction: "PackagingInstruction"
+};
 
 function nowIso(at?: string): string {
   return at ?? new Date().toISOString();
@@ -779,12 +794,25 @@ export function createWorkOrder(state: AppState, actorId: string, input: WorkOrd
 // CPQ execution-package import
 // ---------------------------------------------------------------------------
 
+// A CPQ purchase-order document accepted on the CPQ side and transferred in the
+// bundle. Verified upstream against the transfer manifest; the raw bytes are
+// never persisted (prototype holds only plain data), so we keep the integrity
+// hash and size as provenance.
+export interface ImportedPoInput {
+  fileName: string;
+  sha256: string;
+  sizeBytes: number;
+  mediaType?: string;
+  acceptedPoSubmissionId?: string;
+}
+
 export interface ImportPackageInput {
   package: unknown; // untrusted, already-JSON-parsed upload
   orderNumber: string;
   customerPo?: string;
   facility: Facility;
   coordinatorId: string;
+  po?: ImportedPoInput; // present when imported from a transfer bundle
 }
 
 // Imports one approved CPQ execution package as a Work Order. Mirrors the
@@ -809,6 +837,19 @@ export function importExecutionPackage(
   if (!orderNumber) throw new Error("Order number is required");
   if (state.orders.some((o) => o.orderNumber === orderNumber)) {
     throw new Error(`Order ${orderNumber} already exists`);
+  }
+
+  // Source-tuple idempotency (fail closed). A revision may be imported into
+  // manufacturing exactly once; a second import of the same (quoteId,
+  // revisionId) is rejected rather than silently creating a divergent order.
+  // The full key adds acceptedPoSubmissionId once the transfer contract lands.
+  const priorForRevision = state.configurationSnapshots.find(
+    (snap) => snap.sourceQuoteId === pkg.source.quoteId && snap.sourceRevisionId === pkg.source.revisionId
+  );
+  if (priorForRevision) {
+    throw new Error(
+      `CPQ revision already imported: quote ${pkg.source.quoteId} revision ${pkg.source.revisionId} was already imported as order ${priorForRevision.orderNumber}.`
+    );
   }
 
   const ts = nowIso(at);
@@ -992,6 +1033,66 @@ export function importExecutionPackage(
     s = recomputeUnitProjection(s, u.unitId);
   }
 
+  // Seed line-scoped ManufacturingNotes from v1.1 classified notes. Only
+  // actionable classifications become shop notes; "Provenance" notes stay in the
+  // frozen snapshot payload (read-only) and are not seeded as actionable work.
+  for (let i = 0; i < pkg.lines.length; i++) {
+    const pl = pkg.lines[i];
+    const lineId = lines[i].id;
+    for (const note of pl.notes ?? []) {
+      if (note.classification === "Provenance") continue;
+      const [id, s1] = takeId(s, "mnote");
+      const record: ManufacturingNote = {
+        id,
+        scopeType: "WorkOrderLine",
+        scopeId: lineId,
+        orderNumber,
+        lineNumber: pl.lineNumber,
+        category: NOTE_CLASSIFICATION_TO_CATEGORY[note.classification],
+        title: `CPQ ${note.classification} (${note.source})`,
+        description: note.text,
+        createdAt: ts,
+        createdBy: actorId,
+        source: "CPQ"
+      };
+      s = { ...s1, manufacturingNotes: [...s1.manufacturingNotes, record] };
+      s = appendAudit(s, {
+        at: ts, actorId, action: "manufacturingNote.imported", targetType: "WorkOrderLine", targetId: lineId,
+        unitId: null,
+        detail: `Seeded ${note.classification} note on line ${pl.lineNumber} from CPQ package.`,
+        supersedesEventId: null
+      });
+    }
+  }
+
+  // Store the accepted CPQ PO as an Order attachment (metadata + integrity hash
+  // only; raw bytes are never persisted).
+  if (input.po) {
+    const [attId, s1] = takeId(s, "att");
+    const attachment: Attachment = {
+      id: attId,
+      kind: "file",
+      category: "General reference",
+      orderNumber,
+      unitId: null,
+      targetRef: input.po.acceptedPoSubmissionId ?? null,
+      fileName: input.po.fileName,
+      employeeId: actorId,
+      at: ts,
+      placeholderArt: "cpq-po-document",
+      sha256: input.po.sha256,
+      sizeBytes: input.po.sizeBytes,
+      source: "CPQ"
+    };
+    s = { ...s1, attachments: [...s1.attachments, attachment] };
+    s = appendAudit(s, {
+      at: ts, actorId, action: "po.attached", targetType: "Order", targetId: orderNumber,
+      unitId: null,
+      detail: `Accepted customer PO "${input.po.fileName}" attached (sha256 ${input.po.sha256}).`,
+      supersedesEventId: null
+    });
+  }
+
   return s;
 }
 
@@ -1054,7 +1155,8 @@ export function addManufacturingNote(
     title: input.title.trim(),
     description: input.description.trim(),
     createdAt: ts,
-    createdBy: actorId
+    createdBy: actorId,
+    source: "Manual"
   };
   let s: AppState = { ...s0, manufacturingNotes: [...s0.manufacturingNotes, note] };
   s = appendAudit(s, {

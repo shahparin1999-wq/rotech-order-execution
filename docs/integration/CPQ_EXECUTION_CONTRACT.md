@@ -36,12 +36,39 @@ immutable revision.
 ## 3. Package identity, checksum, and immutability
 
 - Each package has a `packageId`, `publishedAt`, `publishedBy`, and a
-  `checksum` computed over the whole payload (excluding the checksum field).
+  `checksum`.
+- **Checksum = lowercase-hex SHA-256** over the canonical JSON of the whole
+  payload excluding the checksum field. Canonical = recursively sort object
+  keys, preserve array order, compact (no whitespace) UTF-8 JSON. Both sides use
+  this exact rule, so `hashlib.sha256(canonical.encode())` (Python) and our
+  importer agree byte-for-byte.
 - On import the checksum is **recomputed and verified**; a mismatch rejects the
   package (it may have been altered after publishing).
 - Each imported line is stored as an **immutable `ConfigurationSnapshot`**
   (deep-cloned payload). Editing the source file after import does not change a
   stored snapshot. This mirrors the released-document immutability invariant.
+
+### Schema versions
+
+- **1.0** — the base contract.
+- **1.1** — adds an optional per-line `notes` array of classified manufacturing
+  notes: `{ classification, text, source }`, where `classification` is one of
+  `ShopInstruction | EngineeringNote | MachiningInstruction | QualityRequirement
+  | PackagingInstruction | Provenance`. A package carrying any note MUST declare
+  `"1.1"`. On import, the five actionable classifications seed `ManufacturingNote`
+  records; `Provenance` notes stay read-only in the frozen snapshot. Only
+  explicitly classified notes are exported — never free-form internal/costing/
+  diagnostic text, and never hidden in `selectedOptions` or BOM.
+
+### Transfer envelope (PO bytes)
+
+The execution package JSON stays frozen and does **not** carry the PO. A won
+order is transferred as a **ZIP bundle**: `execution-package.json` +
+`customer-po/<file>` + `transfer-manifest.json`. The manifest
+(`envelopeSchemaVersion` `"1.0"`) carries `packageId`, `acceptedPoSubmissionId`,
+and a SHA-256 + size for both files. The importer verifies both hashes, stores
+the PO as an Order attachment (metadata + hash only; raw bytes are never
+persisted), and uses `acceptedPoSubmissionId` for idempotency.
 
 ## 4. Quantity → Unit rules
 
@@ -111,7 +138,8 @@ Audit is append-only; corrections supersede, nothing is overwritten.
 | `configuration.selectedOptions` | Configuration | Yes (array) | Code/description/value. |
 | `bom[]` | Configured BOM | Preferred | Descriptive in v1; may lack part numbers. |
 | `documents[]` | Document manifest | Optional (V1) | Add once reliable. |
-| `versions.configurationRulesVersion` | CPQ rules release | Yes | Reproducibility. |
+| `versions.configurationRulesVersion` | CPQ rules release | Optional | CPQ has no config-rules provenance today (pricing-rules version is not equivalent); omit when absent, never fabricate. |
+| `lines[].notes` (v1.1) | Classified CPQ notes | Optional | Actionable classes seed ManufacturingNotes; Provenance stays read-only. |
 | `versions.pricingReleaseId` | Pricing release | Excluded from build use | Present for trace only; **no pricing sync**. |
 
 ## 10. Fields the CPQ cannot currently provide (marked, not invented)

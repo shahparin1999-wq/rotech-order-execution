@@ -15,6 +15,9 @@ import {
   type ExecutionLineV1,
   type ExecutionPackageV1
 } from "@/domain/executionPackage";
+import { verifyTransferEnvelope } from "@/domain/transferEnvelope";
+import { readZipEntries } from "@/domain/zip";
+import type { ImportedPoInput } from "@/domain/actions";
 import { Drawer, FieldGroup } from "./Drawer";
 
 // Q-DEMO-1001 rev 3 → Q-DEMO-1001-R3. The revision suffix keeps the derived
@@ -53,6 +56,7 @@ export function ImportCpqPackageDrawer({
   const [fileName, setFileName] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [pkg, setPkg] = useState<ExecutionPackageV1 | null>(null);
+  const [po, setPo] = useState<ImportedPoInput | null>(null);
   const [orderNumber, setOrderNumber] = useState("");
   const [customerPo, setCustomerPo] = useState("");
   const [facility, setFacility] = useState<Facility>("Mississauga");
@@ -60,10 +64,59 @@ export function ImportCpqPackageDrawer({
     state.employees.find((e) => e.department === "Coordination")?.id ?? state.employees[0].id
   );
 
+  function acceptPackage(candidate: unknown, poInput: ImportedPoInput | null): void {
+    const result = validateExecutionPackage(candidate);
+    if (!result.ok || !result.package) {
+      setErrors(result.errors);
+      return;
+    }
+    setPkg(result.package);
+    setPo(poInput);
+    setOrderNumber(deriveOrderNumber(result.package));
+    setCustomerPo(result.package.customer.customerPo ?? "");
+  }
+
   async function onFile(file: File) {
     setFileName(file.name);
     setPkg(null);
+    setPo(null);
     setErrors([]);
+
+    // A ZIP is a CPQ transfer bundle (package + PO + manifest); a plain .json is
+    // the execution package alone.
+    if (file.name.toLowerCase().endsWith(".zip")) {
+      try {
+        const entries = await readZipEntries(await file.arrayBuffer());
+        const pkgBytes = entries.get("execution-package.json");
+        const manifestBytes = entries.get("transfer-manifest.json");
+        const poName = [...entries.keys()].find((k) => k.startsWith("customer-po/"));
+        const poBytes = poName ? entries.get(poName) : undefined;
+        if (!pkgBytes || !manifestBytes || !poBytes || !poName) {
+          setErrors([
+            "Bundle must contain execution-package.json, transfer-manifest.json, and a customer-po/ file."
+          ]);
+          return;
+        }
+        const manifest = JSON.parse(new TextDecoder().decode(manifestBytes));
+        const verified = verifyTransferEnvelope({ manifest, packageBytes: pkgBytes, poBytes });
+        if (!verified.ok || !verified.manifest) {
+          setErrors(verified.errors);
+          return;
+        }
+        const poInput: ImportedPoInput = {
+          fileName: verified.manifest.files.customerPo.name,
+          sha256: verified.manifest.files.customerPo.sha256,
+          sizeBytes: verified.manifest.files.customerPo.sizeBytes,
+          mediaType: verified.manifest.files.customerPo.mediaType,
+          acceptedPoSubmissionId: verified.manifest.acceptedPoSubmissionId
+        };
+        acceptPackage(JSON.parse(new TextDecoder().decode(pkgBytes)), poInput);
+      } catch (err) {
+        setErrors([`Could not read bundle: ${(err as Error).message}`]);
+      }
+      return;
+    }
+
     let parsed: unknown;
     try {
       parsed = JSON.parse(await file.text());
@@ -71,15 +124,7 @@ export function ImportCpqPackageDrawer({
       setErrors(["File is not valid JSON."]);
       return;
     }
-    const result = validateExecutionPackage(parsed);
-    if (!result.ok || !result.package) {
-      setErrors(result.errors);
-      return;
-    }
-    setPkg(result.package);
-    const derived = deriveOrderNumber(result.package);
-    setOrderNumber(derived);
-    setCustomerPo(result.package.customer.customerPo ?? "");
+    acceptPackage(parsed, null);
   }
 
   const orderNumberTaken = useMemo(
@@ -113,7 +158,8 @@ export function ImportCpqPackageDrawer({
                   orderNumber: on,
                   customerPo: customerPo.trim() || undefined,
                   facility,
-                  coordinatorId
+                  coordinatorId,
+                  po: po ?? undefined
                 }
               });
               onClose();
@@ -126,10 +172,10 @@ export function ImportCpqPackageDrawer({
       }
     >
       {toggle}
-      <FieldGroup label="CPQ JSON package">
+      <FieldGroup label="CPQ package (.json) or transfer bundle (.zip)">
         <input
           type="file"
-          accept="application/json,.json"
+          accept="application/json,.json,.zip,application/zip"
           data-testid="cpq-file-input"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -162,8 +208,13 @@ export function ImportCpqPackageDrawer({
             </div>
             <div style={{ fontSize: 13 }}>Customer: {pkg.customer.customerName}</div>
             <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>
-              Package {pkg.packageId} · checksum {pkg.checksum} · {pkg.lines.length} line(s)
+              Package {pkg.packageId} · checksum {pkg.checksum.slice(0, 16)}… · {pkg.lines.length} line(s)
             </div>
+            {po && (
+              <div style={{ fontSize: 12, color: "var(--text-subtle)" }} data-testid="cpq-preview-po">
+                Accepted PO: {po.fileName} · verified sha256 {po.sha256.slice(0, 16)}…
+              </div>
+            )}
           </div>
 
           <FieldGroup label="Order number (derived from quote)" required>

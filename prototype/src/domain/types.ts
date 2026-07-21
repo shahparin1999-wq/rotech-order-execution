@@ -342,6 +342,12 @@ export interface Attachment {
   employeeId: string;
   at: string;
   placeholderArt: string; // key for the mock SVG rendering; never a real photo
+  // Set for a CPQ transfer-envelope PO document: integrity hash and size from
+  // the verified transfer manifest. The raw bytes are never stored (prototype
+  // holds only plain data), so these carry the PO's provenance/integrity.
+  sha256?: string;
+  sizeBytes?: number;
+  source?: string;
 }
 
 export interface AuditEvent {
@@ -471,6 +477,9 @@ export interface ManufacturingNote {
   description: string;
   createdAt: string;
   createdBy: string;
+  // "CPQ" when seeded from an imported package's classified notes, "Manual"
+  // when added in the Work Order System. Optional for backward compatibility.
+  source?: "CPQ" | "Manual";
 }
 
 export type AdjustmentApprovalStatus =
