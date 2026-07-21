@@ -262,7 +262,7 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
         Line {line.lineNumber}: {line.product} — Quantity {line.quantity}
       </h3>
       <div style={{ fontSize: 12, color: "var(--text-subtle)", marginBottom: 8 }}>
-        Source: {line.sourceSystem}
+        Source: {line.sourceSystem} · {units.length} Unit{units.length === 1 ? "" : "s"}
         {line.sourceSystem === "CPQ" && snapshot && (
           <>
             {" "}· CPQ {line.cpqQuoteId} rev via snapshot · checksum{" "}
@@ -270,6 +270,8 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
           </>
         )}
       </div>
+
+      <AddUnitsControl orderNo={orderNo} lineId={lineId} lineNumber={line.lineNumber} unitCount={units.length} />
 
       <nav className="tabs" aria-label={`Line ${line.lineNumber} tabs`}>
         {LINE_SUBTABS.map(([key, label]) => (
@@ -382,6 +384,7 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
 
       {sub === "bom" && (
         <div style={{ marginTop: 10 }}>
+          <h4>As ordered {payload ? "(frozen CPQ, read-only)" : "(template skeleton, read-only)"}</h4>
           {payload && payload.bom.length > 0 ? (
             <table className="data">
               <thead><tr><th>Part</th><th>Description</th><th>Qty</th><th>Material</th></tr></thead>
@@ -397,27 +400,23 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
               </tbody>
             </table>
           ) : template && template.bomSkeleton.length > 0 ? (
-            <>
-              <table className="data">
-                <thead><tr><th>Component</th><th>Qty</th><th>Material</th></tr></thead>
-                <tbody>
-                  {template.bomSkeleton.map((b, i) => (
-                    <tr key={i}>
-                      <td>{b.description}</td>
-                      <td>{b.quantity}</td>
-                      <td>{b.material ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p style={{ fontSize: 12, color: "var(--text-subtle)" }}>
-                BOM skeleton from the {template.displayName} template (pilot placeholder); specific
-                part numbers/materials are filled in per order.
-              </p>
-            </>
+            <table className="data">
+              <thead><tr><th>Component</th><th>Qty</th><th>Material</th></tr></thead>
+              <tbody>
+                {template.bomSkeleton.map((b, i) => (
+                  <tr key={i}>
+                    <td>{b.description}</td>
+                    <td>{b.quantity}</td>
+                    <td>{b.material ?? "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : (
-            <p>No BOM yet.</p>
+            <p>No as-ordered BOM.</p>
           )}
+
+          <WorkingBomEditor orderNo={orderNo} lineId={lineId} lineNumber={line.lineNumber} />
         </div>
       )}
 
@@ -633,6 +632,160 @@ function AddAdjustmentForm({
         }}
       >
         Propose adjustment
+      </button>
+    </div>
+  );
+}
+
+function AddUnitsControl({
+  orderNo,
+  lineId,
+  lineNumber,
+  unitCount
+}: {
+  orderNo: string;
+  lineId: string;
+  lineNumber: number;
+  unitCount: number;
+}) {
+  const dispatch = useAppDispatch();
+  const [count, setCount] = useState(1);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+      <input
+        type="number"
+        min={1}
+        data-testid={`add-units-count-${lineNumber}`}
+        value={count}
+        onChange={(e) => setCount(Math.max(1, Number(e.target.value) || 1))}
+        style={{ width: 70 }}
+      />
+      <button
+        type="button"
+        className="btn"
+        data-testid={`add-units-${lineNumber}`}
+        onClick={() => dispatch({ type: "addUnitsToLine", input: { orderNumber: orderNo, lineId, count } })}
+      >
+        Add unit{count === 1 ? "" : "s"}
+      </button>
+      <span style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+        Appends independent Units (continuing the sequence); line currently has {unitCount}.
+      </span>
+    </div>
+  );
+}
+
+function WorkingBomEditor({ orderNo, lineId, lineNumber }: { orderNo: string; lineId: string; lineNumber: number }) {
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const rows = state.workingBomRows.filter((r) => r.orderNumber === orderNo && r.lineId === lineId);
+  const [desc, setDesc] = useState("");
+  const [part, setPart] = useState("");
+  const [material, setMaterial] = useState("");
+  const [qty, setQty] = useState(1);
+
+  return (
+    <div style={{ marginTop: 14 }} data-testid={`working-bom-${lineNumber}`}>
+      <h4>Working BOM (editable)</h4>
+      {rows.length === 0 ? (
+        <p style={{ fontSize: 13 }}>
+          <button
+            type="button"
+            className="btn"
+            data-testid={`working-bom-seed-${lineNumber}`}
+            onClick={() => dispatch({ type: "seedWorkingBom", orderNumber: orderNo, lineId })}
+          >
+            Start working BOM from as-ordered
+          </button>{" "}
+          <span style={{ color: "var(--text-subtle)" }}>then fill in specific part numbers and materials.</span>
+        </p>
+      ) : (
+        <table className="data">
+          <thead>
+            <tr><th>Description</th><th>Part number</th><th>Material</th><th>Qty</th><th></th></tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} data-testid={`working-bom-row-${r.id}`}>
+                <td>
+                  <input
+                    defaultValue={r.description}
+                    onBlur={(e) => dispatch({ type: "updateWorkingBomRow", rowId: r.id, patch: { description: e.target.value } })}
+                  />
+                </td>
+                <td>
+                  <input
+                    data-testid={`working-bom-part-${r.id}`}
+                    defaultValue={r.partNumber ?? ""}
+                    placeholder="part #"
+                    onBlur={(e) => dispatch({ type: "updateWorkingBomRow", rowId: r.id, patch: { partNumber: e.target.value || null } })}
+                  />
+                </td>
+                <td>
+                  <input
+                    data-testid={`working-bom-material-${r.id}`}
+                    defaultValue={r.material ?? ""}
+                    placeholder="material"
+                    onBlur={(e) => dispatch({ type: "updateWorkingBomRow", rowId: r.id, patch: { material: e.target.value || null } })}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    min={1}
+                    defaultValue={r.quantity}
+                    style={{ width: 60 }}
+                    onBlur={(e) => dispatch({ type: "updateWorkingBomRow", rowId: r.id, patch: { quantity: Math.max(1, Number(e.target.value) || 1) } })}
+                  />
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={() => dispatch({ type: "removeWorkingBomRow", rowId: r.id })}
+                  >
+                    Remove
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <div className="field-row" style={{ marginTop: 8 }}>
+        <FieldGroup label="Add row — description">
+          <input data-testid={`working-bom-new-desc-${lineNumber}`} value={desc} onChange={(e) => setDesc(e.target.value)} />
+        </FieldGroup>
+        <FieldGroup label="Part number">
+          <input value={part} onChange={(e) => setPart(e.target.value)} />
+        </FieldGroup>
+      </div>
+      <div className="field-row">
+        <FieldGroup label="Material">
+          <input value={material} onChange={(e) => setMaterial(e.target.value)} />
+        </FieldGroup>
+        <FieldGroup label="Qty">
+          <input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
+        </FieldGroup>
+      </div>
+      <button
+        type="button"
+        className="btn btn-primary"
+        data-testid={`working-bom-add-${lineNumber}`}
+        disabled={!desc.trim()}
+        onClick={() => {
+          dispatch({
+            type: "addWorkingBomRow",
+            input: { orderNumber: orderNo, lineId, description: desc.trim(), partNumber: part.trim() || undefined, material: material.trim() || undefined, quantity: qty }
+          });
+          setDesc("");
+          setPart("");
+          setMaterial("");
+          setQty(1);
+        }}
+      >
+        Add BOM row
       </button>
     </div>
   );

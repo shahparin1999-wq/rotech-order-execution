@@ -31,7 +31,8 @@ import type {
   SpecialInstruction,
   Task,
   TaskStatus,
-  Unit
+  Unit,
+  WorkingBomRow
 } from "./types";
 import { generateUnits, mockPublicRef } from "./ids";
 import { recomputeUnitProjection } from "./projections";
@@ -1245,6 +1246,242 @@ export function addConfigurationAdjustment(
     unitId: input.scopeType === "Unit" ? input.scopeId : null,
     detail: `Proposed ${input.configurationPath}: ${JSON.stringify(input.originalValue)} → ${JSON.stringify(input.proposedValue)} (commercial review ${adjustment.commercialReviewRequired ? "required" : "not required"}).`,
     supersedesEventId: null
+  });
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// Post-creation editing: add Units, editable working BOM
+// ---------------------------------------------------------------------------
+
+function mustFindOrderLine(state: AppState, orderNumber: string, lineId: string): { order: Order; line: OrderLine } {
+  const order = state.orders.find((o) => o.orderNumber === orderNumber);
+  if (!order) throw new Error(`Unknown order ${orderNumber}`);
+  const line = order.lines.find((l) => l.id === lineId);
+  if (!line) throw new Error(`Inconsistent ancestors: line ${lineId} is not on order ${orderNumber}`);
+  return { order, line };
+}
+
+export interface AddUnitsInput {
+  orderNumber: string;
+  lineId: string;
+  count: number;
+}
+
+// Appends `count` new independent Units to an existing line, continuing the
+// sequence (never reusing a sequence) and giving each Unit the same route the
+// line's existing Units use (the model template's master routing, or generic for
+// a CPQ line). The line quantity grows to match; it never shrinks below its
+// created Units. Each new Unit is fully isolated - its own id, QR identity,
+// intake task, and route.
+export function addUnitsToLine(state: AppState, actorId: string, input: AddUnitsInput, at?: string): AppState {
+  const { order, line } = mustFindOrderLine(state, input.orderNumber, input.lineId);
+  if (input.count < 1) throw new Error("Count must be at least 1");
+
+  const siblings = state.units.filter((u) => u.orderNumber === order.orderNumber && u.lineNumber === line.lineNumber);
+  const base = siblings[0]
+    ? { model: siblings[0].model, size: siblings[0].size, orderedMaterial: siblings[0].orderedMaterial, location: siblings[0].location }
+    : { model: line.model, size: "", orderedMaterial: line.orderedMaterial, location: `${order.facility} - Intake` };
+  const maxSeq = siblings.reduce((m, u) => Math.max(m, u.sequence), 0);
+
+  const template = line.templateId ? getModelTemplate(line.templateId) : undefined;
+  const routeSteps = template && !template.isCustom ? template.route : GENERIC_ROUTE;
+
+  const ts = nowIso(at);
+  const newUnits = generateUnits(order.orderNumber, line.lineNumber, input.count, base, {}, maxSeq + 1);
+  const routeOps = newUnits.flatMap((u) => buildRoute(u.unitId, routeSteps));
+  const qrIdentities: QrIdentity[] = newUnits.map((u) => ({
+    publicRef: u.publicRef,
+    recordType: "Unit" as const,
+    targetId: u.unitId,
+    label: `Unit ${u.unitId}`,
+    printEvents: []
+  }));
+
+  let s: AppState = {
+    ...state,
+    orders: state.orders.map((o) =>
+      o.orderNumber === order.orderNumber
+        ? { ...o, updatedAt: ts, lines: o.lines.map((l) => (l.id === line.id ? { ...l, quantity: l.quantity + input.count } : l)) }
+        : o
+    ),
+    units: [...state.units, ...newUnits],
+    routeOps: [...state.routeOps, ...routeOps],
+    qrIdentities: [...state.qrIdentities, ...qrIdentities]
+  };
+
+  for (const u of newUnits) {
+    const [taskId, s1] = takeId(s, "t");
+    const task: Task = {
+      id: taskId,
+      unitId: u.unitId,
+      orderNumber: order.orderNumber,
+      customerId: null,
+      name: "Intake review",
+      description: null,
+      operationId: `op-${u.unitId}-1`,
+      bucket: "TBC",
+      department: "Coordination",
+      status: "Ready",
+      ownerId: null,
+      assigneeIds: [],
+      startDate: null,
+      dueDate: null,
+      priority: "Medium",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [],
+      sourcePostId: null
+    };
+    s = { ...s1, tasks: [...s1.tasks, task] };
+  }
+
+  s = appendAudit(s, {
+    at: ts, actorId, action: "units.added", targetType: "WorkOrderLine", targetId: line.id,
+    unitId: null,
+    detail: `Added ${input.count} Unit(s) to line ${line.lineNumber}${line.sourceSystem === "CPQ" ? " (beyond CPQ baseline)" : ""}; line quantity now ${line.quantity + input.count}.`,
+    supersedesEventId: null
+  });
+  for (const u of newUnits) {
+    s = appendAudit(s, {
+      at: ts, actorId, action: "unit.created", targetType: "Unit", targetId: u.unitId,
+      unitId: u.unitId, detail: "Unit added to existing line with stable QR identity (pre-serial).", supersedesEventId: null
+    });
+    s = recomputeUnitProjection(s, u.unitId);
+  }
+  return s;
+}
+
+// Seeds the editable working BOM for a line from its "as ordered" source (the
+// frozen CPQ snapshot BOM, or the model-template skeleton). No-op if the line
+// already has working rows, so it never clobbers manual edits.
+export function seedWorkingBom(state: AppState, actorId: string, orderNumber: string, lineId: string, at?: string): AppState {
+  const { line } = mustFindOrderLine(state, orderNumber, lineId);
+  if (state.workingBomRows.some((r) => r.orderNumber === orderNumber && r.lineId === lineId)) {
+    return state; // already started; don't overwrite edits
+  }
+
+  let seededFrom: WorkingBomRow["seededFrom"] = "Manual";
+  let sourceRows: Array<{ description: string; partNumber?: string; material?: string; quantity: number }> = [];
+  const snapshot = state.configurationSnapshots.find((snap) => snap.id === line.configurationSnapshotId);
+  if (snapshot) {
+    seededFrom = "CPQ";
+    sourceRows = (snapshot.payload as ExecutionLineV1).bom ?? [];
+  } else if (line.templateId) {
+    const template = getModelTemplate(line.templateId);
+    if (template) {
+      seededFrom = "Template";
+      sourceRows = template.bomSkeleton;
+    }
+  }
+
+  const ts = nowIso(at);
+  let s: AppState = state;
+  const rows: WorkingBomRow[] = [];
+  for (const src of sourceRows) {
+    const [id, s1] = takeId(s, "wbom");
+    s = s1;
+    rows.push({
+      id,
+      orderNumber,
+      lineId,
+      lineNumber: line.lineNumber,
+      description: src.description,
+      partNumber: src.partNumber ?? null,
+      material: src.material ?? null,
+      quantity: src.quantity,
+      seededFrom,
+      createdAt: ts,
+      createdBy: actorId,
+      updatedAt: ts
+    });
+  }
+  s = { ...s, workingBomRows: [...s.workingBomRows, ...rows] };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "workingBom.seeded", targetType: "WorkOrderLine", targetId: lineId,
+    unitId: null, detail: `Working BOM seeded from ${seededFrom} (${rows.length} row(s)).`, supersedesEventId: null
+  });
+  return s;
+}
+
+export interface WorkingBomRowInput {
+  orderNumber: string;
+  lineId: string;
+  description: string;
+  partNumber?: string;
+  material?: string;
+  quantity: number;
+}
+
+export function addWorkingBomRow(state: AppState, actorId: string, input: WorkingBomRowInput, at?: string): AppState {
+  const { line } = mustFindOrderLine(state, input.orderNumber, input.lineId);
+  if (!input.description.trim()) throw new Error("BOM row description is required");
+  if (input.quantity < 1) throw new Error("BOM row quantity must be at least 1");
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "wbom");
+  const row: WorkingBomRow = {
+    id,
+    orderNumber: input.orderNumber,
+    lineId: input.lineId,
+    lineNumber: line.lineNumber,
+    description: input.description.trim(),
+    partNumber: input.partNumber?.trim() || null,
+    material: input.material?.trim() || null,
+    quantity: input.quantity,
+    seededFrom: "Manual",
+    createdAt: ts,
+    createdBy: actorId,
+    updatedAt: ts
+  };
+  let s: AppState = { ...s0, workingBomRows: [...s0.workingBomRows, row] };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "workingBom.rowAdded", targetType: "WorkOrderLine", targetId: input.lineId,
+    unitId: null, detail: `Working BOM row "${row.description}" added.`, supersedesEventId: null
+  });
+  return s;
+}
+
+export interface WorkingBomPatch {
+  description?: string;
+  partNumber?: string | null;
+  material?: string | null;
+  quantity?: number;
+}
+
+export function updateWorkingBomRow(state: AppState, actorId: string, rowId: string, patch: WorkingBomPatch, at?: string): AppState {
+  const row = state.workingBomRows.find((r) => r.id === rowId);
+  if (!row) throw new Error(`Unknown working BOM row ${rowId}`);
+  if (patch.quantity !== undefined && patch.quantity < 1) throw new Error("BOM row quantity must be at least 1");
+  const ts = nowIso(at);
+  const updated: WorkingBomRow = {
+    ...row,
+    description: patch.description !== undefined ? patch.description : row.description,
+    partNumber: patch.partNumber !== undefined ? patch.partNumber : row.partNumber,
+    material: patch.material !== undefined ? patch.material : row.material,
+    quantity: patch.quantity !== undefined ? patch.quantity : row.quantity,
+    updatedAt: ts
+  };
+  let s: AppState = { ...state, workingBomRows: state.workingBomRows.map((r) => (r.id === rowId ? updated : r)) };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "workingBom.rowUpdated", targetType: "WorkOrderLine", targetId: row.lineId,
+    unitId: null, detail: `Working BOM row "${updated.description}" updated (part ${updated.partNumber ?? "—"}, material ${updated.material ?? "—"}, qty ${updated.quantity}).`, supersedesEventId: null
+  });
+  return s;
+}
+
+export function removeWorkingBomRow(state: AppState, actorId: string, rowId: string, at?: string): AppState {
+  const row = state.workingBomRows.find((r) => r.id === rowId);
+  if (!row) throw new Error(`Unknown working BOM row ${rowId}`);
+  const ts = nowIso(at);
+  let s: AppState = { ...state, workingBomRows: state.workingBomRows.filter((r) => r.id !== rowId) };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "workingBom.rowRemoved", targetType: "WorkOrderLine", targetId: row.lineId,
+    unitId: null, detail: `Working BOM row "${row.description}" removed.`, supersedesEventId: null
   });
   return s;
 }

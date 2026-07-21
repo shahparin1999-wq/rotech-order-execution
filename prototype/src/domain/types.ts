@@ -518,6 +518,26 @@ export interface ConfigurationAdjustment {
   createdBy: string;
 }
 
+// The editable "working" BOM for a line: the manufacturing team fills in
+// specific part numbers, materials, and quantities here. Seeded from the frozen
+// CPQ snapshot BOM (imported lines) or the model-template skeleton (manual
+// lines), then edited freely. This never mutates the frozen CPQ snapshot - it is
+// the layer on top, the same discipline as ManufacturingNote/ConfigurationAdjustment.
+export interface WorkingBomRow {
+  id: string;
+  orderNumber: string;
+  lineId: string;
+  lineNumber: number;
+  description: string;
+  partNumber: string | null;
+  material: string | null;
+  quantity: number;
+  seededFrom: "CPQ" | "Template" | "Manual";
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+}
+
 export interface AppState {
   currentUserId: string;
   employees: Employee[];
@@ -543,6 +563,7 @@ export interface AppState {
   configurationSnapshots: ConfigurationSnapshot[];
   manufacturingNotes: ManufacturingNote[];
   configurationAdjustments: ConfigurationAdjustment[];
+  workingBomRows: WorkingBomRow[];
   favourites: string[]; // view ids or order numbers
   followedOrders: string[];
   nextId: number;

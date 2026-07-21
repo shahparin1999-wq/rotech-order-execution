@@ -26,6 +26,8 @@ import {
   addChecklistResponse,
   addConfigurationAdjustment,
   addManufacturingNote,
+  addUnitsToLine,
+  addWorkingBomRow,
   addPost,
   addReply,
   addTaskChecklistItem,
@@ -44,6 +46,9 @@ import {
   createWorkOrder,
   editOrder,
   importExecutionPackage,
+  removeWorkingBomRow,
+  seedWorkingBom,
+  updateWorkingBomRow,
   markPostRead,
   moveTaskBucket,
   pauseTask,
@@ -58,6 +63,7 @@ import {
   type AttachmentInput,
   type ContactInput,
   type ConvertInput,
+  type AddUnitsInput,
   type ConfigurationAdjustmentInput,
   type CustomerInput,
   type ImportPackageInput,
@@ -66,6 +72,8 @@ import {
   type PauseInput,
   type ResponseInput,
   type TaskInput,
+  type WorkingBomPatch,
+  type WorkingBomRowInput,
   type WorkOrderInput
 } from "@/domain/actions";
 
@@ -93,6 +101,11 @@ export type Action =
   | { type: "importExecutionPackage"; input: ImportPackageInput }
   | { type: "addManufacturingNote"; input: ManufacturingNoteInput }
   | { type: "addConfigurationAdjustment"; input: ConfigurationAdjustmentInput }
+  | { type: "addUnitsToLine"; input: AddUnitsInput }
+  | { type: "seedWorkingBom"; orderNumber: string; lineId: string }
+  | { type: "addWorkingBomRow"; input: WorkingBomRowInput }
+  | { type: "updateWorkingBomRow"; rowId: string; patch: WorkingBomPatch }
+  | { type: "removeWorkingBomRow"; rowId: string }
   | { type: "changeOrderDueDate"; orderNumber: string; dueDate: string }
   | { type: "editOrder"; orderNumber: string; input: OrderEditInput }
   | { type: "createTask"; input: TaskInput }
@@ -171,6 +184,16 @@ function buildReducer(onError: (message: string) => void) {
           return addManufacturingNote(state, actor, action.input);
         case "addConfigurationAdjustment":
           return addConfigurationAdjustment(state, actor, action.input);
+        case "addUnitsToLine":
+          return addUnitsToLine(state, actor, action.input);
+        case "seedWorkingBom":
+          return seedWorkingBom(state, actor, action.orderNumber, action.lineId);
+        case "addWorkingBomRow":
+          return addWorkingBomRow(state, actor, action.input);
+        case "updateWorkingBomRow":
+          return updateWorkingBomRow(state, actor, action.rowId, action.patch);
+        case "removeWorkingBomRow":
+          return removeWorkingBomRow(state, actor, action.rowId);
         case "changeOrderDueDate":
           return changeOrderDueDate(state, action.orderNumber, actor, action.dueDate);
         case "editOrder":

@@ -65,10 +65,14 @@ export function generateUnits(
     orderedMaterial: string;
     location: string;
   },
-  overridesBySequence: Record<number, UnitSeedOverrides> = {}
+  overridesBySequence: Record<number, UnitSeedOverrides> = {},
+  // First Unit sequence to generate. Defaults to 1 (initial creation); used to
+  // append additional Units to an existing line without reusing sequences.
+  startSequence = 1
 ): Unit[] {
   const units: Unit[] = [];
-  for (let sequence = 1; sequence <= quantity; sequence++) {
+  for (let i = 0; i < quantity; i++) {
+    const sequence = startSequence + i;
     const unitId = unitIdFor(orderNumber, lineNumber, sequence);
     const o = overridesBySequence[sequence] ?? {};
     units.push({

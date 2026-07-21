@@ -1000,6 +1000,7 @@ export function buildInitialState(): AppState {
     configurationSnapshots: [],
     manufacturingNotes: [],
     configurationAdjustments: [],
+    workingBomRows: [],
     favourites: ["view:orders", "view:quality"],
     followedOrders: [ORDER_NO],
     nextId: 1000
