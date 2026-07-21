@@ -7,6 +7,7 @@ import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import { unreadCountForOrder } from "@/domain/selectors";
 import {
   CustomersIcon,
+  GridIcon,
   HomeIcon,
   MyWorkIcon,
   OrdersIcon,
@@ -25,7 +26,8 @@ const railItems = [
   { href: "/customers", icon: CustomersIcon, label: "Customers" },
   { href: "/views/quality", icon: QualityIcon, label: "Quality" },
   { href: "/scan", icon: ScanIcon, label: "Scan" },
-  { href: "/reports", icon: ReportsIcon, label: "Reports" }
+  { href: "/reports", icon: ReportsIcon, label: "Reports" },
+  { href: "/config/model-templates", icon: GridIcon, label: "Config" }
 ];
 
 const locationViews = [

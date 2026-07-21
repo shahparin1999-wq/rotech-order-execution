@@ -18,6 +18,7 @@ import {
 } from "@/domain/selectors";
 import type { ManufacturingNoteCategory, PlannerBucket, Unit, UnitStatus } from "@/domain/types";
 import type { ExecutionLineV1 } from "@/domain/executionPackage";
+import { getModelTemplate } from "@/domain/modelTemplates";
 import {
   Exact,
   PriorityBadge,
@@ -244,6 +245,7 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
 
   const snapshot = state.configurationSnapshots.find((s) => s.id === line.configurationSnapshotId);
   const payload = snapshot?.payload as ExecutionLineV1 | undefined;
+  const template = line.templateId ? getModelTemplate(line.templateId) : undefined;
   const units = state.units
     .filter((u) => u.orderNumber === orderNo && u.lineNumber === line.lineNumber)
     .sort((a, b) => a.sequence - b.sequence);
@@ -303,11 +305,26 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
                 <tr><td>Config rules version</td><td>{payload.versions.configurationRulesVersion}</td></tr>
               </tbody>
             </table>
+          ) : template ? (
+            <div data-testid={`line-template-${line.lineNumber}`}>
+              <table className="data">
+                <tbody>
+                  <tr><td>Model template</td><td>{template.displayName} (pilot placeholder)</td></tr>
+                  <tr><td>Ordered material</td><td>{line.orderedMaterial}</td></tr>
+                  <tr>
+                    <td>Master routing</td>
+                    <td>{template.route.map((r) => r.name).join(" → ")}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           ) : (
-            <p>Manually created line — no frozen CPQ snapshot. Ordered material: {line.orderedMaterial}.</p>
+            <p>Manually created line — no template. Ordered material: {line.orderedMaterial}.</p>
           )}
           <p style={{ fontSize: 12, color: "var(--text-subtle)" }}>
-            The CPQ configuration is read-only. Manufacturing intent is captured under Manufacturing notes and Approved changes.
+            {payload
+              ? "The CPQ configuration is read-only. Manufacturing intent is captured under Manufacturing notes and Approved changes."
+              : "Master routing/BOM come from the model template (pilot placeholder). Specific values are filled in per order."}
           </p>
         </div>
       )}
@@ -379,8 +396,27 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
                 ))}
               </tbody>
             </table>
+          ) : template && template.bomSkeleton.length > 0 ? (
+            <>
+              <table className="data">
+                <thead><tr><th>Component</th><th>Qty</th><th>Material</th></tr></thead>
+                <tbody>
+                  {template.bomSkeleton.map((b, i) => (
+                    <tr key={i}>
+                      <td>{b.description}</td>
+                      <td>{b.quantity}</td>
+                      <td>{b.material ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+                BOM skeleton from the {template.displayName} template (pilot placeholder); specific
+                part numbers/materials are filled in per order.
+              </p>
+            </>
           ) : (
-            <p>No BOM in the imported package.</p>
+            <p>No BOM yet.</p>
           )}
         </div>
       )}

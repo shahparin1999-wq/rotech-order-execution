@@ -41,6 +41,7 @@ import {
   type ExecutionNoteClassification,
   type ExecutionPackageV1
 } from "./executionPackage";
+import { getModelTemplate, type ModelRouteStep } from "./modelTemplates";
 
 // A classified CPQ note maps 1:1 to a ManufacturingNote category, except
 // "Provenance", which is read-only context kept only in the frozen snapshot and
@@ -629,8 +630,10 @@ const GENERIC_ROUTE: Array<{ name: string; department: RouteOperation["departmen
   { name: "Packaging", department: "Shipping" }
 ];
 
-function buildGenericRoute(unitId: string): RouteOperation[] {
-  return GENERIC_ROUTE.map((step, i) => ({
+// Builds a Unit's RouteInstance from an ordered list of steps. The first step is
+// Ready, the rest NotStarted - the same seed convention as the fixtures.
+function buildRoute(unitId: string, steps: Array<{ name: string; department: RouteOperation["department"] }>): RouteOperation[] {
+  return steps.map((step, i) => ({
     id: `op-${unitId}-${i + 1}`,
     unitId,
     seq: i + 1,
@@ -638,6 +641,10 @@ function buildGenericRoute(unitId: string): RouteOperation[] {
     department: step.department,
     status: i === 0 ? "Ready" : "NotStarted"
   }));
+}
+
+function buildGenericRoute(unitId: string): RouteOperation[] {
+  return buildRoute(unitId, GENERIC_ROUTE);
 }
 
 export interface WorkOrderInput {
@@ -655,6 +662,9 @@ export interface WorkOrderInput {
   model: string;
   size: string;
   material: string;
+  // Model-template id (from modelTemplates). When set to a non-custom template,
+  // the line uses that model's master routing and records the template.
+  templateId?: string;
 }
 
 // Confirms a new work order exactly once: creates the Order, generates N
@@ -672,17 +682,25 @@ export function createWorkOrder(state: AppState, actorId: string, input: WorkOrd
   if (input.quantity < 1) throw new Error("Quantity must be at least 1");
 
   const ts = nowIso(at);
+  // A non-custom model template supplies the master routing and is recorded on
+  // the line; the custom template (or none) keeps the generic route.
+  const template = input.templateId ? getModelTemplate(input.templateId) : undefined;
+  const useTemplateRoute = template && !template.isCustom;
+  const routeSteps: ModelRouteStep[] = useTemplateRoute ? template!.route : GENERIC_ROUTE;
+
   const line: OrderLine = {
     id: `${input.orderNumber}-L1`,
     lineNumber: 1,
     sourceSystem: "Manual",
+    lineType: useTemplateRoute ? template!.lineType : undefined,
+    templateId: useTemplateRoute ? template!.id : undefined,
     product: `${input.model} ${input.size}`,
     description: input.description,
     family: input.model,
     model: input.model,
     quantity: input.quantity,
     orderedMaterial: input.material,
-    templateName: "Generic work order (mock)"
+    templateName: useTemplateRoute ? `${template!.displayName} (pilot placeholder)` : "Generic work order (mock)"
   };
   const order: Order = {
     orderNumber: input.orderNumber,
@@ -714,7 +732,7 @@ export function createWorkOrder(state: AppState, actorId: string, input: WorkOrd
     },
     {}
   );
-  const routeOps = units.flatMap((u) => buildGenericRoute(u.unitId));
+  const routeOps = units.flatMap((u) => buildRoute(u.unitId, routeSteps));
   const qrIdentities = [
     {
       publicRef: order.publicRef,

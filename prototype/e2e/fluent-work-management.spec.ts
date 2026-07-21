@@ -17,9 +17,10 @@ test.describe("New work order", () => {
     await page.getByPlaceholder("Order description").fill("Playwright-created demo order");
     await page.getByTestId("new-order-duedate").fill("2026-10-01");
     await page.getByTestId("new-order-quantity").fill("3");
-    await page.getByPlaceholder("e.g. 1196").fill("1196");
+    // Default model template (1196 Pump End) pre-fills model + material; only size
+    // is free-text. (Custom/other template re-enables the model field.)
+    await expect(page.getByTestId("new-order-model")).toHaveValue("1196");
     await page.getByPlaceholder("e.g. 3x4-13").fill("3x4-13");
-    await page.getByPlaceholder("e.g. 316SS").fill("316SS");
 
     await page.getByTestId("submit-new-work-order").click();
 

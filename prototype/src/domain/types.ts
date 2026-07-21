@@ -73,6 +73,9 @@ export interface OrderLine {
   // CPQ manufacturing line type ("pump" | "pump-package"); undefined for manual
   // lines. Spare/unsupported types never reach a line (rejected at import).
   lineType?: string;
+  // Model-template this line was created from (manual lines); drives the master
+  // routing and BOM skeleton shown on the order. undefined for CPQ lines.
+  templateId?: string;
   product: string;
   description: string;
   family: string;
