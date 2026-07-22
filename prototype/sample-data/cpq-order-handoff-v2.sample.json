@@ -1,0 +1,527 @@
+{
+  "schema": "rotech-cpq-order-handoff/2.0",
+  "packageId": "HANDOFF-Q-DEMO-2044-R2",
+  "idempotencyKey": "cpq:cpq-quote-2044:cpq-rev-2044-2:po-sub-77120",
+  "createdAt": "2026-07-21T16:45:00Z",
+  "createdBy": {
+    "userId": "cpq-user:dana.quotes",
+    "email": "dana.quotes@example.invalid"
+  },
+  "checksum": "7e7e3e22c47da45bb0ec8b0b02b12a7e267fdedc8eb88ec7df95832b50bba18f",
+  "source": {
+    "system": "RotechCPQ",
+    "quoteId": "cpq-quote-2044",
+    "quoteNumber": "Q-DEMO-2044",
+    "revisionId": "cpq-rev-2044-2",
+    "revisionNumber": 2,
+    "revisionToken": "7f3c1b9e2a4d5c6f8091a2b3c4d5e6f7a8b9c0d1e2f30415263748596a7b8c9d",
+    "quoteStatus": "Won",
+    "orderProcessingState": "PO_ACCEPTED",
+    "acceptedPoSubmissionId": "po-sub-77120"
+  },
+  "customer": {
+    "customerId": "cust-northwind-sample",
+    "customerName": "Northwind Sample Fluids (fictional)",
+    "customerPo": "PO-NW-55190",
+    "endCustomerReference": "Plant 4 — clarifier feed"
+  },
+  "orderContext": {
+    "requestedDelivery": "2026-10-15",
+    "freightMode": "Customer pickup",
+    "shipTo": {
+      "city": "Sample City",
+      "region": "ON",
+      "country": "CA (fictional)"
+    }
+  },
+  "lines": [
+    {
+      "id": "cpq-line-2044-1",
+      "lineNumber": 1,
+      "lineType": "pump-package",
+      "executionDisposition": "unit-bearing",
+      "quantity": 2,
+      "commercialState": "included",
+      "executionState": "ready",
+      "product": {
+        "family": "1196",
+        "model": "1196",
+        "pumpSize": "3X4-13",
+        "description": "ANSI 1196 process pump package, 3X4-13, MTR frame"
+      },
+      "selection": {
+        "fluid": "Process water",
+        "flow": "450",
+        "flowUnit": "USGPM",
+        "head": "120",
+        "headUnit": "ft",
+        "temperature": "60",
+        "temperatureUnit": "F",
+        "curveReference": "Pump-FLO 1196 3X4-13"
+      },
+      "pumpBuild": {
+        "materialBuild": "DI/316SS",
+        "casingMaterial": "DI",
+        "impellerMaterial": "316SS",
+        "shaftMaterial": "4140/316SS SLEEVED SHAFT",
+        "frameSize": "MTR",
+        "flangeType": "150#RF",
+        "sbcType": "STD BORE",
+        "buildMode": "standard",
+        "impeller": {
+          "fullTrim": "13.0",
+          "actualTrim": "12.25",
+          "trimIsFinal": true
+        }
+      },
+      "packageBuild": {
+        "packageType": "skid-package",
+        "motor": {
+          "selectionMode": "standard",
+          "manufacturer": "Sample Motors",
+          "hp": "40",
+          "speed": "1800",
+          "voltage": "460",
+          "enclosure": "TEFC",
+          "frame": "324T"
+        },
+        "baseplate": {
+          "selectionMode": "standard",
+          "type": "ANSI baseplate",
+          "material": "Fabricated steel"
+        },
+        "coupling": {
+          "selectionMode": "standard",
+          "type": "Spacer coupling",
+          "size": "8"
+        },
+        "couplingGuard": {
+          "selectionMode": "standard",
+          "standardRef": "ANSI B15.1"
+        },
+        "mounting": {
+          "selectionMode": "standard"
+        }
+      },
+      "seal": {
+        "sealOption": "ROTECH SHOP MOUNT ROTECH SEAL",
+        "sealArrangement": "Single cartridge",
+        "sealManufacturer": "Rotech",
+        "sealMoc": "CAR/SIC/FKM",
+        "sealPlanOption": "PLAN 11"
+      },
+      "scope": {
+        "responsibilities": {
+          "pump": "in-scope",
+          "baseplate": "in-scope",
+          "motor": "in-scope",
+          "steelFabrication": "in-scope"
+        },
+        "serviceAdders": [
+          "Non-witnessed hydrostatic test",
+          "Non-witnessed performance test"
+        ],
+        "specialRequests": "Nameplate text in English and French."
+      },
+      "testingRequirements": [
+        "Hydrotest required",
+        "Performance test - standard"
+      ],
+      "customerSuppliedItems": [],
+      "selectedOptions": [
+        {
+          "code": "OPT-FLNG",
+          "description": "Flange rating",
+          "value": "150#RF"
+        },
+        {
+          "code": "OPT-PNT",
+          "description": "Paint spec",
+          "value": "Manufacturer standard"
+        }
+      ],
+      "bom": [
+        {
+          "sourceRowId": "row-1-casing",
+          "description": "Casing 3X4-13",
+          "partCode": "CAS-1196-34-DI",
+          "quantity": 1,
+          "uom": "EA",
+          "source": "configured"
+        },
+        {
+          "sourceRowId": "row-1-impeller",
+          "description": "Impeller 3X4-13",
+          "partCode": "IMP-1196-34-S6",
+          "quantity": 1,
+          "uom": "EA",
+          "source": "configured"
+        },
+        {
+          "sourceRowId": "row-1-shaft",
+          "description": "Sleeved shaft",
+          "partCode": "SHF-1196-M",
+          "quantity": 1,
+          "uom": "EA",
+          "source": "configured"
+        },
+        {
+          "sourceRowId": "row-1-seal",
+          "description": "Cartridge seal assembly",
+          "partCode": "SEAL-CRT-CAR-SIC",
+          "quantity": 1,
+          "uom": "EA",
+          "source": "configured"
+        },
+        {
+          "sourceRowId": "row-1-motor",
+          "description": "Motor 40 HP TEFC",
+          "partCode": "MTR-40-TEFC",
+          "quantity": 1,
+          "uom": "EA",
+          "source": "configured"
+        }
+      ],
+      "componentBreakdown": [
+        {
+          "sourceRowId": "ic-1",
+          "rowNumber": "1",
+          "isParent": true,
+          "type": "pump-package",
+          "productName": "1196 3X4-13 package",
+          "description": "Configured pump package",
+          "quantity": 1,
+          "uom": "EA",
+          "source": "configured"
+        },
+        {
+          "sourceRowId": "ic-1.1",
+          "rowNumber": "1.1",
+          "parentRowNumber": "1",
+          "isParent": false,
+          "type": "component",
+          "description": "Baseplate + steel fabrication",
+          "partCode": "BP-MTR",
+          "quantity": 1,
+          "uom": "EA",
+          "source": "configured",
+          "operationalNote": "MTR frame baseplate"
+        }
+      ],
+      "documents": [
+        {
+          "type": "Drawing",
+          "documentId": "DWG-1196-34-A",
+          "title": "General arrangement 3X4-13",
+          "revision": "A"
+        },
+        {
+          "type": "Curve",
+          "documentId": "CRV-1196-34",
+          "title": "Performance curve 3X4-13",
+          "revision": "2"
+        }
+      ],
+      "internalContext": [
+        {
+          "classification": "machining",
+          "text": "Trim impeller to 12.25 in per selected duty.",
+          "source": "internalCosting.rows[ic-1.1].note",
+          "author": "cpq-user:dana.quotes",
+          "requiresCoordinatorReview": false
+        },
+        {
+          "classification": "packaging",
+          "text": "Crate for customer pickup; export marking not required.",
+          "source": "quote.offeredScope.internalNotes",
+          "requiresCoordinatorReview": false
+        }
+      ]
+    },
+    {
+      "id": "cpq-line-2044-2",
+      "lineNumber": 2,
+      "lineType": "pump",
+      "executionDisposition": "unit-bearing",
+      "quantity": 1,
+      "commercialState": "rfq",
+      "executionState": "awaiting-decision",
+      "product": {
+        "family": "1196",
+        "model": "1196",
+        "pumpSize": "2X3-10",
+        "description": "ANSI 1196 bare pump end, 2X3-10, customer-supplied motor"
+      },
+      "pumpBuild": {
+        "materialBuild": "CD4MCU/CD4MCU",
+        "casingMaterial": "CD4MCU",
+        "impellerMaterial": "CD4MCU",
+        "shaftMaterial": "4140 Shaft/CD4 Stub Shaft",
+        "frameSize": "MTR",
+        "flangeType": "300#RF",
+        "buildMode": "custom",
+        "impeller": {
+          "fullTrim": "10.0",
+          "actualTrim": null,
+          "trimIsFinal": false
+        }
+      },
+      "packageBuild": {
+        "packageType": "pump-only",
+        "motor": {
+          "selectionMode": "customer-supplied",
+          "notes": "Motor supplied by customer; mount and align only"
+        },
+        "baseplate": {
+          "selectionMode": "not-included"
+        },
+        "coupling": {
+          "selectionMode": "not-included"
+        }
+      },
+      "seal": {
+        "sealOption": "CUSTOM",
+        "customSealNote": "Customer to confirm seal manufacturer; engineering review required."
+      },
+      "scope": {
+        "responsibilities": {
+          "pump": "in-scope",
+          "baseplate": "by-others",
+          "motor": "customer-supplied",
+          "steelFabrication": "by-others"
+        },
+        "specialRequests": "Positive material identification (PMI) report required on casing and impeller."
+      },
+      "testingRequirements": [
+        "Witness test required",
+        "Hydrotest required",
+        "PMI report"
+      ],
+      "customerSuppliedItems": [
+        "25 HP motor (customer-supplied)"
+      ],
+      "selectedOptions": [
+        {
+          "code": "OPT-FLNG",
+          "description": "Flange rating",
+          "value": "300#RF"
+        }
+      ],
+      "bom": [
+        {
+          "sourceRowId": "row-2-casing",
+          "description": "Casing 2X3-10",
+          "partCode": "CAS-1196-23-CD4",
+          "quantity": 1,
+          "uom": "EA",
+          "source": "configured"
+        },
+        {
+          "sourceRowId": "row-2-impeller",
+          "description": "Impeller 2X3-10 (trim TBD)",
+          "partCode": "IMP-1196-23-CD4",
+          "quantity": 1,
+          "uom": "EA",
+          "source": "rfq",
+          "requiresReview": true,
+          "operationalNote": "Final trim pending duty confirmation"
+        }
+      ],
+      "documents": [
+        {
+          "type": "Datasheet",
+          "documentId": "DS-1196-23",
+          "title": "Pump datasheet 2X3-10",
+          "revision": "1"
+        }
+      ],
+      "internalContext": [
+        {
+          "classification": "engineering",
+          "text": "Custom build: confirm CD4MCU casting availability before machining.",
+          "source": "quote.lines[2].offeredScope.internalNotes",
+          "requiresCoordinatorReview": true,
+          "blocksRelease": true,
+          "blocksReleaseReason": "Custom material + seal RFQ unresolved"
+        },
+        {
+          "classification": "rfq-resolution",
+          "text": "Awaiting customer seal manufacturer selection.",
+          "source": "quote.rfq_requirements[req-88]",
+          "requiresCoordinatorReview": true
+        }
+      ],
+      "attentionItems": [
+        {
+          "id": "att-2-seal",
+          "kind": "rfq",
+          "description": "Seal manufacturer supplied by customer; requires engineering review.",
+          "affects": "line 2 / seal",
+          "responsibleParty": "Customer",
+          "blocksRelease": true
+        },
+        {
+          "id": "att-2-trim",
+          "kind": "technical",
+          "description": "Final impeller trim not yet decided.",
+          "affects": "line 2 / impeller",
+          "responsibleParty": "Rotech engineering",
+          "blocksRelease": true
+        }
+      ]
+    },
+    {
+      "id": "cpq-line-2044-3",
+      "lineNumber": 3,
+      "lineType": "spare",
+      "executionDisposition": "line-level-scope",
+      "quantity": 3,
+      "commercialState": "included",
+      "executionState": "ready",
+      "product": {
+        "family": "1196",
+        "description": "Recommended spare parts — 1196 3X4-13 repair kit"
+      },
+      "scope": {
+        "specialRequests": "Pack spares separately; individually bagged and tagged. Ships with the order."
+      },
+      "bom": [
+        {
+          "sourceRowId": "row-3-repair",
+          "description": "Repair kit (gaskets, o-rings, wear rings)",
+          "partCode": "KIT-REPAIR-1196-34",
+          "quantity": 3,
+          "uom": "EA",
+          "source": "configured"
+        }
+      ],
+      "internalContext": [
+        {
+          "classification": "packaging",
+          "text": "Spare kits are a separate packed line item shipped with the pump order.",
+          "source": "quote.lines[3].offeredScope.internalNotes",
+          "requiresCoordinatorReview": false
+        }
+      ]
+    },
+    {
+      "id": "cpq-line-2044-4",
+      "lineNumber": 4,
+      "lineType": "service",
+      "executionDisposition": "line-level-scope",
+      "quantity": 1,
+      "commercialState": "rfq",
+      "executionState": "plan",
+      "product": {
+        "description": "Field commissioning service — 2 days on site"
+      },
+      "scope": {
+        "serviceAdders": [
+          "Field commissioning",
+          "Startup supervision"
+        ],
+        "specialRequests": "Schedule after customer install; travel by others."
+      },
+      "internalContext": [
+        {
+          "classification": "service",
+          "text": "Assign a field service technician after ship date is confirmed.",
+          "source": "quote.lines[4].offeredScope.internalNotes",
+          "requiresCoordinatorReview": true
+        }
+      ],
+      "attentionItems": [
+        {
+          "id": "att-4-sched",
+          "kind": "customer",
+          "description": "Service dates depend on customer install schedule (RFQ).",
+          "affects": "line 4",
+          "responsibleParty": "Customer"
+        }
+      ]
+    },
+    {
+      "id": "cpq-line-2044-5",
+      "lineNumber": 5,
+      "lineType": "documentation",
+      "executionDisposition": "reference-only",
+      "product": {
+        "description": "Document package — IOM manuals and test certificates (electronic)"
+      },
+      "documents": [
+        {
+          "type": "Manual",
+          "documentId": "IOM-1196",
+          "title": "1196 installation & operation manual",
+          "revision": "5"
+        }
+      ],
+      "internalContext": [
+        {
+          "classification": "provenance",
+          "text": "Document package reference only; issued at shipment.",
+          "source": "quote.documents",
+          "requiresCoordinatorReview": false
+        }
+      ]
+    },
+    {
+      "id": "cpq-line-2044-6",
+      "lineNumber": 6,
+      "lineType": "misc-unknown",
+      "executionDisposition": "review-required",
+      "quantity": 1,
+      "commercialState": "included",
+      "executionState": "awaiting-decision",
+      "product": {
+        "description": "Uncategorized configured item — mapping unknown"
+      },
+      "internalContext": [
+        {
+          "classification": "provenance",
+          "text": "CPQ line type 'misc-unknown' has no Work Order mapping; surfaced for coordinator disposition.",
+          "source": "quote.lines[6]",
+          "requiresCoordinatorReview": true,
+          "blocksRelease": true,
+          "blocksReleaseReason": "Unmapped line type must be dispositioned before release"
+        }
+      ]
+    }
+  ],
+  "orderLevelScope": [
+    {
+      "kind": "inclusion",
+      "description": "All pumps shop-tested before shipment."
+    },
+    {
+      "kind": "exclusion",
+      "description": "Field piping and electrical by others."
+    },
+    {
+      "kind": "customer-supplied",
+      "description": "Line 2 motor supplied by customer."
+    }
+  ],
+  "attentionItems": [
+    {
+      "id": "att-order-1",
+      "kind": "customer",
+      "description": "Confirm consolidated shipment vs. partial ship of spares.",
+      "responsibleParty": "Coordinator"
+    }
+  ],
+  "documents": [
+    {
+      "type": "Other",
+      "documentId": "PO-NW-55190",
+      "title": "Customer purchase order (reference)",
+      "revision": "1"
+    }
+  ],
+  "provenance": {
+    "adapterVersion": "cpq-handoff-adapter/0.1-fixture",
+    "sourceSnapshotHash": "sha256:fixture-placeholder",
+    "configurationRulesVersion": "cpq-rules-2026.06",
+    "note": "Sanitized mixed-scope fixture — fictional data, no real customer/pricing."
+  }
+}
