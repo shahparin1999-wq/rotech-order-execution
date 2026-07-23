@@ -87,6 +87,60 @@ export interface OrderLine {
   cpqRevisionId?: string;
   cpqLineId?: string;
   configurationSnapshotId?: string;
+  // v2 CPQ internal handoff only. How this line executes. undefined for v1 and
+  // manual lines (which are all unit-bearing pumps). A line whose disposition is
+  // NOT "unit-bearing" creates no Units — it is a visible, packable order scope
+  // line (spare, service, documentation, or an unmapped item held for review).
+  executionDisposition?: ExecutionDisposition;
+  commercialState?: LineCommercialState; // trace-only; never gates manufacturing
+  executionState?: LineExecutionState;
+}
+
+// How a transferred CPQ line becomes Work Order execution (see the v2 handoff
+// blueprint). Only "unit-bearing" lines create Units.
+export type ExecutionDisposition =
+  | "unit-bearing"
+  | "line-level-scope"
+  | "reference-only"
+  | "review-required";
+
+// Trace-only commercial status carried from CPQ. Never gates manufacturing on
+// its own; RFQ lines are still built with their known scope.
+export type LineCommercialState =
+  | "included"
+  | "excluded"
+  | "rfq"
+  | "partial-pricing"
+  | "no-charge"
+  | "resolved";
+
+// What Production may do with the line right now.
+export type LineExecutionState = "ready" | "plan" | "awaiting-decision";
+
+// An order- or line-level unresolved item surfaced from a CPQ handoff (RFQ,
+// technical, supplier, customer, or engineering decision). blocksRelease items
+// hold manufacturing release; non-blocking items are informational. This is the
+// single authoritative list of what still needs a decision — RFQ never deletes a
+// line, it lands here.
+export interface AttentionItem {
+  id: string;
+  orderNumber: string;
+  lineId: string | null; // null for an order-level item
+  lineNumber: number | null;
+  kind: string; // rfq | technical | supplier | customer | engineering | other
+  description: string;
+  affects: string | null;
+  responsibleParty: string | null;
+  blocksRelease: boolean;
+  source: "CPQ" | "Manual";
+  createdAt: string;
+}
+
+// An order-level inclusion/exclusion/customer-supplied scope note from a CPQ
+// handoff. Visible checklist context; does not itself create Units or tasks.
+export interface OrderScopeItem {
+  kind: string; // inclusion | exclusion | customer-supplied | other
+  description: string;
 }
 
 export interface Order {
@@ -105,6 +159,9 @@ export interface Order {
   publicRef: string;
   lines: OrderLine[];
   risks: string[];
+  // v2 CPQ handoff: order-level inclusions/exclusions/customer-supplied scope.
+  // undefined for v1/manual orders.
+  scopeItems?: OrderScopeItem[];
 }
 
 export interface Unit {
@@ -564,6 +621,7 @@ export interface AppState {
   manufacturingNotes: ManufacturingNote[];
   configurationAdjustments: ConfigurationAdjustment[];
   workingBomRows: WorkingBomRow[];
+  attentionItems: AttentionItem[]; // unresolved items surfaced from CPQ handoffs
   favourites: string[]; // view ids or order numbers
   followedOrders: string[];
   nextId: number;

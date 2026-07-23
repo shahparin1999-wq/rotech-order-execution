@@ -3,12 +3,14 @@
 
 import type {
   AppState,
+  AttentionItem,
   ChecklistItemDef,
   ChecklistResponse,
   Contact,
   Customer,
   HandoffRecord,
   Order,
+  OrderLine,
   PlannerBucket,
   QrIdentity,
   Task,
@@ -587,4 +589,31 @@ export function search(state: AppState, query: string): SearchHit[] {
     }
   }
   return hits.slice(0, 25);
+}
+
+// ---------------------------------------------------------------------------
+// CPQ handoff v2 surfacing
+// ---------------------------------------------------------------------------
+
+// Unresolved items surfaced from CPQ handoffs for an order (order-level items
+// first, then line-level). RFQ/technical decisions live here — they never
+// delete a line.
+export function attentionItemsForOrder(state: AppState, orderNumber: string): AttentionItem[] {
+  return state.attentionItems
+    .filter((a) => a.orderNumber === orderNumber)
+    .sort((a, b) => Number(b.blocksRelease) - Number(a.blocksRelease));
+}
+
+// True when any surfaced attention item holds manufacturing release. RFQ alone
+// does not block; only an explicit blocksRelease item does.
+export function orderReleaseBlocked(state: AppState, orderNumber: string): boolean {
+  return state.attentionItems.some((a) => a.orderNumber === orderNumber && a.blocksRelease);
+}
+
+// The visible, packable non-Unit scope lines (spares, services, docs, items
+// held for review) — everything that is not a unit-bearing pump line.
+export function nonUnitScopeLines(state: AppState, orderNumber: string): OrderLine[] {
+  const order = state.orders.find((o) => o.orderNumber === orderNumber);
+  if (!order) return [];
+  return order.lines.filter((l) => l.executionDisposition && l.executionDisposition !== "unit-bearing");
 }

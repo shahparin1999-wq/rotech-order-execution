@@ -1,0 +1,66 @@
+ROTECH ORDER EXECUTION PROTOTYPE - HOW TO RUN (PowerShell)
+============================================================
+
+Branch: prototype/fluent-work-management
+This is a self-contained, local-only prototype. No backend, no auth,
+no real customer data - everything is mock/fictional.
+
+------------------------------------------------------------
+1. Open PowerShell and go to the prototype folder
+------------------------------------------------------------
+cd "C:\Users\parin\OneDrive\Documents\Rotech Work Order System\prototype"
+
+------------------------------------------------------------
+2. First time only: install dependencies
+------------------------------------------------------------
+npm install
+
+------------------------------------------------------------
+3. First time only: install the Playwright browser (for tests)
+------------------------------------------------------------
+npx playwright install chromium
+
+------------------------------------------------------------
+4. Start the app (development server)
+------------------------------------------------------------
+npm run dev
+
+Then open in your browser:
+http://localhost:3100
+
+Press Ctrl+C in PowerShell to stop the server.
+
+------------------------------------------------------------
+Other useful commands (run from the same folder)
+------------------------------------------------------------
+npm run typecheck    - TypeScript check
+npm run lint         - ESLint check
+npm run test         - Vitest unit tests
+npm run build        - production build
+npm run test:e2e     - Playwright browser tests (desktop + tablet)
+npm run screenshots  - regenerate screenshots in ../artifacts/preview/
+npm run verify       - runs typecheck + lint + test + build + e2e, all at once
+
+------------------------------------------------------------
+Where to look once it's running
+------------------------------------------------------------
+Home                              http://localhost:3100/
+Orders (Lists-style grid)         http://localhost:3100/orders
+An order workspace                http://localhost:3100/orders/SAMPLE1001
+Customers directory                http://localhost:3100/customers
+Planner (board/grid)              http://localhost:3100/planner
+My Work                           http://localhost:3100/views/my-work
+Reports                           http://localhost:3100/reports
+Unit detail                       http://localhost:3100/units/SAMPLE1001_1.2
+Shop-floor tablet view            http://localhost:3100/tablet/SAMPLE1001_1.2
+Simulate a QR scan                http://localhost:3100/scan
+Label print previews              http://localhost:3100/labels
+
+Notes:
+- All data is fictional demo data (order SAMPLE1001, customer
+  "Acme Sample Industries", etc.) - none of it is real.
+- Progress you make (creating orders, tasks, customers) is saved to
+  your browser's local storage only - it stays on this device/browser
+  and is not shared with anyone else.
+- Use the "Reset to sample data" control in the app to wipe your local
+  changes and restore the original demo data.

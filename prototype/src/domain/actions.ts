@@ -7,6 +7,7 @@ import type {
   AppState,
   Attachment,
   AttachmentCategory,
+  AttentionItem,
   AuditEvent,
   ChecklistResponse,
   ChecklistSubItem,
@@ -22,6 +23,7 @@ import type {
   MaterialChange,
   Order,
   OrderLine,
+  OrderScopeItem,
   PlannerBucket,
   Priority,
   Problem,
@@ -42,6 +44,15 @@ import {
   type ExecutionNoteClassification,
   type ExecutionPackageV1
 } from "./executionPackage";
+import {
+  validateOrderHandoffPackage,
+  ORDER_HANDOFF_SCHEMA,
+  type OrderHandoffPackageV2,
+  type HandoffLine,
+  type HandoffAttentionItem,
+  type HandoffComponentRow,
+  type HandoffNoteClassification
+} from "./orderHandoffV2";
 import { getModelTemplate, type ModelRouteStep } from "./modelTemplates";
 
 // A classified CPQ note maps 1:1 to a ManufacturingNote category, except
@@ -57,6 +68,25 @@ const NOTE_CLASSIFICATION_TO_CATEGORY: Record<
   QualityRequirement: "QualityRequirement",
   PackagingInstruction: "PackagingInstruction"
 };
+
+// v2 handoff note classifications that seed an actionable ManufacturingNote.
+// Classifications NOT listed here (commercial-context, rfq-resolution,
+// provenance) stay read-only in the frozen snapshot and are surfaced elsewhere
+// (rfq-resolution context rides with its attention item), never auto-converted
+// into shop work. A coordinator can still promote them later.
+const HANDOFF_NOTE_TO_CATEGORY: Partial<Record<HandoffNoteClassification, ManufacturingNoteCategory>> = {
+  engineering: "EngineeringNote",
+  shop: "ShopInstruction",
+  machining: "MachiningInstruction",
+  quality: "QualityRequirement",
+  packaging: "PackagingInstruction",
+  "customer-request": "ShopInstruction",
+  service: "ShopInstruction"
+};
+
+function asStr(v: unknown): string | undefined {
+  return typeof v === "string" && v.trim() !== "" ? v : undefined;
+}
 
 function nowIso(at?: string): string {
   return at ?? new Date().toISOString();
@@ -1120,6 +1150,375 @@ export function importExecutionPackage(
       detail: `Accepted customer PO "${input.po.fileName}" attached (sha256 ${input.po.sha256}).`,
       supersedesEventId: null
     });
+  }
+
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// CPQ internal handoff v2 import (blueprint stage 3)
+// ---------------------------------------------------------------------------
+
+export interface ImportHandoffInput {
+  package: unknown; // untrusted, already-JSON-parsed upload
+  orderNumber?: string; // defaults to `${quoteNumber}-R${revisionNumber}`
+  facility: Facility;
+  coordinatorId: string;
+  customerPo?: string;
+}
+
+// Imports one CPQ internal order-handoff (v2) package as a Work Order. Unlike v1,
+// EVERY line crosses: only "unit-bearing" lines create Units; spares/services/
+// docs become visible, packable non-Unit order lines; unmapped lines land in
+// review. RFQ never deletes a line or blocks the import — unresolved items are
+// recorded as AttentionItems (some blocksRelease). The package is validated,
+// checksum-verified, and money-leak-checked first; any failure throws (surfaced
+// as an error toast) rather than importing partial data.
+export function importOrderHandoffV2(
+  state: AppState,
+  actorId: string,
+  input: ImportHandoffInput,
+  at?: string
+): AppState {
+  const validation = validateOrderHandoffPackage(input.package);
+  if (!validation.ok || !validation.package) {
+    throw new Error(`CPQ handoff rejected: ${validation.errors.join("; ")}`);
+  }
+  const pkg: OrderHandoffPackageV2 = validation.package;
+
+  const orderNumber = (input.orderNumber?.trim() || `${pkg.source.quoteNumber}-R${pkg.source.revisionNumber}`).trim();
+  if (!orderNumber) throw new Error("Order number is required");
+
+  // Idempotency on the manufacturing key (quoteId, revisionId). A byte-identical
+  // retry (same checksum) is a no-op that returns the prior state. A CHANGED
+  // payload for the same revision, or a new revision superseding a built order,
+  // is a reviewed force-update — deliberately a separate action, not silently
+  // applied here (Units are append-only and never rebuilt implicitly).
+  const priorForRevision = state.configurationSnapshots.find(
+    (snap) => snap.sourceQuoteId === pkg.source.quoteId && snap.sourceRevisionId === pkg.source.revisionId
+  );
+  if (priorForRevision) {
+    if (priorForRevision.checksum === pkg.checksum) {
+      return state; // exact retry — already imported, nothing to do
+    }
+    throw new Error(
+      `CPQ revision already imported: quote ${pkg.source.quoteId} revision ${pkg.source.revisionId} was imported as order ${priorForRevision.orderNumber} with a different payload. A changed revision requires a reviewed supersession (force-update), not a re-import.`
+    );
+  }
+  if (state.orders.some((o) => o.orderNumber === orderNumber)) {
+    throw new Error(`Order ${orderNumber} already exists`);
+  }
+
+  const ts = nowIso(at);
+  let s: AppState = state;
+
+  // Resolve the commercial customer by name (CPQ is system of record); create a
+  // lightweight placeholder record if unknown.
+  const customerName = asStr(pkg.customer.customerName) ?? "Unknown customer (CPQ)";
+  let customerId = state.customers.find((c) => c.name === customerName)?.id;
+  if (!customerId) {
+    const [custId, s1] = takeId(s, "cust");
+    s = {
+      ...s1,
+      customers: [
+        ...s1.customers,
+        {
+          id: custId,
+          name: customerName,
+          city: "Pilot placeholder - owner approval required",
+          region: "Pilot placeholder - owner approval required",
+          notes: `Imported from CPQ quote ${pkg.source.quoteNumber} rev ${pkg.source.revisionNumber}`,
+          createdAt: ts
+        }
+      ]
+    };
+    customerId = custId;
+  }
+
+  const customerPo = (input.customerPo ?? asStr(pkg.customer.customerPo) ?? "").trim();
+
+  const lines: OrderLine[] = [];
+  const snapshots: ConfigurationSnapshot[] = [];
+  const allUnits: Unit[] = [];
+  const workingBomRows: WorkingBomRow[] = [];
+  const attentionItems: AttentionItem[] = [];
+  const manufacturingNotes: ManufacturingNote[] = [];
+
+  const pushAttention = (a: HandoffAttentionItem, lineId: string | null, lineNumber: number | null) => {
+    const [id, s1] = takeId(s, "att");
+    s = s1;
+    attentionItems.push({
+      id,
+      orderNumber,
+      lineId,
+      lineNumber,
+      kind: a.kind,
+      description: a.description,
+      affects: a.affects ?? null,
+      responsibleParty: a.responsibleParty ?? null,
+      blocksRelease: a.blocksRelease === true,
+      source: "CPQ",
+      createdAt: ts
+    });
+  };
+
+  for (const pl of pkg.lines) {
+    const lineId = `${orderNumber}-L${pl.lineNumber}`;
+    const family = asStr(pl.product?.family) ?? "(n/a)";
+    const model = asStr(pl.product?.model) ?? family;
+    const pumpSize = asStr(pl.product?.pumpSize) ?? "";
+    const description = asStr(pl.product?.description) ?? pl.lineType;
+    const orderedMaterial = asStr(pl.pumpBuild?.materialBuild) ?? "See configuration";
+
+    const [snapId, s1] = takeId(s, "cfgsnap");
+    s = s1;
+    snapshots.push({
+      id: snapId,
+      workOrderLineId: lineId,
+      orderNumber,
+      lineNumber: pl.lineNumber,
+      sourcePackageId: pkg.packageId,
+      sourceQuoteId: pkg.source.quoteId,
+      sourceRevisionId: pkg.source.revisionId,
+      sourceLineId: pl.id,
+      schemaVersion: ORDER_HANDOFF_SCHEMA,
+      checksum: pkg.checksum,
+      acceptedPoSubmissionId: pkg.source.acceptedPoSubmissionId,
+      // Deep-cloned so a later edit to the source object can never mutate the
+      // frozen snapshot. It is already money-free (validator rejected leaks).
+      payload: JSON.parse(JSON.stringify(pl)) as HandoffLine,
+      importedAt: ts,
+      importedBy: actorId
+    });
+
+    lines.push({
+      id: lineId,
+      lineNumber: pl.lineNumber,
+      sourceSystem: "CPQ",
+      lineType: pl.lineType,
+      product: pumpSize ? `${model} ${pumpSize}` : model,
+      description,
+      family,
+      model,
+      quantity: pl.quantity ?? 1,
+      orderedMaterial,
+      templateName: `CPQ ${pkg.source.quoteNumber} rev ${pkg.source.revisionNumber} (imported)`,
+      cpqQuoteId: pkg.source.quoteId,
+      cpqRevisionId: pkg.source.revisionId,
+      cpqLineId: pl.id,
+      configurationSnapshotId: snapId,
+      executionDisposition: pl.executionDisposition,
+      commercialState: pl.commercialState,
+      executionState: pl.executionState
+    });
+
+    // Only unit-bearing lines generate Units. Everything else is a visible,
+    // packable non-Unit order scope line.
+    if (pl.executionDisposition === "unit-bearing") {
+      allUnits.push(
+        ...generateUnits(orderNumber, pl.lineNumber, pl.quantity ?? 1, {
+          model,
+          size: pumpSize,
+          orderedMaterial,
+          location: `${input.facility} - Intake`
+        })
+      );
+    }
+
+    // Seed a money-free working BOM for lines that get built or packed
+    // (unit-bearing pumps and packable line-level scope such as spare kits).
+    // Reference-only / review-required lines seed nothing until dispositioned.
+    if (pl.executionDisposition === "unit-bearing" || pl.executionDisposition === "line-level-scope") {
+      const sourceRows: HandoffComponentRow[] = pl.componentBreakdown ?? pl.bom ?? [];
+      for (const src of sourceRows) {
+        const [id, s2] = takeId(s, "wbom");
+        s = s2;
+        workingBomRows.push({
+          id,
+          orderNumber,
+          lineId,
+          lineNumber: pl.lineNumber,
+          description: src.description,
+          partNumber: asStr(src.partCode) ?? null,
+          material: null,
+          quantity: typeof src.quantity === "number" ? src.quantity : 1,
+          seededFrom: "CPQ",
+          createdAt: ts,
+          createdBy: actorId,
+          updatedAt: ts
+        });
+      }
+    }
+
+    // Line-level attention items (RFQ / technical / supplier / customer …).
+    for (const a of pl.attentionItems ?? []) {
+      pushAttention(a, lineId, pl.lineNumber);
+    }
+    // An unmapped line is itself a release-gating decision.
+    if (pl.executionDisposition === "review-required") {
+      pushAttention(
+        {
+          id: `review-${lineId}`,
+          kind: "other",
+          description: `Line ${pl.lineNumber} (${pl.lineType}) has no Work Order mapping; disposition required before release.`,
+          affects: `line ${pl.lineNumber}`,
+          responsibleParty: "Coordinator",
+          blocksRelease: true
+        },
+        lineId,
+        pl.lineNumber
+      );
+    }
+
+    // Seed line-scoped ManufacturingNotes from internalContext. Only actionable
+    // classifications become shop notes; a blocksRelease note also raises an
+    // attention item so the single release-gate list stays authoritative.
+    for (const note of pl.internalContext ?? []) {
+      const category = HANDOFF_NOTE_TO_CATEGORY[note.classification];
+      if (category) {
+        const [id, s3] = takeId(s, "mnote");
+        s = s3;
+        manufacturingNotes.push({
+          id,
+          scopeType: "WorkOrderLine",
+          scopeId: lineId,
+          orderNumber,
+          lineNumber: pl.lineNumber,
+          category,
+          title: `CPQ ${note.classification} (${note.source})`,
+          description: note.text,
+          createdAt: ts,
+          createdBy: actorId,
+          source: "CPQ"
+        });
+      }
+      if (note.blocksRelease === true) {
+        pushAttention(
+          {
+            id: `note-${lineId}-${note.classification}`,
+            kind: "engineering",
+            description: note.blocksReleaseReason ?? note.text,
+            affects: note.affects ?? `line ${pl.lineNumber}`,
+            blocksRelease: true
+          },
+          lineId,
+          pl.lineNumber
+        );
+      }
+    }
+  }
+
+  // Order-level attention items and inclusion/exclusion scope.
+  for (const a of pkg.attentionItems ?? []) {
+    pushAttention(a, null, null);
+  }
+  const scopeItems: OrderScopeItem[] = (pkg.orderLevelScope ?? []).map((raw) => ({
+    kind: asStr((raw as Record<string, unknown>).kind) ?? "other",
+    description: asStr((raw as Record<string, unknown>).description) ?? ""
+  }));
+
+  const order: Order = {
+    orderNumber,
+    customerId,
+    customerPo,
+    dueDate: asStr(pkg.orderContext?.requestedDelivery) ?? "",
+    productFamily: asStr(pkg.lines[0]?.product?.family) ?? "(n/a)",
+    orderType: "CPQ handoff (v2)",
+    facility: input.facility,
+    coordinatorId: input.coordinatorId,
+    status: "Open",
+    priority: "Medium",
+    updatedAt: ts,
+    teamsLinkPlaceholder: "Teams thread link (placeholder - no real Teams integration)",
+    publicRef: mockPublicRef(`order:${orderNumber}`),
+    lines,
+    risks: [],
+    scopeItems
+  };
+
+  const routeOps = allUnits.flatMap((u) => buildGenericRoute(u.unitId));
+  const qrIdentities: QrIdentity[] = [
+    {
+      publicRef: order.publicRef,
+      recordType: "Order",
+      targetId: order.orderNumber,
+      label: `Master order ${order.orderNumber}`,
+      printEvents: []
+    },
+    ...allUnits.map((u) => ({
+      publicRef: u.publicRef,
+      recordType: "Unit" as const,
+      targetId: u.unitId,
+      label: `Unit ${u.unitId}`,
+      printEvents: []
+    }))
+  ];
+
+  s = {
+    ...s,
+    orders: [...s.orders, order],
+    units: [...s.units, ...allUnits],
+    routeOps: [...s.routeOps, ...routeOps],
+    qrIdentities: [...s.qrIdentities, ...qrIdentities],
+    configurationSnapshots: [...s.configurationSnapshots, ...snapshots],
+    workingBomRows: [...s.workingBomRows, ...workingBomRows],
+    attentionItems: [...s.attentionItems, ...attentionItems],
+    manufacturingNotes: [...s.manufacturingNotes, ...manufacturingNotes]
+  };
+
+  for (const u of allUnits) {
+    const [taskId, s1] = takeId(s, "t");
+    const task: Task = {
+      id: taskId,
+      unitId: u.unitId,
+      orderNumber,
+      customerId: null,
+      name: "Intake review",
+      description: null,
+      operationId: `op-${u.unitId}-1`,
+      bucket: "TBC",
+      department: "Coordination",
+      status: "Ready",
+      ownerId: null,
+      assigneeIds: [],
+      startDate: null,
+      dueDate: null,
+      priority: "Medium",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [],
+      sourcePostId: null
+    };
+    s = { ...s1, tasks: [...s1.tasks, task] };
+  }
+
+  const unitLineCount = lines.filter((l) => l.executionDisposition === "unit-bearing").length;
+  const scopeLineCount = lines.length - unitLineCount;
+  const blockingCount = attentionItems.filter((a) => a.blocksRelease).length;
+
+  s = appendAudit(s, {
+    at: ts, actorId, action: "order.created", targetType: "Order", targetId: orderNumber,
+    unitId: null,
+    detail: `Order ${orderNumber} created by CPQ handoff of ${pkg.source.quoteNumber} rev ${pkg.source.revisionNumber}; ${unitLineCount} unit-bearing line(s) → ${allUnits.length} Unit(s), ${scopeLineCount} non-Unit scope line(s).`,
+    supersedesEventId: null
+  });
+  s = appendAudit(s, {
+    at: ts, actorId, action: "handoff.imported", targetType: "Order", targetId: orderNumber,
+    unitId: null,
+    detail: `Imported CPQ handoff ${pkg.packageId} (checksum ${pkg.checksum}); ${snapshots.length} frozen snapshot(s), ${attentionItems.length} attention item(s) (${blockingCount} blocking release).`,
+    supersedesEventId: null
+  });
+  for (const u of allUnits) {
+    s = appendAudit(s, {
+      at: ts, actorId, action: "unit.created", targetType: "Unit", targetId: u.unitId,
+      unitId: u.unitId, detail: "Unit created with stable QR identity (pre-serial).", supersedesEventId: null
+    });
+    s = recomputeUnitProjection(s, u.unitId);
   }
 
   return s;
