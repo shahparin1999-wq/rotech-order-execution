@@ -64,6 +64,8 @@ import {
   type HandoffNoteClassification
 } from "./orderHandoffV2";
 import { getModelTemplate, type ModelRouteStep } from "./modelTemplates";
+import { requirementsFromConfiguredLine } from "./ledger/fromConfigurator";
+import type { ExecutionRequirement, FulfillmentRecord } from "./ledger/requirement";
 import {
   isCustomValue,
   summarizeLine,
@@ -2669,6 +2671,8 @@ export function createConfiguredOrder(
   const configuredLines: ConfiguredLineRecord[] = [];
   const units: Unit[] = [];
   const routeOps: RouteOperation[] = [];
+  const requirements: ExecutionRequirement[] = [];
+  const fulfillments: FulfillmentRecord[] = [];
 
   draft.lines.forEach((line, index) => {
     const lineNumber = index + 1;
@@ -2754,6 +2758,18 @@ export function createConfiguredOrder(
       });
       routeOps.push(...lineUnits.flatMap((u) => buildRoute(u.unitId, steps)));
     }
+
+    // The ledger learns what this line demands. Unit-bearing lines produce
+    // per-Unit component and test requirements; a non-unit-bearing spare or
+    // item produces none (it is packable scope, not manufacturing demand).
+    const generated = requirementsFromConfiguredLine({
+      executionOrderId: orderNumber,
+      line: configuredLines[configuredLines.length - 1],
+      unitIds: isAssembly ? units.filter((u) => u.lineNumber === lineNumber).map((u) => u.unitId) : [],
+      createdAt: ts
+    });
+    requirements.push(...generated.requirements);
+    fulfillments.push(...generated.fulfillments);
   });
 
   const order: Order = {
@@ -2801,7 +2817,9 @@ export function createConfiguredOrder(
     units: [...state.units, ...units],
     routeOps: [...state.routeOps, ...routeOps],
     qrIdentities: [...state.qrIdentities, ...qrIdentities],
-    configuredLines: [...state.configuredLines, ...configuredLines]
+    configuredLines: [...state.configuredLines, ...configuredLines],
+    requirements: [...state.requirements, ...requirements],
+    fulfillments: [...state.fulfillments, ...fulfillments]
   };
 
   s = appendAudit(s, {
@@ -2813,7 +2831,8 @@ export function createConfiguredOrder(
     unitId: null,
     detail:
       `Order ${orderNumber} configured internally: ${lines.length} line(s), ` +
-      `${units.length} Unit(s). Manually entered component values are marked custom.`,
+      `${units.length} Unit(s), ${requirements.length} requirement(s). ` +
+      `Manually entered component values are marked custom.`,
     supersedesEventId: null
   });
   for (const u of units) {

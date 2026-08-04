@@ -26,7 +26,7 @@ export const STORAGE_KEY = "rotech-proto-state";
 // v5: CPQ internal handoff v2 - the attentionItems array plus optional OrderLine
 // (executionDisposition/commercialState/executionState) and Order (scopeItems)
 // fields. A v4 save lacks the array, so it must not be trusted.
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 export interface StoredEnvelope {
   schemaVersion: number;

@@ -12,12 +12,16 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const LEDGER_DIR = "src/domain/ledger";
+// Both pure-domain trees. Inventory carries the same guarantee: movements and
+// their derivations must run unchanged against a real database after Gate A.
+const PURE_DIRS = ["src/domain/ledger", "src/domain/inventory"];
 
 function ledgerFiles(): string[] {
-  return readdirSync(LEDGER_DIR)
-    .filter((f) => f.endsWith(".ts"))
-    .map((f) => join(LEDGER_DIR, f));
+  return PURE_DIRS.flatMap((dir) =>
+    readdirSync(dir)
+      .filter((f) => f.endsWith(".ts"))
+      .map((f) => join(dir, f))
+  );
 }
 
 // Bare-identifier match so a word inside a comment or a longer name (e.g.
@@ -30,11 +34,11 @@ function stripComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
-describe("Ledger domain modules are pure", () => {
+describe("Ledger and inventory domain modules are pure", () => {
   const files = ledgerFiles();
 
   it("finds the ledger modules", () => {
-    expect(files.length).toBeGreaterThanOrEqual(5);
+    expect(files.length).toBeGreaterThanOrEqual(10);
   });
 
   it("imports no React or Next", () => {

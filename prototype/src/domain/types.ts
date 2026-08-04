@@ -1,3 +1,5 @@
+import type { ExecutionRequirement, FulfillmentRecord } from "./ledger/requirement";
+
 // Domain types for the mock vertical slice. All data is fixture/mock data;
 // nothing here talks to AIMCOR, Azure, Entra, Teams, or a database.
 
@@ -803,6 +805,10 @@ export interface AppState {
   serviceRequirements1196: ServiceRequirement1196[];
   confirmationRecords1196: ConfirmationRecord1196[];
   configuredLines: ConfiguredLineRecord[]; // internal configurator output
+  // The requirement ledger, live rather than test-only: every configured order
+  // generates the requirements that receiving later matches against.
+  requirements: ExecutionRequirement[];
+  fulfillments: FulfillmentRecord[];
   favourites: string[]; // view ids or order numbers
   followedOrders: string[];
   nextId: number;

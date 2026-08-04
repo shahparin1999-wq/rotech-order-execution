@@ -1294,6 +1294,8 @@ export function buildInitialState(): AppState {
     serviceRequirements1196: demo1196Services,
     confirmationRecords1196: demo1196Confirmations,
     configuredLines: [],
+    requirements: [],
+    fulfillments: [],
     favourites: ["view:orders", "view:quality"],
     followedOrders: [ORDER_NO],
     nextId: 1000
