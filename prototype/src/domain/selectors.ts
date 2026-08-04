@@ -6,17 +6,22 @@ import type {
   AttentionItem,
   ChecklistItemDef,
   ChecklistResponse,
+  ComponentRequirement1196,
+  ConfirmationRecord1196,
   Contact,
   Customer,
   HandoffRecord,
   Order,
   OrderLine,
   PlannerBucket,
+  Pump1196LineConfig,
   QrIdentity,
+  ServiceRequirement1196,
   Task,
   Unit,
   UnitStatus
 } from "./types";
+import { CONFIRMATION_GATE_ITEMS_1196 } from "./model1196";
 
 const UNIT_STATUS_LABELS: Record<UnitStatus, string> = {
   NotStarted: "Not started",
@@ -616,4 +621,92 @@ export function nonUnitScopeLines(state: AppState, orderNumber: string): OrderLi
   const order = state.orders.find((o) => o.orderNumber === orderNumber);
   if (!order) return [];
   return order.lines.filter((l) => l.executionDisposition && l.executionDisposition !== "unit-bearing");
+}
+
+// ---------------------------------------------------------------------------
+// 1196 standard pump-end configuration (model1196.ts rules catalogue).
+// ---------------------------------------------------------------------------
+
+export function pump1196ConfigForLine(state: AppState, lineId: string): Pump1196LineConfig | undefined {
+  return state.pump1196Configs.find((c) => c.lineId === lineId);
+}
+
+export function componentRequirementsForScope(
+  state: AppState,
+  scopeType: "WorkOrderLine" | "Unit",
+  scopeId: string
+): ComponentRequirement1196[] {
+  return state.componentRequirements1196.filter((r) => r.scopeType === scopeType && r.scopeId === scopeId);
+}
+
+// All Unit-scoped component requirements for every Unit on a line (line
+// isolation aside — each requirement still carries its own Unit scopeId, so a
+// caller can never accidentally read one Unit's requirement as another's).
+export function componentRequirementsForLineUnits(state: AppState, orderNumber: string, lineNumber: number): ComponentRequirement1196[] {
+  return state.componentRequirements1196.filter((r) => r.orderNumber === orderNumber && r.lineNumber === lineNumber);
+}
+
+export function serviceRequirementsForLine(state: AppState, lineId: string): ServiceRequirement1196[] {
+  return state.serviceRequirements1196.filter((s) => s.lineId === lineId);
+}
+
+// Latest (non-superseded) confirmation per gate key for a line — the append-
+// only ConfirmationRecord1196 ledger collapsed to current state, the same
+// pattern as currentResponses() for checklist responses.
+export function currentConfirmations1196(state: AppState, lineId: string): Map<string, ConfirmationRecord1196> {
+  const superseded = new Set(
+    state.confirmationRecords1196.filter((c) => c.supersedesId).map((c) => c.supersedesId as string)
+  );
+  const map = new Map<string, ConfirmationRecord1196>();
+  for (const c of state.confirmationRecords1196) {
+    if (c.scopeId !== lineId || superseded.has(c.id)) continue;
+    const existing = map.get(c.gateKey);
+    if (!existing || c.confirmedAt >= existing.confirmedAt) map.set(c.gateKey, c);
+  }
+  return map;
+}
+
+export interface ReleaseBlockers1196 {
+  unresolvedGateItems: string[]; // labels of confirmation-gate items not yet confirmed
+  openBlockingServices: string[]; // labels of selected services not yet complete
+  blocked: boolean;
+}
+
+// R-1196-028: unknown/incomplete required data blocks release rather than a
+// silent fallback — every gate item must be confirmed and every
+// blocksRelease service must be Complete before a line can release.
+export function releaseBlockers1196(state: AppState, lineId: string): ReleaseBlockers1196 {
+  const confirmed = currentConfirmations1196(state, lineId);
+  const unresolvedGateItems = CONFIRMATION_GATE_ITEMS_1196.filter((g) => !confirmed.has(g.key)).map((g) => g.label);
+  const openBlockingServices = state.serviceRequirements1196
+    .filter((s) => s.lineId === lineId && s.blocksRelease && s.status !== "Complete")
+    .map((s) => s.label);
+  return {
+    unresolvedGateItems,
+    openBlockingServices,
+    blocked: unresolvedGateItems.length > 0 || openBlockingServices.length > 0
+  };
+}
+
+export interface Unit1196View {
+  config: Pump1196LineConfig | undefined;
+  requirements: ComponentRequirement1196[]; // this Unit's own requirements only (R-1196-026 isolation)
+  openRequirementLabels: string[];
+}
+
+// The composed Ordered/Required/Confirmed/As-Built read for one Unit (docs
+// §6.2/§6.3). "Ordered" is the frozen Pump1196LineConfig; "Required" is this
+// Unit's own ComponentRequirement1196 rows (never a sibling's); "open" lists
+// what still blocks completion.
+export function unit1196View(state: AppState, unitId: string): Unit1196View | undefined {
+  const unit = state.units.find((u) => u.unitId === unitId);
+  if (!unit) return undefined;
+  const lineId = `${unit.orderNumber}-L${unit.lineNumber}`;
+  const config = pump1196ConfigForLine(state, lineId);
+  if (!config) return undefined;
+  const requirements = componentRequirementsForScope(state, "Unit", unitId);
+  const openRequirementLabels = requirements
+    .filter((r) => r.availabilityState !== "Complete" && r.availabilityState !== "NotInScope" && r.availabilityState !== "CustomerSupplied")
+    .map((r) => r.label);
+  return { config, requirements, openRequirementLabels };
 }

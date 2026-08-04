@@ -38,6 +38,46 @@ export function Drawer({
   );
 }
 
+// Wide centred modal, for flows that need a real field grid rather than a
+// single narrow column.
+export function Modal({
+  title,
+  onClose,
+  children,
+  footer,
+  subtitle
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  footer: React.ReactNode;
+  subtitle?: React.ReactNode;
+}) {
+  return (
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="modal-panel" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="modal-header">
+          <div>
+            <h2>{title}</h2>
+            {subtitle && <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>{subtitle}</div>}
+          </div>
+          <button type="button" className="drawer-close" aria-label="Close" onClick={onClose}>
+            <CloseIcon size={18} />
+          </button>
+        </div>
+        <div className="modal-body">{children}</div>
+        <div className="modal-footer">{footer}</div>
+      </div>
+    </div>
+  );
+}
+
 export function FieldGroup({
   label,
   children,

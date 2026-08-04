@@ -10,8 +10,10 @@ import {
   employeeName,
   postsForOrder,
   tasksForUnit,
+  unit1196View,
   unitById
 } from "@/domain/selectors";
+import { Pump1196RequirementTable } from "@/components/Pump1196Requirement";
 import { IdentityBanner } from "@/components/IdentityBanner";
 import { Checklist } from "@/components/Checklist";
 import { ActivityFeed } from "@/components/ActivityFeed";
@@ -26,7 +28,7 @@ import {
 } from "@/components/bits";
 
 const TABS = ["overview", "checklist", "evidence", "activity", "audit"] as const;
-type Tab = (typeof TABS)[number];
+type Tab = (typeof TABS)[number] | "pump1196";
 
 function UnitView({ unitId }: { unitId: string }) {
   const state = useAppState();
@@ -55,6 +57,8 @@ function UnitView({ unitId }: { unitId: string }) {
   const problems = state.problems.filter((p) => p.unitId === unitId);
   const responses = [...currentResponses(state, unitId).values()];
   const measurements = responses.filter((r) => typeof r.value === "number");
+  const view1196 = unit1196View(state, unitId);
+  const tabs: readonly string[] = view1196 ? [...TABS, "pump1196"] : TABS;
 
   return (
     <>
@@ -73,9 +77,9 @@ function UnitView({ unitId }: { unitId: string }) {
         </div>
 
         <nav className="tabs" aria-label="Unit tabs">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <Link key={t} className={`tab ${tab === t ? "active" : ""}`} href={`/units/${unitId}?tab=${t}`}>
-              {t[0].toUpperCase() + t.slice(1)}
+              {t === "pump1196" ? "1196 build" : t[0].toUpperCase() + t.slice(1)}
             </Link>
           ))}
         </nav>
@@ -299,6 +303,57 @@ function UnitView({ unitId }: { unitId: string }) {
               </div>
             </div>
           </>
+        )}
+
+        {tab === "pump1196" && view1196 && (
+          <div className="card" data-testid="unit-pump1196-summary">
+            <h3>
+              {unit.unitId} — 1196 {view1196.config?.size} | {view1196.config?.frame} | {view1196.config?.materialBuild}
+            </h3>
+            <p style={{ fontSize: 13.5 }}>
+              {view1196.config?.buildType === "BarePumpEnd" ? "Bare pump end" : "Complete package"} · Serial{" "}
+              {unit.serial ?? "pending"} · Shaft {view1196.config?.shaftType}
+            </p>
+            {view1196.config?.buildType === "CompletePackage" && (
+              <p style={{ fontSize: 13.5 }} data-testid="unit-pump1196-drawing">
+                <strong>Build to drawing:</strong>{" "}
+                {view1196.config.packageDrawing ? (
+                  <>
+                    {view1196.config.packageDrawing.reference}
+                    {view1196.config.packageDrawing.kind === "CustomBaseplate" && (
+                      <> (custom baseplate) — {view1196.config.packageDrawing.note}</>
+                    )}
+                  </>
+                ) : (
+                  "Not set"
+                )}
+              </p>
+            )}
+            {view1196.config?.hydraulicCondition.kind === "Trim" && (
+              <p style={{ fontSize: 13.5 }} data-testid="unit-pump1196-trim">
+                <strong>Impeller trim:</strong> {view1196.config.hydraulicCondition.trimValue} in from{" "}
+                {view1196.config.fullImpellerTrim} in — {view1196.config.hydraulicCondition.reason}. Trim is a
+                machining step on the impeller only; the rest of the build can proceed in parallel.
+              </p>
+            )}
+            <h4>Build scope — record what you actually used</h4>
+            <Pump1196RequirementTable unitId={unitId} />
+            <h4>Open requirements</h4>
+            {view1196.openRequirementLabels.length === 0 ? (
+              <p>None — all requirements Complete, Not-in-scope, or Customer-supplied.</p>
+            ) : (
+              <ul style={{ paddingLeft: 18 }}>
+                {view1196.openRequirementLabels.map((l) => (
+                  <li key={l}>{l}</li>
+                ))}
+              </ul>
+            )}
+            <p style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+              Ordered configuration and Confirmed/As-built history are Unit-isolated: anything recorded here applies
+              to {unit.unitId} only and never appears on a sibling Unit. See the order&apos;s Parts &amp;
+              subassemblies / Confirmation gate tabs for the full line view.
+            </p>
+          </div>
         )}
 
         {tab === "activity" && <ActivityFeed orderNumber={unit.orderNumber} unitId={unitId} />}

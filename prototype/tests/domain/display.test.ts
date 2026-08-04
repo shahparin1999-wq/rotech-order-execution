@@ -26,12 +26,13 @@ describe("Views are filters over master orders", () => {
     const state = buildInitialState();
     const miss = applyView(state, "mississauga");
     const hou = applyView(state, "houston");
-    expect(miss.orders.map((o) => o.orderNumber)).toEqual([ORDER_NO]);
+    // Mississauga also carries the 1196 rules-driven demo order (DEMO1196STD-1).
+    expect(miss.orders.map((o) => o.orderNumber)).toEqual([ORDER_NO, "DEMO1196STD-1"]);
     expect(hou.orders.map((o) => o.orderNumber)).toEqual([HOUSTON_ORDER_NO]);
     // The same master order object is reused, not copied per facility.
     expect(miss.orders[0]).toBe(state.orders[0]);
     // Total orders in the system is unchanged by filtering.
-    expect(state.orders).toHaveLength(2);
+    expect(state.orders).toHaveLength(3);
   });
 
   it("blocked view returns only blocked Units", () => {

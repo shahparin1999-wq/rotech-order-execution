@@ -19,7 +19,8 @@ import React, {
 } from "react";
 import { buildInitialState } from "@/domain/fixtures";
 import { recomputeUnitProjection } from "@/domain/projections";
-import type { AppState, PlannerBucket, Priority } from "@/domain/types";
+import type { AppState, PackageDrawing1196, PlannerBucket, Priority } from "@/domain/types";
+import type { ConfiguratorDraft } from "@/domain/configurator";
 import { parseStoredEnvelope, serializeEnvelope, STORAGE_KEY } from "./persistence";
 import {
   addAttachment,
@@ -39,15 +40,21 @@ import {
   changeTaskPriority,
   completeTask,
   completeTaskDirect,
+  confirmGateItem1196,
   convertPost,
   createContact,
   createCustomer,
+  create1196PumpEnd,
   createTask,
+  createConfiguredOrder,
   createWorkOrder,
+  decidePowerEndAvailability,
   editOrder,
   importExecutionPackage,
+  recordComponentUsage1196,
   removeWorkingBomRow,
   seedWorkingBom,
+  setPackageDrawing1196,
   updateWorkingBomRow,
   markPostRead,
   moveTaskBucket,
@@ -65,11 +72,13 @@ import {
   type ConvertInput,
   type AddUnitsInput,
   type ConfigurationAdjustmentInput,
+  type Create1196PumpEndInput,
   type CustomerInput,
   type ImportPackageInput,
   type ManufacturingNoteInput,
   type OrderEditInput,
   type PauseInput,
+  type RecordComponentUsageInput,
   type ResponseInput,
   type TaskInput,
   type WorkingBomPatch,
@@ -99,6 +108,12 @@ export type Action =
   | { type: "createContact"; customerId: string; input: ContactInput }
   | { type: "createWorkOrder"; input: WorkOrderInput }
   | { type: "importExecutionPackage"; input: ImportPackageInput }
+  | { type: "create1196PumpEnd"; input: Create1196PumpEndInput }
+  | { type: "createConfiguredOrder"; draft: ConfiguratorDraft }
+  | { type: "decidePowerEndAvailability"; unitId: string; decision: "Available" | "BuildRequired" }
+  | { type: "recordComponentUsage1196"; requirementId: string; input: RecordComponentUsageInput }
+  | { type: "confirmGateItem1196"; lineId: string; gateKey: string; note: string | null }
+  | { type: "setPackageDrawing1196"; lineId: string; drawing: PackageDrawing1196 }
   | { type: "addManufacturingNote"; input: ManufacturingNoteInput }
   | { type: "addConfigurationAdjustment"; input: ConfigurationAdjustmentInput }
   | { type: "addUnitsToLine"; input: AddUnitsInput }
@@ -180,6 +195,18 @@ function buildReducer(onError: (message: string) => void) {
           return createWorkOrder(state, actor, action.input);
         case "importExecutionPackage":
           return importExecutionPackage(state, actor, action.input);
+        case "create1196PumpEnd":
+          return create1196PumpEnd(state, actor, action.input);
+        case "createConfiguredOrder":
+          return createConfiguredOrder(state, actor, action.draft);
+        case "decidePowerEndAvailability":
+          return decidePowerEndAvailability(state, actor, action.unitId, action.decision);
+        case "recordComponentUsage1196":
+          return recordComponentUsage1196(state, actor, action.requirementId, action.input);
+        case "confirmGateItem1196":
+          return confirmGateItem1196(state, actor, action.lineId, action.gateKey, action.note);
+        case "setPackageDrawing1196":
+          return setPackageDrawing1196(state, actor, action.lineId, action.drawing);
         case "addManufacturingNote":
           return addManufacturingNote(state, actor, action.input);
         case "addConfigurationAdjustment":

@@ -127,8 +127,12 @@ test.describe("C2 - handoff history is append-only in the UI", () => {
     await expect(history).toContainText("Parts staging rack B");
     await expect(history).toContainText("Miguel Torres");
 
-    // Audit retains both pause events.
+    // Audit retains both pause events. Wait for the tab to actually land —
+    // without this the assertions below can run against the overview, where
+    // the handoff card also contains "supersedes", passing for the wrong
+    // reason.
     await page.getByRole("link", { name: "Audit", exact: true }).click();
+    await page.waitForURL(/tab=audit/);
     const audit = page.locator("table.data");
     await expect(audit).toContainText("supersedes");
     expect(

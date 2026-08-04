@@ -59,7 +59,8 @@ test.describe("Label previews", () => {
     const before = Number(await countCell.textContent());
     await page.getByTestId("reprint-label-unit").click();
     await expect(countCell).toHaveText(String(before + 1));
-    await expect(page.getByText(`Unit count remains 7`)).toBeVisible();
+    // Total Units across all fixture orders (SAMPLE1001 5 + SAMPLE1002 2 + DEMO1196STD-1 2).
+    await expect(page.getByText(`Unit count remains 9`)).toBeVisible();
 
     // The Unit list still has exactly five Units for this order.
     await page.goto(`/orders/${ORDER}?tab=units`);

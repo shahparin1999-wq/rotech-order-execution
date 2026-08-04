@@ -11,6 +11,9 @@ import type {
   AuditEvent,
   ChecklistResponse,
   ChecklistSubItem,
+  ComponentRequirement1196,
+  ComponentUsage1196,
+  ConfirmationRecord1196,
   ConvertedKind,
   ConfigurationAdjustment,
   ConfigurationSnapshot,
@@ -18,19 +21,26 @@ import type {
   Customer,
   Facility,
   HandoffRecord,
+  HydraulicCondition1196,
   ManufacturingNote,
   ManufacturingNoteCategory,
   MaterialChange,
   Order,
   OrderLine,
+  ConfiguredLineRecord,
   OrderScopeItem,
+  PackageComponentScope1196,
+  PackageDrawing1196,
   PlannerBucket,
   Priority,
   Problem,
+  Pump1196LineConfig,
   QrIdentity,
   RouteOperation,
   SaveState,
+  ServiceRequirement1196,
   SpecialInstruction,
+  StuffingBoxCover1196,
   Task,
   TaskStatus,
   Unit,
@@ -54,6 +64,26 @@ import {
   type HandoffNoteClassification
 } from "./orderHandoffV2";
 import { getModelTemplate, type ModelRouteStep } from "./modelTemplates";
+import {
+  isCustomValue,
+  summarizeLine,
+  validateDraft,
+  type ConfiguratorDraft
+} from "./configurator";
+import {
+  build1196RouteSteps,
+  CONFIRMATION_GATE_ITEMS_1196,
+  defaultShaftType1196,
+  isShaftType1196,
+  materialOptionsForSize,
+  PACKAGE_COMPONENT_KEYS,
+  PACKAGE_COMPONENT_LABELS,
+  powerEndBuildChildren,
+  pumpSizeEntry1196,
+  resolveDefaultDbse,
+  RULES_VERSION_1196,
+  serviceCatalogueEntry
+} from "./model1196";
 
 // A classified CPQ note maps 1:1 to a ManufacturingNote category, except
 // "Provenance", which is read-only context kept only in the frozen snapshot and
@@ -2152,4 +2182,687 @@ export function addTaskComment(state: AppState, taskId: string, actorId: string,
   return updateTask(s0, taskId, {
     comments: [...t.comments, { id, authorId: actorId, at: ts, body }]
   });
+}
+
+// ---------------------------------------------------------------------------
+// 1196 standard pump-end configuration & execution (model1196.ts rules
+// catalogue). A controlled manual configuration — not a CPQ import — so it
+// is validated/frozen the same way importExecutionPackage freezes a CPQ line,
+// but built from directly-entered, rule-checked fields instead of an
+// untrusted uploaded payload.
+// ---------------------------------------------------------------------------
+
+export interface Create1196PumpEndInput {
+  orderNumber: string;
+  customerId: string;
+  customerPo: string;
+  description: string;
+  facility: Facility;
+  coordinatorId: string;
+  priority: Priority;
+  dueDate: string;
+  quantity: number;
+  size: string;
+  frame: string;
+  materialBuild: string;
+  shaftType?: string; // defaults to DEFAULT_SHAFT_TYPE_1196
+  hydraulicCondition: HydraulicCondition1196;
+  stuffingBoxCover: StuffingBoxCover1196;
+  buildType: "BarePumpEnd" | "CompletePackage";
+  // Required (and only consulted) when buildType is "CompletePackage". Any
+  // PACKAGE_COMPONENT_KEYS entry not present defaults to "NotInScope" (R-1196-016
+  // - Not-in-scope items create no requirement at all).
+  packageScope?: Partial<Record<string, PackageComponentScope1196>>;
+  packageDrawing?: PackageDrawing1196 | null; // Complete Package only
+  selectedServiceKeys: string[];
+}
+
+// R-1196-001..028: validates size, frame and material against the CPQ-sourced
+// catalogue (PUMP_SIZES_1196) and fails closed (throws) rather than accepting
+// an unmapped combination - the same "unresolved, not guessed" discipline as
+// the CPQ importer's checksum/schema rejection.
+export function create1196PumpEnd(state: AppState, actorId: string, input: Create1196PumpEndInput, at?: string): AppState {
+  const orderNumber = input.orderNumber.trim();
+  if (!orderNumber) throw new Error("Order number is required");
+  if (state.orders.some((o) => o.orderNumber === orderNumber)) {
+    throw new Error(`Order ${orderNumber} already exists`);
+  }
+  if (!state.customers.some((c) => c.id === input.customerId)) {
+    throw new Error(`Unknown customer ${input.customerId}`);
+  }
+  if (!Number.isInteger(input.quantity) || input.quantity < 1) {
+    throw new Error("Quantity must be a positive whole number");
+  }
+
+  const size = input.size.trim();
+  const sizeEntry = pumpSizeEntry1196(size);
+  if (!sizeEntry) {
+    throw new Error(
+      `Size "${size}" is not in the controlled 1196 size catalogue; requires controlled data (D-1196-001) and cannot be guessed.`
+    );
+  }
+  if (!(sizeEntry.frameOptions as readonly string[]).includes(input.frame)) {
+    throw new Error(
+      `Frame "${input.frame}" is not a controlled frame for size ${size} (${sizeEntry.frameOptions.join(", ")}); requires controlled data (D-1196-001) and cannot be guessed.`
+    );
+  }
+  const materials = materialOptionsForSize(size)!;
+  const materialBuild = input.materialBuild.trim();
+  if (!materials.options.includes(materialBuild)) {
+    throw new Error(
+      `Material build "${materialBuild}" is not a controlled option for size ${size} (${materials.options.join(", ")}); requires controlled data and cannot be guessed.`
+    );
+  }
+  const shaftType = input.shaftType ?? defaultShaftType1196();
+  if (!shaftType || !isShaftType1196(shaftType)) {
+    throw new Error(
+      `Shaft type ${JSON.stringify(shaftType)} is not carried by the pinned CPQ catalogue release for 1196.`
+    );
+  }
+
+  const dbseResolution =
+    input.buildType === "CompletePackage" ? resolveDefaultDbse(input.frame) : null;
+  // Fail closed (R-1196-019): XLR-17 has no controlled DBSE default in either
+  // the Rotech rule set or CPQ, so a Complete Package on that frame is
+  // rejected rather than silently defaulted (D-1196-008).
+  if (input.buildType === "CompletePackage" && !dbseResolution) {
+    throw new Error(`No controlled DBSE default for frame "${input.frame}"; requires controlled data (D-1196-008).`);
+  }
+  const dbse = dbseResolution ? { value: dbseResolution.value, isDefault: dbseResolution.isDefault } : null;
+
+  const ts = nowIso(at);
+  const lineId = `${orderNumber}-L1`;
+
+  const packageScope: Partial<Record<string, PackageComponentScope1196>> = {};
+  if (input.buildType === "CompletePackage") {
+    for (const key of PACKAGE_COMPONENT_KEYS) {
+      packageScope[key] = input.packageScope?.[key] ?? "NotInScope";
+    }
+  }
+
+  let s: AppState = state;
+  const [cfgId, s0] = takeId(s, "cfg1196");
+  s = s0;
+  const config: Pump1196LineConfig = {
+    id: cfgId,
+    lineId,
+    orderNumber,
+    lineNumber: 1,
+    rulesVersion: RULES_VERSION_1196,
+    size,
+    frame: input.frame,
+    materialBuild,
+    shaftType,
+    fullImpellerTrim: sizeEntry.fullImpellerTrim,
+    hydraulicCondition: input.hydraulicCondition,
+    stuffingBoxCover: input.stuffingBoxCover,
+    buildType: input.buildType,
+    powerEndAvailability: "Required",
+    packageScope,
+    packageDrawing: input.buildType === "CompletePackage" ? input.packageDrawing ?? null : null,
+    dbse,
+    selectedServiceKeys: [...input.selectedServiceKeys],
+    createdAt: ts,
+    createdBy: actorId
+  };
+
+  const line: OrderLine = {
+    id: lineId,
+    lineNumber: 1,
+    sourceSystem: "Manual",
+    product: `1196 ${size}`,
+    description: input.description,
+    family: "1196",
+    model: "1196",
+    quantity: input.quantity,
+    orderedMaterial: materialBuild,
+    templateName: `1196 controlled manual configuration (${RULES_VERSION_1196})`
+  };
+  const order: Order = {
+    orderNumber,
+    customerId: input.customerId,
+    customerPo: input.customerPo,
+    dueDate: input.dueDate,
+    productFamily: "1196",
+    orderType: input.buildType === "CompletePackage" ? "Pump package" : "Bare pump end",
+    facility: input.facility,
+    coordinatorId: input.coordinatorId,
+    status: "Open",
+    priority: input.priority,
+    updatedAt: ts,
+    teamsLinkPlaceholder: "Teams thread link (placeholder - no real Teams integration)",
+    publicRef: mockPublicRef(`order:${orderNumber}`),
+    lines: [line],
+    risks: []
+  };
+
+  const units = generateUnits(orderNumber, 1, input.quantity, {
+    model: "1196",
+    size,
+    orderedMaterial: materialBuild,
+    location: `${input.facility} - Intake`
+  });
+
+  const routeSteps = build1196RouteSteps(config);
+  const routeOps = units.flatMap((u) => buildRoute(u.unitId, routeSteps));
+
+  const requirements: ComponentRequirement1196[] = [];
+  const baseline = (unitId: string, key: string, label: string, ruleId: string) => {
+    requirements.push({
+      id: `req1196-${orderNumber}-${key}-${unitId}`,
+      scopeType: "Unit",
+      scopeId: unitId,
+      orderNumber,
+      lineNumber: 1,
+      key,
+      label,
+      catalogPartNumber: null,
+      parentRequirementId: null,
+      availabilityState: "Required",
+      ruleId,
+      createdAt: ts
+    });
+  };
+  const impellerLabel =
+    input.hydraulicCondition.kind === "Trim"
+      ? `Impeller — trim ${input.hydraulicCondition.trimValue} in (full ${sizeEntry.fullImpellerTrim} in)`
+      : `Impeller — maximum diameter ${sizeEntry.fullImpellerTrim} in`;
+  for (const u of units) {
+    baseline(u.unitId, "casing", `150# FF casing — ${materialBuild}`, "R-1196-003");
+    baseline(u.unitId, "impeller", impellerLabel, "R-1196-004");
+    baseline(
+      u.unitId,
+      "stuffingBoxCover",
+      input.stuffingBoxCover.kind === "Standard"
+        ? `Standard-bore stuffing-box cover — ${materialBuild}`
+        : `Stuffing-box cover — ${input.stuffingBoxCover.description}`,
+      "R-1196-008"
+    );
+    baseline(u.unitId, "powerEndAssembly", `Power end with adapter (${input.frame}, ${shaftType})`, "R-1196-012");
+    if (input.buildType === "CompletePackage") {
+      for (const key of PACKAGE_COMPONENT_KEYS) {
+        const scope = packageScope[key];
+        if (scope === "NotInScope" || scope === undefined) continue; // R-1196-016: no requirement at all
+        requirements.push({
+          id: `req1196-${orderNumber}-${key}-${u.unitId}`,
+          scopeType: "Unit",
+          scopeId: u.unitId,
+          orderNumber,
+          lineNumber: 1,
+          key,
+          label: `${PACKAGE_COMPONENT_LABELS[key]} (${scope === "RotechSupplied" ? "Rotech supplied" : "Customer supplied"})`,
+          catalogPartNumber: null,
+          parentRequirementId: null,
+          availabilityState: scope === "RotechSupplied" ? "Required" : "CustomerSupplied",
+          ruleId: key === "motor" ? "R-1196-021" : "R-1196-017",
+          createdAt: ts
+        });
+      }
+    }
+  }
+
+  const services: ServiceRequirement1196[] = input.selectedServiceKeys.map((serviceKey, i) => {
+    const entry = serviceCatalogueEntry(serviceKey);
+    if (!entry) throw new Error(`Unknown service "${serviceKey}"`);
+    const resultFields: Record<string, string | number | null> = {};
+    for (const k of entry.resultFieldKeys) resultFields[k] = null;
+    void i;
+    return {
+      id: `svc1196-${orderNumber}-${serviceKey}`,
+      orderNumber,
+      lineNumber: 1,
+      lineId,
+      serviceKey,
+      label: entry.label,
+      resultFields,
+      evidenceNote: null,
+      blocksRelease: entry.blocksRelease,
+      status: "Open",
+      createdAt: ts
+    };
+  });
+
+  const qrIdentities: QrIdentity[] = [
+    { publicRef: order.publicRef, recordType: "Order", targetId: order.orderNumber, label: `Master order ${order.orderNumber}`, printEvents: [] },
+    ...units.map((u) => ({ publicRef: u.publicRef, recordType: "Unit" as const, targetId: u.unitId, label: `Unit ${u.unitId}`, printEvents: [] }))
+  ];
+
+  s = {
+    ...s,
+    orders: [...s.orders, order],
+    units: [...s.units, ...units],
+    routeOps: [...s.routeOps, ...routeOps],
+    qrIdentities: [...s.qrIdentities, ...qrIdentities],
+    pump1196Configs: [...s.pump1196Configs, config],
+    componentRequirements1196: [...s.componentRequirements1196, ...requirements],
+    serviceRequirements1196: [...s.serviceRequirements1196, ...services]
+  };
+
+  for (const u of units) {
+    const [taskId, s1] = takeId(s, "t");
+    const task: Task = {
+      id: taskId,
+      unitId: u.unitId,
+      orderNumber,
+      customerId: null,
+      name: "Intake and configuration confirmation",
+      description: null,
+      operationId: `op-${u.unitId}-1`,
+      bucket: "TBC",
+      department: "Coordination",
+      status: "Ready",
+      ownerId: null,
+      assigneeIds: [],
+      startDate: null,
+      dueDate: null,
+      priority: input.priority,
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: null,
+      blockReason: null,
+      handoffs: [],
+      history: [],
+      sourcePostId: null
+    };
+    s = { ...s1, tasks: [...s1.tasks, task] };
+  }
+
+  s = appendAudit(s, {
+    at: ts, actorId, action: "order.created", targetType: "Order", targetId: orderNumber,
+    unitId: null,
+    detail: `Order ${orderNumber} created as a controlled manual 1196 configuration (${RULES_VERSION_1196}); quantity ${input.quantity} generated ${units.length} independent Unit(s).`,
+    supersedesEventId: null
+  });
+  for (const u of units) {
+    s = appendAudit(s, {
+      at: ts, actorId, action: "unit.created", targetType: "Unit", targetId: u.unitId,
+      unitId: u.unitId, detail: "Unit created with stable QR identity (pre-serial).", supersedesEventId: null
+    });
+    s = recomputeUnitProjection(s, u.unitId);
+  }
+  return s;
+}
+
+// R-1196-013/014: sets the power-end requirement's availability decision for
+// one Unit and, when the decision is "BuildRequired", expands the controlled
+// child requirements (fails closed if the line's frame has no known build
+// list). Re-deciding is allowed, but children are only ever created once.
+export function decidePowerEndAvailability(
+  state: AppState,
+  actorId: string,
+  unitId: string,
+  decision: "Available" | "BuildRequired",
+  at?: string
+): AppState {
+  const unit = state.units.find((u) => u.unitId === unitId);
+  if (!unit) throw new Error(`Unknown Unit ${unitId}`);
+  const config = state.pump1196Configs.find(
+    (c) => c.orderNumber === unit.orderNumber && c.lineNumber === unit.lineNumber
+  );
+  if (!config) throw new Error(`Unit ${unitId} has no 1196 configuration`);
+  const requirement = state.componentRequirements1196.find(
+    (r) => r.scopeType === "Unit" && r.scopeId === unitId && r.key === "powerEndAssembly"
+  );
+  if (!requirement) throw new Error(`Unit ${unitId} has no power-end requirement`);
+
+  const ts = nowIso(at);
+  let s: AppState = {
+    ...state,
+    componentRequirements1196: state.componentRequirements1196.map((r) =>
+      r.id === requirement.id
+        ? { ...r, availabilityState: decision === "Available" ? "Allocated" : "NeedsAssembly" }
+        : r
+    )
+  };
+
+  if (decision === "BuildRequired") {
+    const alreadyExpanded = s.componentRequirements1196.some((r) => r.parentRequirementId === requirement.id);
+    if (!alreadyExpanded) {
+      const children = powerEndBuildChildren(config.frame, config.shaftType);
+      if (!children) {
+        throw new Error(
+          `No controlled power-end build list for frame "${config.frame}" with shaft type "${config.shaftType}"; requires controlled data (D-1196-004/005).`
+        );
+      }
+      const childRequirements: ComponentRequirement1196[] = children.map((child) => ({
+        id: `req1196child-${unitId}-${child.key}`,
+        scopeType: "Unit",
+        scopeId: unitId,
+        orderNumber: unit.orderNumber,
+        lineNumber: unit.lineNumber,
+        key: child.key,
+        label: child.label,
+        catalogPartNumber: child.partNumber,
+        parentRequirementId: requirement.id,
+        availabilityState: "NeedsPurchase",
+        ruleId: child.ruleId,
+        createdAt: ts
+      }));
+      s = { ...s, componentRequirements1196: [...s.componentRequirements1196, ...childRequirements] };
+    }
+  }
+
+  s = appendAudit(s, {
+    at: ts, actorId, action: "pump1196.powerEndDecided", targetType: "Unit", targetId: unitId,
+    unitId, detail: `Power end with adapter: ${decision === "Available" ? "available, allocated" : "unavailable, build required"}.`, supersedesEventId: null
+  });
+  return s;
+}
+
+export interface RecordComponentUsageInput {
+  partNumber?: string | null;
+  material?: string | null;
+  heatLot?: string | null;
+  serial?: string | null;
+}
+
+// Records the actual part/material used against a requirement, advancing its
+// availability state to Complete. Scoped strictly to the requirement's own
+// Unit (R-1196-026: never visible on a sibling).
+export function recordComponentUsage1196(
+  state: AppState,
+  actorId: string,
+  requirementId: string,
+  input: RecordComponentUsageInput,
+  at?: string
+): AppState {
+  const requirement = state.componentRequirements1196.find((r) => r.id === requirementId);
+  if (!requirement) throw new Error(`Unknown component requirement ${requirementId}`);
+  if (requirement.scopeType !== "Unit") {
+    throw new Error("Component usage can only be recorded against a Unit-scoped requirement");
+  }
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "usage1196");
+  const usage: ComponentUsage1196 = {
+    id,
+    requirementId,
+    unitId: requirement.scopeId,
+    partNumber: input.partNumber?.trim() || null,
+    material: input.material?.trim() || null,
+    heatLot: input.heatLot?.trim() || null,
+    serial: input.serial?.trim() || null,
+    recordedAt: ts,
+    recordedBy: actorId
+  };
+  let s: AppState = {
+    ...s0,
+    componentUsages1196: [...s0.componentUsages1196, usage],
+    componentRequirements1196: s0.componentRequirements1196.map((r) =>
+      r.id === requirementId ? { ...r, availabilityState: "Complete" } : r
+    )
+  };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "pump1196.componentUsageRecorded", targetType: "ComponentRequirement1196", targetId: requirementId,
+    unitId: requirement.scopeId, detail: `Actual component recorded for "${requirement.label}" (${usage.partNumber ?? "no part number"}).`, supersedesEventId: null
+  });
+  return s;
+}
+
+// Append-only confirmation of one 3.3 gate item. A later confirmation of the
+// same gateKey supersedes the prior one (HandoffRecord.supersedesId
+// discipline) - nothing is ever overwritten.
+export function confirmGateItem1196(
+  state: AppState,
+  actorId: string,
+  lineId: string,
+  gateKey: string,
+  note: string | null,
+  at?: string
+): AppState {
+  if (!CONFIRMATION_GATE_ITEMS_1196.some((g) => g.key === gateKey)) {
+    throw new Error(`Unknown confirmation gate item "${gateKey}"`);
+  }
+  const config = state.pump1196Configs.find((c) => c.lineId === lineId);
+  if (!config) throw new Error(`Unknown 1196 line ${lineId}`);
+
+  const prior = state.confirmationRecords1196
+    .filter((c) => c.scopeId === lineId && c.gateKey === gateKey)
+    .sort((a, b) => a.confirmedAt.localeCompare(b.confirmedAt))
+    .at(-1);
+
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "confirm1196");
+  const record: ConfirmationRecord1196 = {
+    id,
+    scopeType: "WorkOrderLine",
+    scopeId: lineId,
+    orderNumber: config.orderNumber,
+    lineNumber: config.lineNumber,
+    gateKey,
+    confirmedBy: actorId,
+    confirmedAt: ts,
+    note,
+    supersedesId: prior?.id ?? null
+  };
+  let s: AppState = { ...s0, confirmationRecords1196: [...s0.confirmationRecords1196, record] };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "pump1196.gateConfirmed", targetType: "WorkOrderLine", targetId: lineId,
+    unitId: null, detail: `Confirmation gate item "${gateKey}" confirmed.`, supersedesEventId: null
+  });
+  return s;
+}
+
+// ---------------------------------------------------------------------------
+// Internal configurator → Order. Multi-line: a configured assembly creates
+// Units and a route; a spare or bought-out item is a real, packable order line
+// that creates no Units (the same disposition rule as the CPQ handoff).
+// ---------------------------------------------------------------------------
+
+export function createConfiguredOrder(
+  state: AppState,
+  actorId: string,
+  draft: ConfiguratorDraft,
+  at?: string
+): AppState {
+  const validation = validateDraft(
+    draft,
+    state.orders.map((o) => o.orderNumber)
+  );
+  if (!validation.ok) throw new Error(validation.errors.join("; "));
+
+  const orderNumber = draft.orderNumber.trim();
+  const ts = nowIso(at);
+
+  const lines: OrderLine[] = [];
+  const configuredLines: ConfiguredLineRecord[] = [];
+  const units: Unit[] = [];
+  const routeOps: RouteOperation[] = [];
+
+  draft.lines.forEach((line, index) => {
+    const lineNumber = index + 1;
+    const lineId = `${orderNumber}-L${lineNumber}`;
+    const isAssembly = line.kind === "ConfiguredAssembly";
+
+    lines.push({
+      id: lineId,
+      lineNumber,
+      sourceSystem: "Manual",
+      product: isAssembly ? `${line.family ?? ""} ${line.size ?? ""}`.trim() : line.description.trim(),
+      description: line.description.trim() || summarizeLine(line),
+      family: line.family ?? "",
+      model: line.family ?? "",
+      quantity: line.quantity,
+      orderedMaterial: line.materialBuild ?? "",
+      templateName: isAssembly ? "Internal configurator (configured assembly)" : "Internal configurator",
+      // Only a configured assembly bears Units; spares and items are packable
+      // order scope that never generate one.
+      executionDisposition: isAssembly ? "unit-bearing" : "line-level-scope"
+    });
+
+    configuredLines.push({
+      id: `cfgline-${orderNumber}-${lineNumber}`,
+      orderNumber,
+      lineId,
+      lineNumber,
+      kind: line.kind,
+      family: line.family,
+      size: line.size,
+      frame: line.frame,
+      materialBuild: line.materialBuild,
+      buildType: line.buildType,
+      partNumber: line.partNumber?.trim() || undefined,
+      brand: line.brand?.trim() || undefined,
+      notes: line.notes?.trim() || undefined,
+      flangeType: line.flangeType,
+      sbcType: line.sbcType,
+      shaftType: line.shaftType,
+      motorFrame: line.motorFrame,
+      fullTrim: line.fullTrim,
+      requestedTrim: line.requestedTrim,
+      sealArrangement: line.sealArrangement,
+      sealMoc: line.sealMoc,
+      sealGlandMoc: line.sealGlandMoc,
+      sealPlan: line.sealPlan,
+      sealManufacturer: line.sealManufacturer,
+      sealPartNumber: line.sealPartNumber,
+      sealSize: line.sealSize,
+      testingRequirements: line.testingRequirements?.length ? [...line.testingRequirements] : undefined,
+      coordinatorEdited: line.coordinatorEdited?.length ? [...line.coordinatorEdited] : undefined,
+      components: line.components
+        .filter((c) => c.inScope)
+        .map((c) => ({
+          key: c.key,
+          label: c.label,
+          partNumber: c.partNumber.trim(),
+          brand: c.brand.trim(),
+          material: c.material.trim(),
+          reference: c.reference.trim(),
+          referenceLabel: c.referenceLabel,
+          quantity: c.quantity,
+          notes: c.notes.trim(),
+          inScope: c.inScope,
+          isCustom: isCustomValue(c, "material") || isCustomValue(c, "partNumber")
+        })),
+      createdAt: ts,
+      createdBy: actorId
+    });
+
+    if (isAssembly) {
+      const lineUnits = generateUnits(orderNumber, lineNumber, line.quantity, {
+        model: line.family ?? "",
+        size: line.size ?? "",
+        orderedMaterial: line.materialBuild ?? "",
+        location: `${draft.facility} - Intake`
+      });
+      units.push(...lineUnits);
+      const steps = build1196RouteSteps({
+        hydraulicCondition: { kind: "MaxDiameter" },
+        buildType: line.buildType === "CompletePackage" ? "CompletePackage" : "BarePumpEnd",
+        selectedServiceKeys: []
+      });
+      routeOps.push(...lineUnits.flatMap((u) => buildRoute(u.unitId, steps)));
+    }
+  });
+
+  const order: Order = {
+    orderNumber,
+    customerId: draft.customerId,
+    customerPo: draft.customerPo.trim(),
+    dueDate: draft.dueDate,
+    productFamily: draft.lines.find((l) => l.family)?.family ?? "Mixed",
+    orderType: draft.lines.some((l) => l.buildType === "CompletePackage")
+      ? "Pump package"
+      : draft.lines.some((l) => l.kind === "ConfiguredAssembly")
+        ? "Bare pump end"
+        : "Spares / items",
+    facility: draft.facility as Facility,
+    coordinatorId: draft.coordinatorId,
+    status: "Open",
+    priority: draft.priority as Priority,
+    updatedAt: ts,
+    teamsLinkPlaceholder: "Teams thread link (placeholder - no real Teams integration)",
+    publicRef: mockPublicRef(`order:${orderNumber}`),
+    lines,
+    risks: []
+  };
+
+  const qrIdentities: QrIdentity[] = [
+    {
+      publicRef: order.publicRef,
+      recordType: "Order",
+      targetId: orderNumber,
+      label: `Master order ${orderNumber}`,
+      printEvents: []
+    },
+    ...units.map((u) => ({
+      publicRef: u.publicRef,
+      recordType: "Unit" as const,
+      targetId: u.unitId,
+      label: `Unit ${u.unitId}`,
+      printEvents: []
+    }))
+  ];
+
+  let s: AppState = {
+    ...state,
+    orders: [...state.orders, order],
+    units: [...state.units, ...units],
+    routeOps: [...state.routeOps, ...routeOps],
+    qrIdentities: [...state.qrIdentities, ...qrIdentities],
+    configuredLines: [...state.configuredLines, ...configuredLines]
+  };
+
+  s = appendAudit(s, {
+    at: ts,
+    actorId,
+    action: "order.created",
+    targetType: "Order",
+    targetId: orderNumber,
+    unitId: null,
+    detail:
+      `Order ${orderNumber} configured internally: ${lines.length} line(s), ` +
+      `${units.length} Unit(s). Manually entered component values are marked custom.`,
+    supersedesEventId: null
+  });
+  for (const u of units) {
+    s = appendAudit(s, {
+      at: ts,
+      actorId,
+      action: "unit.created",
+      targetType: "Unit",
+      targetId: u.unitId,
+      unitId: u.unitId,
+      detail: "Unit created with stable QR identity (pre-serial).",
+      supersedesEventId: null
+    });
+    s = recomputeUnitProjection(s, u.unitId);
+  }
+  return s;
+}
+
+// Sets or replaces the drawing a Complete Package builds to — either a named
+// standard drawing reference or a custom baseplate drawing. The replacement
+// is audited so the prior drawing stays traceable (R-1196-025: the ordered
+// configuration is never silently overwritten).
+export function setPackageDrawing1196(
+  state: AppState,
+  actorId: string,
+  lineId: string,
+  drawing: PackageDrawing1196,
+  at?: string
+): AppState {
+  const config = state.pump1196Configs.find((c) => c.lineId === lineId);
+  if (!config) throw new Error(`Unknown 1196 line ${lineId}`);
+  if (config.buildType !== "CompletePackage") {
+    throw new Error("A package drawing only applies to a Complete Package build");
+  }
+  if (!drawing.reference.trim()) throw new Error("Drawing reference is required");
+
+  const ts = nowIso(at);
+  const prior = config.packageDrawing;
+  let s: AppState = {
+    ...state,
+    pump1196Configs: state.pump1196Configs.map((c) => (c.lineId === lineId ? { ...c, packageDrawing: drawing } : c))
+  };
+  s = appendAudit(s, {
+    at: ts, actorId, action: "pump1196.packageDrawingSet", targetType: "WorkOrderLine", targetId: lineId,
+    unitId: null,
+    detail:
+      `Package drawing set to ${drawing.kind === "StandardReference" ? "standard reference" : "custom baseplate drawing"} ` +
+      `"${drawing.reference}"${prior ? ` (superseding "${prior.reference}")` : ""}.`,
+    supersedesEventId: null
+  });
+  return s;
 }

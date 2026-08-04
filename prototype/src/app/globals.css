@@ -3,35 +3,49 @@
    shop-floor tablet screens specifically (office screens stay compact). */
 
 :root {
+  /* Rotech brand palette, sampled from rotechpumps.com:
+     orange #F47F31 and blue #1190CF on a warm near-black #1D1C1A.
+     The orange is the identity mark (rail, active state, focus). It is NOT
+     used for text or button fills on white — at 2.5:1 it fails contrast — so
+     primary actions use a darkened brand blue that clears 4.5:1. */
   --font-stack: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, sans-serif;
-  --bg-app: #faf9f8;
-  --bg-rail: #201f1e;
-  --bg-rail-active: #303030;
+
+  --brand-orange: #f47f31;
+  --brand-orange-dark: #c2601f;
+  --brand-orange-soft: #fdf0e6;
+  --brand-blue: #1190cf;
+
+  --bg-app: #f7f7f6;
+  --bg-rail: #1d1c1a;
+  --bg-rail-active: #2c2a27;
   --bg-panel: #ffffff;
-  --bg-subtle: #f3f2f1;
-  --bg-subtle-2: #edebe9;
-  --border: #e1dfdd;
-  --border-strong: #c8c6c4;
-  --text: #201f1e;
-  --text-subtle: #605e5c;
-  --text-inverse: #f3f2f1;
-  --accent: #0f6cbd;
-  --accent-soft: #e9f1fb;
-  --accent-hover: #0c59a0;
-  --ok: #0f7b0f;
-  --ok-soft: #e6f4e6;
-  --info: #0f6cbd;
-  --info-soft: #e9f1fb;
-  --danger: #c4314b;
-  --danger-soft: #fdedf0;
-  --warn: #9d5d00;
-  --warn-soft: #fff4e0;
-  --muted: #605e5c;
-  --muted-soft: #f3f2f1;
+  --bg-subtle: #f4f3f1;
+  --bg-subtle-2: #eae8e5;
+  --border: #e0ddd9;
+  --border-strong: #c6c2bc;
+  --text: #1d1c1a;
+  --text-subtle: #5f5b55;
+  --text-inverse: #f4f3f1;
+
+  --accent: #0b6e9e;
+  --accent-soft: #e7f2f8;
+  --accent-hover: #095a82;
+
+  --ok: #147a42;
+  --ok-soft: #e6f4ec;
+  --info: #0b6e9e;
+  --info-soft: #e7f2f8;
+  --danger: #b4231f;
+  --danger-soft: #fdecea;
+  --warn: #9a5a00;
+  --warn-soft: #fdf0e6;
+  --muted: #5f5b55;
+  --muted-soft: #f4f3f1;
+
   --radius: 4px;
-  --radius-lg: 6px;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.12);
+  --radius-lg: 8px;
+  --shadow: 0 1px 2px rgba(29, 28, 26, 0.08);
+  --shadow-md: 0 2px 6px rgba(29, 28, 26, 0.12);
 }
 
 * {
@@ -81,11 +95,11 @@ button {
 
 .rail-brand {
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 11.5px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   padding: 10px 4px 14px;
-  color: #a5c7ea;
+  color: var(--brand-orange);
 }
 
 .rail-item {
@@ -110,7 +124,7 @@ button {
 }
 .rail-item.active {
   color: #ffffff;
-  border-left-color: var(--accent);
+  border-left-color: var(--brand-orange);
   background: rgba(255, 255, 255, 0.08);
 }
 .rail-icon {
@@ -1042,4 +1056,110 @@ input[type="date"] {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* ---------- Wide centred modal (order configurator) ----------
+   The configurator is a workbench, not a side panel: a 480px drawer forced
+   every field into one narrow column. This centres it and gives the field
+   grid room to breathe. */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.modal-panel {
+  width: min(1180px, 100%);
+  max-height: calc(100vh - 48px);
+  background: var(--bg-panel);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.modal-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+/* Multi-column field grid — only usable because the modal is wide. */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px 14px;
+  margin-bottom: 10px;
+}
+.config-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.config-section > h4 {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+}
+/* A value taken from the CPQ reference rather than typed by a person. */
+.from-default {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+@media (max-width: 900px) {
+  .modal-overlay { padding: 0; }
+  .modal-panel { width: 100vw; max-height: 100vh; border-radius: 0; }
+}
+
+
+/* ---------- Rotech brand accents ---------- */
+
+/* The prototype banner reads as a caution strip in the brand orange rather
+   than an anonymous yellow. */
+.mock-banner {
+  background: var(--brand-orange);
+  color: #1d1c1a;
+  font-weight: 600;
+}
+
+/* Focus ring uses the identity colour; it sits on top of fills so contrast is
+   not a text-legibility concern. */
+:focus-visible {
+  outline: 2px solid var(--brand-orange);
+  outline-offset: 1px;
+}
+
+/* Section headings inside the configurator get a subtle brand rule. */
+.config-section > h4 {
+  border-left: 3px solid var(--brand-orange);
+  padding-left: 8px;
+}
+
+.modal-header {
+  border-bottom: 2px solid var(--brand-orange);
 }

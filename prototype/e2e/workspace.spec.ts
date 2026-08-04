@@ -73,7 +73,8 @@ test.describe("Order execution workspace", () => {
 test.describe("Views are filters, not duplicate orders", () => {
   test("Mississauga and Houston views filter the same master orders", async ({ page }) => {
     await page.goto("/views/mississauga");
-    await expect(page.getByText("Orders in view (1)")).toBeVisible();
+    // Mississauga also carries the 1196 rules-driven demo order (DEMO1196STD-1).
+    await expect(page.getByText("Orders in view (2)")).toBeVisible();
     await expect(page.getByRole("link", { name: new RegExp(ORDER) }).first()).toBeVisible();
 
     await page.goto("/views/houston");

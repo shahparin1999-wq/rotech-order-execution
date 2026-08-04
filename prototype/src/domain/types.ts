@@ -392,6 +392,7 @@ export type AttachmentCategory =
   | "Material marking"
   | "Before"
   | "After"
+  | "Drawing"
   | "General reference";
 
 export interface Attachment {
@@ -595,6 +596,180 @@ export interface WorkingBomRow {
   updatedAt: string;
 }
 
+// ---------------------------------------------------------------------------
+// 1196 standard pump-end configuration (see docs/../Rotech_1196_Standard_
+// Configuration_Implementation_Plan.pdf and prototype/src/domain/model1196.ts
+// for the versioned rules catalogue these records are generated from).
+// ---------------------------------------------------------------------------
+
+export type HydraulicCondition1196 =
+  | { kind: "MaxDiameter" }
+  | { kind: "Trim"; trimValue: number; reason: string };
+
+export type StuffingBoxCover1196 =
+  | { kind: "Standard" }
+  | { kind: "Override"; description: string; reason: string };
+
+export type PackageComponentScope1196 = "RotechSupplied" | "CustomerSupplied" | "NotInScope";
+
+// The drawing governing a Complete Package build: either a named standard
+// drawing reference, or a custom baseplate drawing supplied for this order
+// (the attachment carries the mock file; the reference/note carry what the
+// shop needs to build to).
+export type PackageDrawing1196 =
+  | { kind: "StandardReference"; reference: string }
+  | { kind: "CustomBaseplate"; reference: string; note: string; attachmentId: string | null };
+
+// The frozen "controlled manual configuration" for one 1196 Work Order Line —
+// the non-CPQ analogue to ConfigurationSnapshot (docs §7.3: never mutated in
+// place; later decisions are recorded as new linked records, not edits here).
+export interface Pump1196LineConfig {
+  id: string;
+  lineId: string;
+  orderNumber: string;
+  lineNumber: number;
+  rulesVersion: string; // e.g. "1196-rules-v1"
+  size: string; // a pumpSize from the CPQ-sourced PUMP_SIZES_1196 catalogue
+  frame: string; // one of the size's own frameOptions
+  materialBuild: string;
+  shaftType: string; // drives the power-end build part codes
+  fullImpellerTrim: number; // the size's stock max diameter, for trim context
+  hydraulicCondition: HydraulicCondition1196;
+  stuffingBoxCover: StuffingBoxCover1196;
+  buildType: "BarePumpEnd" | "CompletePackage";
+  powerEndAvailability: "Required" | "Available" | "BuildRequired";
+  packageScope: Partial<Record<string, PackageComponentScope1196>>; // key => PackageComponentKey
+  packageDrawing: PackageDrawing1196 | null; // Complete Package only
+  dbse: { value: number; isDefault: boolean; reason?: string } | null; // null => unresolved/unknown frame, fails closed
+  selectedServiceKeys: string[];
+  createdAt: string;
+  createdBy: string;
+}
+
+export type ComponentAvailabilityState1196 =
+  | "Required"
+  | "Available"
+  | "Allocated"
+  | "NeedsMachining"
+  | "NeedsAssembly"
+  | "NeedsPurchase"
+  | "CustomerSupplied"
+  | "NotInScope"
+  | "Complete";
+
+export interface ComponentRequirement1196 {
+  id: string;
+  scopeType: "WorkOrderLine" | "Unit";
+  scopeId: string; // OrderLine.id or Unit.unitId
+  orderNumber: string;
+  lineNumber: number;
+  key: string; // e.g. "casing", "impeller", "stuffingBoxCover", "powerEndAssembly", "shaftKit", "motor"
+  label: string;
+  catalogPartNumber: string | null; // CPQ-mapped part number; null where no controlled mapping exists
+  parentRequirementId: string | null; // power-end child expansion
+  availabilityState: ComponentAvailabilityState1196;
+  ruleId: string; // traceability into RULES_1196
+  createdAt: string;
+}
+
+export interface ComponentUsage1196 {
+  id: string;
+  requirementId: string;
+  unitId: string;
+  partNumber: string | null;
+  material: string | null;
+  heatLot: string | null;
+  serial: string | null;
+  recordedAt: string;
+  recordedBy: string;
+}
+
+export interface ServiceRequirement1196 {
+  id: string;
+  orderNumber: string;
+  lineNumber: number;
+  lineId: string;
+  serviceKey: string;
+  label: string;
+  resultFields: Record<string, string | number | null>;
+  evidenceNote: string | null;
+  blocksRelease: boolean;
+  status: "Open" | "Complete";
+  createdAt: string;
+}
+
+// Append-only confirmation of one 1196 confirmation-gate item (docs §3.3). A
+// later confirmation of the same gateKey supersedes the prior one — the same
+// discipline as HandoffRecord.supersedesId; nothing is ever overwritten.
+export interface ConfirmationRecord1196 {
+  id: string;
+  scopeType: "WorkOrderLine" | "Unit";
+  scopeId: string;
+  orderNumber: string;
+  lineNumber: number;
+  gateKey: string;
+  confirmedBy: string;
+  confirmedAt: string;
+  note: string | null;
+  supersedesId: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Internal configurator output. One record per created line, holding the
+// component breakdown as configured — brands, part numbers, seal numbers and
+// materials as they were actually entered, with `isCustom` marking anything
+// typed rather than taken from the catalogue.
+// ---------------------------------------------------------------------------
+
+export interface ConfiguredComponentRecord {
+  key: string;
+  label: string;
+  partNumber: string;
+  brand: string;
+  material: string;
+  reference: string;
+  referenceLabel: string;
+  quantity: number;
+  notes: string;
+  inScope: boolean;
+  isCustom: boolean;
+}
+
+export interface ConfiguredLineRecord {
+  id: string;
+  orderNumber: string;
+  lineId: string;
+  lineNumber: number;
+  kind: "ConfiguredAssembly" | "Spare" | "Item";
+  family?: string;
+  size?: string;
+  frame?: string;
+  materialBuild?: string;
+  buildType?: string;
+  partNumber?: string;
+  brand?: string;
+  notes?: string;
+  flangeType?: string;
+  sbcType?: string;
+  shaftType?: string;
+  motorFrame?: string;
+  fullTrim?: number;
+  requestedTrim?: string;
+  sealArrangement?: string;
+  sealMoc?: string;
+  sealGlandMoc?: string;
+  sealPlan?: string;
+  sealManufacturer?: string;
+  sealPartNumber?: string;
+  sealSize?: number | null;
+  testingRequirements?: string[];
+  /** Fields the coordinator typed over rather than taking from the reference. */
+  coordinatorEdited?: string[];
+  components: ConfiguredComponentRecord[];
+  createdAt: string;
+  createdBy: string;
+}
+
 export interface AppState {
   currentUserId: string;
   employees: Employee[];
@@ -622,6 +797,12 @@ export interface AppState {
   configurationAdjustments: ConfigurationAdjustment[];
   workingBomRows: WorkingBomRow[];
   attentionItems: AttentionItem[]; // unresolved items surfaced from CPQ handoffs
+  pump1196Configs: Pump1196LineConfig[];
+  componentRequirements1196: ComponentRequirement1196[];
+  componentUsages1196: ComponentUsage1196[];
+  serviceRequirements1196: ServiceRequirement1196[];
+  confirmationRecords1196: ConfirmationRecord1196[];
+  configuredLines: ConfiguredLineRecord[]; // internal configurator output
   favourites: string[]; // view ids or order numbers
   followedOrders: string[];
   nextId: number;

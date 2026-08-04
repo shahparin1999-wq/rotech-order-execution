@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import {
   checklistProgress,
+  currentConfirmations1196,
   currentResponses,
   customerNameWithCity,
   employeeName,
@@ -13,12 +14,23 @@ import {
   orderProgress,
   PLANNER_BUCKETS,
   PLANNER_BUCKET_LABELS,
+  pump1196ConfigForLine,
+  releaseBlockers1196,
+  serviceRequirementsForLine,
   tasksForOrder,
   unitsForOrder
 } from "@/domain/selectors";
-import type { ManufacturingNoteCategory, PlannerBucket, Unit, UnitStatus } from "@/domain/types";
+import type {
+  ConfiguredLineRecord,
+  ManufacturingNoteCategory,
+  PlannerBucket,
+  Pump1196LineConfig,
+  Unit,
+  UnitStatus
+} from "@/domain/types";
 import type { ExecutionLineV1 } from "@/domain/executionPackage";
 import { getModelTemplate } from "@/domain/modelTemplates";
+import { CONFIRMATION_GATE_ITEMS_1196 } from "@/domain/model1196";
 import {
   Exact,
   PriorityBadge,
@@ -26,6 +38,7 @@ import {
   TaskStatusBadge,
   UnitStatusBadge
 } from "@/components/bits";
+import { Pump1196RequirementTable } from "@/components/Pump1196Requirement";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { NewTaskDrawer } from "@/components/NewTaskDrawer";
 import { FieldGroup } from "@/components/Drawer";
@@ -212,7 +225,7 @@ const NOTE_CATEGORIES: ManufacturingNoteCategory[] = [
   "PackagingInstruction"
 ];
 
-const LINE_SUBTABS = [
+const LINE_SUBTABS_BASE = [
   ["config", "Configuration"],
   ["notes", "Manufacturing notes"],
   ["changes", "Approved changes"],
@@ -220,6 +233,13 @@ const LINE_SUBTABS = [
   ["documents", "Documents"],
   ["asbuilt", "As built"]
 ] as const;
+// Only shown for a line with a Pump1196LineConfig (rules-driven 1196 slice).
+const LINE_SUBTABS_1196 = [
+  ["parts1196", "Parts & subassemblies"],
+  ["services1196", "Testing & services"],
+  ["gate1196", "Confirmation gate"]
+] as const;
+const LINE_SUBTABS = [...LINE_SUBTABS_BASE, ...LINE_SUBTABS_1196] as const;
 type LineSubTab = (typeof LINE_SUBTABS)[number][0];
 
 function LinesTab({ orderNo }: { orderNo: string }) {
@@ -255,6 +275,9 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
   const adjustments = state.configurationAdjustments.filter(
     (a) => a.orderNumber === orderNo && a.lineNumber === line.lineNumber
   );
+  const config1196 = pump1196ConfigForLine(state, lineId);
+  const configured = state.configuredLines.find((c) => c.lineId === lineId);
+  const visibleSubtabs = config1196 ? LINE_SUBTABS : LINE_SUBTABS_BASE;
 
   return (
     <div className="card" data-testid={`line-card-${line.lineNumber}`} style={{ marginBottom: 16 }}>
@@ -269,12 +292,22 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
             <code data-testid={`line-checksum-${line.lineNumber}`}>{snapshot.checksum}</code> (frozen)
           </>
         )}
+        {config1196 && (
+          <>
+            {" "}· 1196 controlled manual configuration · rule set{" "}
+            <code data-testid={`line-rules-version-${line.lineNumber}`}>{config1196.rulesVersion}</code> (frozen)
+          </>
+        )}
       </div>
 
-      <AddUnitsControl orderNo={orderNo} lineId={lineId} lineNumber={line.lineNumber} unitCount={units.length} />
+      {/* A spare or bought-out item is packable order scope that never bears
+          Units, so it must not offer to add one. */}
+      {line.executionDisposition !== "line-level-scope" && (
+        <AddUnitsControl orderNo={orderNo} lineId={lineId} lineNumber={line.lineNumber} unitCount={units.length} />
+      )}
 
       <nav className="tabs" aria-label={`Line ${line.lineNumber} tabs`}>
-        {LINE_SUBTABS.map(([key, label]) => (
+        {visibleSubtabs.map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -289,7 +322,11 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
 
       {sub === "config" && (
         <div style={{ marginTop: 10 }}>
-          {payload ? (
+          {configured ? (
+            <ConfiguredLineTable configured={configured} />
+          ) : config1196 ? (
+            <Pump1196ConfigTable config={config1196} />
+          ) : payload ? (
             <table className="data">
               <tbody>
                 <tr><td>Material build</td><td>{payload.configuration.materialBuild ?? "—"}</td></tr>
@@ -472,6 +509,238 @@ function LineCard({ orderNo, lineId }: { orderNo: string; lineId: string }) {
           </p>
         </div>
       )}
+
+      {sub === "parts1196" && config1196 && <Pump1196PartsTab units={units} />}
+      {sub === "services1196" && config1196 && <Pump1196ServicesTab lineId={lineId} />}
+      {sub === "gate1196" && config1196 && <Pump1196GateTab lineId={lineId} />}
+    </div>
+  );
+}
+
+// A line built in the internal configurator: the component breakdown as it was
+// actually entered, with manually typed values marked so they stay reviewable.
+function ConfiguredLineTable({ configured }: { configured: ConfiguredLineRecord }) {
+  const customCount = configured.components.filter((c) => c.isCustom).length;
+  return (
+    <div data-testid="configured-line-table">
+      <table className="data">
+        <tbody>
+          <tr><td>Line type</td><td>{configured.kind === "ConfiguredAssembly" ? "Configured assembly" : configured.kind === "Spare" ? "Spare part" : "Bought-out item"}</td></tr>
+          {configured.size && <tr><td>Size / frame</td><td>{configured.size} / {configured.frame}</td></tr>}
+          {configured.materialBuild && <tr><td>Material build</td><td>{configured.materialBuild}</td></tr>}
+          {configured.buildType && (
+            <tr><td>Build type</td><td>{configured.buildType === "CompletePackage" ? "Complete package" : "Bare pump end"}</td></tr>
+          )}
+          {configured.partNumber && <tr><td>Part number</td><td>{configured.partNumber}</td></tr>}
+          {configured.brand && <tr><td>Brand</td><td>{configured.brand}</td></tr>}
+          {configured.notes && <tr><td>Notes</td><td>{configured.notes}</td></tr>}
+        </tbody>
+      </table>
+
+      {configured.components.length > 0 && (
+        <>
+          <h4 style={{ marginBottom: 4 }}>
+            Components{" "}
+            {customCount > 0 && (
+              <span className="badge save-pending" data-testid="configured-custom-count">
+                {customCount} manually entered
+              </span>
+            )}
+          </h4>
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Part number</th>
+                <th>Brand</th>
+                <th>Material</th>
+                <th>Reference</th>
+                <th>Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              {configured.components.map((c) => (
+                <tr key={c.key} data-testid={`configured-component-${c.key}`}>
+                  <td>
+                    {c.label}
+                    {c.isCustom && <span className="badge save-pending" style={{ marginLeft: 4 }}>custom</span>}
+                  </td>
+                  <td>{c.partNumber || "—"}</td>
+                  <td>{c.brand || "—"}</td>
+                  <td>{c.material || "—"}</td>
+                  <td>{c.reference ? `${c.referenceLabel}: ${c.reference}` : "—"}</td>
+                  <td>{c.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+      <p style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+        Configured internally. Values marked <b>custom</b> were typed rather than resolved from the
+        pinned catalogue release, and should be reviewed before release.
+      </p>
+    </div>
+  );
+}
+
+function Pump1196ConfigTable({ config }: { config: Pump1196LineConfig }) {
+  const hydraulic =
+    config.hydraulicCondition.kind === "MaxDiameter"
+      ? "Maximum diameter (standard)"
+      : `Trim to ${config.hydraulicCondition.trimValue} in — ${config.hydraulicCondition.reason}`;
+  const sbc =
+    config.stuffingBoxCover.kind === "Standard"
+      ? "Standard bore, casing MOC (standard)"
+      : `${config.stuffingBoxCover.description} — ${config.stuffingBoxCover.reason}`;
+  return (
+    <div data-testid="pump1196-config-table">
+      <table className="data">
+        <thead>
+          <tr><th>Field</th><th>Standard / ordered</th><th>Override</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Casing flange</td><td>150# FF</td><td>None</td></tr>
+          <tr>
+            <td>Impeller</td>
+            <td>Maximum diameter ({config.fullImpellerTrim} in)</td>
+            <td>{config.hydraulicCondition.kind === "Trim" ? hydraulic : "None"}</td>
+          </tr>
+          <tr><td>Shaft</td><td>AISI 4140</td><td>None</td></tr>
+          <tr><td>Shaft sleeve</td><td>Same MOC as casing</td><td>None</td></tr>
+          <tr><td>Bearings, sight glass, labyrinth seals</td><td>Included</td><td>—</td></tr>
+          <tr>
+            <td>Stuffing-box cover</td>
+            <td>Standard bore, same MOC as casing</td>
+            <td>{config.stuffingBoxCover.kind === "Override" ? sbc : "None"}</td>
+          </tr>
+        </tbody>
+      </table>
+      <table className="data" style={{ marginTop: 10 }}>
+        <tbody>
+          <tr><td>Size / Frame</td><td>{config.size} / {config.frame}</td></tr>
+          <tr><td>Material build</td><td>{config.materialBuild}</td></tr>
+          <tr><td>Build type</td><td>{config.buildType === "BarePumpEnd" ? "Bare pump end" : "Complete package"}</td></tr>
+          <tr>
+            <td>DBSE</td>
+            <td>
+              {config.dbse
+                ? `${config.dbse.value} in${config.dbse.isDefault ? " (default)" : ""}`
+                : config.buildType === "CompletePackage"
+                  ? "Unresolved — requires controlled data"
+                  : "Not applicable (bare pump end)"}
+            </td>
+          </tr>
+          {config.buildType === "CompletePackage" && (
+            <tr>
+              <td>Package drawing</td>
+              <td data-testid="pump1196-package-drawing">
+                {config.packageDrawing ? (
+                  <>
+                    {config.packageDrawing.kind === "CustomBaseplate" ? "Custom baseplate" : "Standard reference"}:{" "}
+                    <strong>{config.packageDrawing.reference}</strong>
+                    {config.packageDrawing.kind === "CustomBaseplate" && <> — {config.packageDrawing.note}</>}
+                  </>
+                ) : (
+                  "Not set"
+                )}
+              </td>
+            </tr>
+          )}
+          <tr><td>Shaft type</td><td>{config.shaftType}</td></tr>
+          <tr><td>Rule-set version</td><td>{config.rulesVersion}</td></tr>
+        </tbody>
+      </table>
+      <p style={{ fontSize: 12, color: "var(--text-subtle)" }}>
+        This is a controlled manual configuration (not a CPQ import) — read-only; the imported values cannot be
+        edited in place. Manufacturing intent is captured under Manufacturing notes and Approved changes.
+      </p>
+    </div>
+  );
+}
+
+function Pump1196PartsTab({ units }: { units: Unit[] }) {
+  return (
+    <div style={{ marginTop: 10 }}>
+      {units.map((u) => (
+        <div key={u.unitId} className="card" data-testid={`pump1196-parts-${u.unitId}`} style={{ marginBottom: 10 }}>
+          <h4>{u.unitId}</h4>
+          <Pump1196RequirementTable unitId={u.unitId} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Pump1196ServicesTab({ lineId }: { lineId: string }) {
+  const state = useAppState();
+  const services = serviceRequirementsForLine(state, lineId);
+  return (
+    <div style={{ marginTop: 10 }}>
+      {services.length === 0 && <p>No services selected — an unselected service creates no work.</p>}
+      {services.map((s) => (
+        <div key={s.id} className="card" data-testid={`svc1196-${s.id}`} style={{ marginBottom: 8 }}>
+          <strong>{s.label}</strong>{" "}
+          <span className={`badge ${s.status === "Complete" ? "save-saved" : "save-pending"}`}>{s.status}</span>
+          {s.blocksRelease && s.status !== "Complete" && (
+            <span className="badge save-pending" style={{ marginLeft: 6 }}>
+              blocks release
+            </span>
+          )}
+          <div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 4 }}>
+            Result fields: {Object.keys(s.resultFields).join(", ")}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Pump1196GateTab({ lineId }: { lineId: string }) {
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const confirmed = currentConfirmations1196(state, lineId);
+  const blockers = releaseBlockers1196(state, lineId);
+  return (
+    <div style={{ marginTop: 10 }}>
+      <p data-testid="pump1196-release-status">
+        {blockers.blocked ? (
+          <span className="badge save-pending">Release blocked</span>
+        ) : (
+          <span className="badge save-saved">Ready to release</span>
+        )}
+      </p>
+      <table className="data">
+        <tbody>
+          {CONFIRMATION_GATE_ITEMS_1196.map((item) => {
+            const record = confirmed.get(item.key);
+            return (
+              <tr key={item.key} data-testid={`gate1196-${item.key}`}>
+                <td>{item.label}</td>
+                <td>
+                  {record ? (
+                    <span className="badge save-saved">
+                      Confirmed by {employeeName(state, record.confirmedBy)} <Exact at={record.confirmedAt} />
+                    </span>
+                  ) : (
+                    <span className="badge save-pending">Not confirmed</span>
+                  )}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn"
+                    data-testid={`gate1196-confirm-${item.key}`}
+                    onClick={() => dispatch({ type: "confirmGateItem1196", lineId, gateKey: item.key, note: null })}
+                  >
+                    {record ? "Re-confirm" : "Confirm"}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

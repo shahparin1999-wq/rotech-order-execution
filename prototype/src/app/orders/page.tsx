@@ -21,6 +21,8 @@ import type { Order } from "@/domain/types";
 import { PriorityBadge, UnitStatusBadge } from "@/components/bits";
 import { FilterIcon, PlusIcon, SearchIcon } from "@/components/icons";
 import { NewWorkOrderDrawer } from "@/components/NewWorkOrderDrawer";
+import { New1196PumpDrawer } from "@/components/New1196PumpDrawer";
+import { ConfiguratorDrawer } from "@/components/ConfiguratorDrawer";
 
 const SAVED_VIEWS: Array<{ id: SavedView; label: string }> = [
   { id: "all", label: "All" },
@@ -67,6 +69,8 @@ export default function OrdersPage() {
   const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(new Set(ALL_COLUMNS));
   const [showColumnPicker, setShowColumnPicker] = useState(false);
   const [showNewOrder, setShowNewOrder] = useState(false);
+  const [showNew1196, setShowNew1196] = useState(false);
+  const [showConfigurator, setShowConfigurator] = useState(false);
 
   const locations = useMemo(
     () => [...new Set(state.orders.map((o) => o.facility))].sort(),
@@ -175,8 +179,16 @@ export default function OrdersPage() {
           <option value="customer">Group by customer</option>
           <option value="priority">Group by priority</option>
         </select>
-        <button type="button" className="btn btn-primary" data-testid="new-work-order-button" onClick={() => setShowNewOrder(true)}>
-          <PlusIcon size={14} /> New work order
+        <button type="button" className="btn btn-primary" data-testid="new-configured-order-button" onClick={() => setShowConfigurator(true)}>
+          <PlusIcon size={14} /> Configure order
+        </button>
+        {/* Legacy single-line creation paths. The configurator supersedes both;
+            they remain until the shell rebuild removes them. */}
+        <button type="button" className="btn btn-subtle" data-testid="new-work-order-button" onClick={() => setShowNewOrder(true)}>
+          Quick work order
+        </button>
+        <button type="button" className="btn btn-subtle" data-testid="new-1196-pump-button" onClick={() => setShowNew1196(true)}>
+          1196 pump end
         </button>
       </div>
 
@@ -359,6 +371,8 @@ export default function OrdersPage() {
       </div>
 
       {showNewOrder && <NewWorkOrderDrawer onClose={() => setShowNewOrder(false)} />}
+      {showNew1196 && <New1196PumpDrawer onClose={() => setShowNew1196(false)} />}
+      {showConfigurator && <ConfiguratorDrawer onClose={() => setShowConfigurator(false)} />}
     </div>
   );
 }
