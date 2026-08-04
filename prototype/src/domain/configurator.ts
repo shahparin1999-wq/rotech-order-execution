@@ -17,6 +17,7 @@
 // PURE DOMAIN — no React, no localStorage.
 
 import {
+  componentHasMaterial,
   componentMaterialFor,
   flangeOptionsFor,
   materialOptionsFor,
@@ -60,6 +61,9 @@ export interface ComponentEntry {
   /** Set when the row was seeded from the catalogue, for provenance display. */
   seededValue?: { partNumber?: string; material?: string };
   inScope: boolean;
+  /** True for a row a coordinator added by hand; its label is editable and it
+   *  carries no catalogue provenance. */
+  isCustomRow?: boolean;
 }
 
 export interface ConfiguratorLine {
@@ -199,7 +203,9 @@ export function seedComponents(
     // A material build is a PAIRED code: "DI/316SS" means the casing side is
     // ductile iron and the impeller is 316SS. Each component therefore gets its
     // OWN decoded material, never the pair — see componentMaterialFor.
-    const decoded = componentMaterialFor(familyCode, row.key, materialBuild);
+    const decoded = componentHasMaterial(row.key)
+      ? componentMaterialFor(familyCode, row.key, materialBuild)
+      : "";
     if (decoded) {
       row.material = decoded;
       row.seededValue = { material: decoded };
@@ -430,4 +436,49 @@ export function summarizeLine(line: ConfiguratorLine): string {
   }
   const bits = [line.brand, line.partNumber].filter((b) => b && b.trim());
   return bits.length > 0 ? `${line.description} (${bits.join(" ")})` : line.description;
+}
+
+
+// ---------------------------------------------------------------------------
+// Coordinator-added scope
+// ---------------------------------------------------------------------------
+
+let customRowSeq = 0;
+
+/** Adds a blank, fully editable component row to the line's BOM. Used for
+ *  anything the family template does not know about — a special fitting, an
+ *  extra gasket set, a customer-supplied part to be received. */
+export function addCustomComponent(line: ConfiguratorLine, label = ""): ConfiguratorLine {
+  const entry: ComponentEntry = {
+    key: `custom-${++customRowSeq}`,
+    label,
+    partNumber: "",
+    brand: "",
+    material: "",
+    reference: "",
+    referenceLabel: "Reference",
+    quantity: 1,
+    notes: "",
+    inScope: true,
+    isCustomRow: true
+  };
+  return { ...line, components: [...line.components, entry] };
+}
+
+export function removeComponent(line: ConfiguratorLine, key: string): ConfiguratorLine {
+  return { ...line, components: line.components.filter((c) => c.key !== key) };
+}
+
+/** Adds a special/other testing requirement. Trimmed, de-duplicated, and
+ *  itemized on the work order exactly like a catalogue test scope. */
+export function addTestingRequirement(line: ConfiguratorLine, text: string): ConfiguratorLine {
+  const value = text.trim();
+  if (!value) return line;
+  const existing = line.testingRequirements ?? [];
+  if (existing.includes(value)) return line;
+  return { ...line, testingRequirements: [...existing, value] };
+}
+
+export function removeTestingRequirement(line: ConfiguratorLine, text: string): ConfiguratorLine {
+  return { ...line, testingRequirements: (line.testingRequirements ?? []).filter((t) => t !== text) };
 }

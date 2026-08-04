@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 import { buildInitialState, CUSTOMER_ACME } from "@/domain/fixtures";
 import { createConfiguredOrder } from "@/domain/actions";
 import {
+  addCustomComponent,
+  addTestingRequirement,
   applyReferenceDefaults,
+  removeComponent,
   clampTrim,
   customFieldCount,
   markEdited,
@@ -24,6 +27,7 @@ import {
   catalogueFamilies,
   catalogueProvenance,
   commonOptions,
+  componentHasMaterial,
   componentMaterialOptionsFor,
   sealArrangements,
   sealArrangementOptionsFor,
@@ -466,5 +470,89 @@ describe("Option lists cover their own defaults", () => {
 
   it("returns the plain vocabulary for a family with no seal default", () => {
     expect(sealArrangementOptionsFor("SXT")).toEqual(sealArrangements());
+  });
+});
+
+describe("Material belongs to cast parts only", () => {
+  it("does not put a material on a motor, coupling, guard or seal", () => {
+    expect(componentHasMaterial("casing")).toBe(true);
+    expect(componentHasMaterial("impeller")).toBe(true);
+    expect(componentHasMaterial("stuffingBoxCover")).toBe(true);
+    expect(componentHasMaterial("powerFrame")).toBe(true);
+    for (const k of ["motor", "coupling", "couplingGuard", "seal", "sealGland", "shaftKit", "accessories"]) {
+      expect(componentHasMaterial(k), `${k} must not carry a casting material`).toBe(false);
+    }
+  });
+
+  it("seeds a material only on cast rows", () => {
+    const rows = seedComponents("3X4-13", "DI/316SS", "CompletePackage");
+    for (const r of rows) {
+      if (componentHasMaterial(r.key)) expect(r.material).not.toBe("");
+      else expect(r.material).toBe("");
+    }
+  });
+});
+
+describe("Coordinator-added scope", () => {
+  it("adds an editable BOM row that carries no catalogue provenance", () => {
+    const line = newAssemblyLine("l1");
+    const before = line.components.length;
+    const withRow = addCustomComponent(line, "Special flush fitting");
+    expect(withRow.components).toHaveLength(before + 1);
+    const added = withRow.components[before];
+    expect(added.isCustomRow).toBe(true);
+    expect(added.label).toBe("Special flush fitting");
+    expect(added.seededValue).toBeUndefined();
+    expect(added.inScope).toBe(true);
+  });
+
+  it("gives each added row a distinct key so rows never collide", () => {
+    let line = addCustomComponent(newAssemblyLine("l1"));
+    line = addCustomComponent(line);
+    const customKeys = line.components.filter((c) => c.isCustomRow).map((c) => c.key);
+    expect(new Set(customKeys).size).toBe(2);
+  });
+
+  it("removes an added row without touching the template rows", () => {
+    const line = addCustomComponent(newAssemblyLine("l1"), "Temp");
+    const key = line.components.find((c) => c.isCustomRow)!.key;
+    const removed = removeComponent(line, key);
+    expect(removed.components.some((c) => c.isCustomRow)).toBe(false);
+    expect(removed.components.some((c) => c.key === "casing")).toBe(true);
+  });
+
+  it("itemizes a special testing requirement alongside catalogue scopes", () => {
+    let line = newAssemblyLine("l1");
+    line = { ...line, testingRequirements: ["NPSH TEST"] };
+    line = addTestingRequirement(line, "  Witnessed hydrostatic — customer inspector  ");
+    expect(line.testingRequirements).toEqual([
+      "NPSH TEST",
+      "Witnessed hydrostatic — customer inspector"
+    ]);
+  });
+
+  it("ignores blank entries and duplicates", () => {
+    let line = addTestingRequirement(newAssemblyLine("l1"), "   ");
+    expect(line.testingRequirements).toEqual([]);
+    line = addTestingRequirement(line, "PMI");
+    line = addTestingRequirement(line, "PMI");
+    expect(line.testingRequirements).toEqual(["PMI"]);
+  });
+
+  it("carries added rows and special tests through to the created order", () => {
+    let line = addCustomComponent(newAssemblyLine("l1"), "Special flush fitting");
+    const key = line.components.find((c) => c.isCustomRow)!.key;
+    line = {
+      ...line,
+      components: line.components.map((c) => (c.key === key ? { ...c, partNumber: "FF-100" } : c))
+    };
+    line = addTestingRequirement(line, "Witnessed hydrostatic — customer inspector");
+
+    let state = buildInitialState();
+    state = createConfiguredOrder(state, "e-sarah", draft({ lines: [line] }));
+    const configured = state.configuredLines.find((c) => c.orderNumber === "CFG-001")!;
+
+    expect(configured.components.some((c) => c.label === "Special flush fitting" && c.partNumber === "FF-100")).toBe(true);
+    expect(configured.testingRequirements).toContain("Witnessed hydrostatic — customer inspector");
   });
 });

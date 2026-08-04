@@ -537,6 +537,25 @@ function ConfiguredLineTable({ configured }: { configured: ConfiguredLineRecord 
         </tbody>
       </table>
 
+      {(configured.testingRequirements ?? []).length > 0 && (
+        <>
+          <h4 style={{ marginBottom: 4 }}>Testing and special requirements</h4>
+          <table className="data" data-testid="configured-testing">
+            <thead>
+              <tr><th>#</th><th>Requirement</th></tr>
+            </thead>
+            <tbody>
+              {(configured.testingRequirements ?? []).map((t, i) => (
+                <tr key={t} data-testid={`configured-test-${i + 1}`}>
+                  <td>{i + 1}</td>
+                  <td>{t}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+
       {configured.components.length > 0 && (
         <>
           <h4 style={{ marginBottom: 4 }}>

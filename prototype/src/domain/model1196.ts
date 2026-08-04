@@ -565,3 +565,15 @@ export function componentMaterialOptionsFor(familyCode: string, componentKey: st
   ];
   return Array.from(new Set([...derived, ...individual]));
 }
+
+
+// Material is a property of a CAST part. A motor, coupling, guard, seal or
+// shaft kit does not have a "material build" material — offering the casting
+// alloys on those rows is noise, and for a bought-out motor it is wrong.
+// Seal and gland materials are captured once in the Seal section instead of
+// being duplicated per component row.
+export const CAST_COMPONENT_KEYS = ["casing", "impeller", "stuffingBoxCover", "powerFrame"] as const;
+
+export function componentHasMaterial(componentKey: string): boolean {
+  return (CAST_COMPONENT_KEYS as readonly string[]).includes(componentKey);
+}

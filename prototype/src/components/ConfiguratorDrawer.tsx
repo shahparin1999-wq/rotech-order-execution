@@ -11,8 +11,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import {
+  addCustomComponent,
+  addTestingRequirement,
   applyReferenceDefaults,
   clampTrim,
+  removeComponent,
+  removeTestingRequirement,
   customFieldCount,
   isCustomValue,
   markEdited,
@@ -31,6 +35,7 @@ import {
 import {
   catalogueBlockers1196,
   catalogueFamilies,
+  componentHasMaterial,
   componentMaterialOptionsFor,
   flangeOptionsFor,
   materialOptionsFor,
@@ -308,6 +313,9 @@ export function ConfiguratorDrawer({ onClose }: { onClose: () => void }) {
           onToggle={() => setOpenLineId((cur) => (cur === line.id ? null : line.id))}
           onPatch={(p) => patchLine(line.id, p)}
           onPatchComponent={(key, p) => patchComponent(line.id, key, p)}
+          onReplaceLine={(next) =>
+            setDraft((d) => ({ ...d, lines: d.lines.map((l) => (l.id === line.id ? next : l)) }))
+          }
           onSwitchFamily={(code) =>
             setDraft((d) => ({
               ...d,
@@ -367,6 +375,7 @@ function LineCard({
   onPatch,
   onPatchComponent,
   onSwitchFamily,
+  onReplaceLine,
   onRemove,
   canRemove
 }: {
@@ -377,6 +386,7 @@ function LineCard({
   onPatch: (p: Partial<ConfiguratorLine>) => void;
   onPatchComponent: (key: string, p: Partial<ComponentEntry>) => void;
   onSwitchFamily: (familyCode: string) => void;
+  onReplaceLine: (next: ConfiguratorLine) => void;
   onRemove: () => void;
   canRemove: boolean;
 }) {
@@ -388,6 +398,7 @@ function LineCard({
   const caps = capabilitiesForFamily(familyCode);
   const shape = familyShape(familyCode);
   const customCount = line.kind === "ConfiguredAssembly" ? customFieldCount(line) : 0;
+  const [specialTest, setSpecialTest] = useState("");
 
   // Derived part code per component key, offered as the obvious pick in the
   // component table's part-number dropdown.
@@ -733,6 +744,67 @@ function LineCard({
                     </label>
                   ))}
                 </div>
+                <div style={{ display: "flex", gap: 6, alignItems: "flex-end", marginTop: 6 }}>
+                  <FieldGroup label="Other / special requirement">
+                    <input
+                      data-testid={`line-${index + 1}-special-test`}
+                      value={specialTest}
+                      onChange={(e) => setSpecialTest(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          onReplaceLine(addTestingRequirement(line, specialTest));
+                          setSpecialTest("");
+                        }
+                      }}
+                      placeholder="e.g. Witnessed hydrostatic test — customer inspector"
+                      style={{ width: 380 }}
+                    />
+                  </FieldGroup>
+                  <button
+                    type="button"
+                    className="btn"
+                    data-testid={`line-${index + 1}-add-special-test`}
+                    disabled={!specialTest.trim()}
+                    onClick={() => {
+                      onReplaceLine(addTestingRequirement(line, specialTest));
+                      setSpecialTest("");
+                    }}
+                  >
+                    Add special
+                  </button>
+                </div>
+
+                {(line.testingRequirements ?? []).length > 0 && (
+                  <table className="data" style={{ marginTop: 8 }} data-testid={`line-${index + 1}-test-items`}>
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Requirement itemized on the work order</th>
+                        <th />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(line.testingRequirements ?? []).map((t, i) => (
+                        <tr key={t}>
+                          <td>{i + 1}</td>
+                          <td>{t}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-subtle"
+                              aria-label={`Remove ${t}`}
+                              onClick={() => onReplaceLine(removeTestingRequirement(line, t))}
+                            >
+                              ×
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+
                 <span className="from-default">
                   Only a selected test creates work. Nothing is selected by default.
                 </span>
@@ -803,8 +875,29 @@ function LineCard({
                           />
                         </td>
                         <td>
-                          {c.label}
-                          {custom && (
+                          {c.isCustomRow ? (
+                            <span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
+                              <input
+                                style={{ width: 150 }}
+                                data-testid={`component-${c.key}-label`}
+                                value={c.label}
+                                onChange={(e) => onPatchComponent(c.key, { label: e.target.value })}
+                                placeholder="Component name"
+                              />
+                              <button
+                                type="button"
+                                className="btn btn-subtle"
+                                aria-label={`Remove ${c.label || "custom component"}`}
+                                data-testid={`component-${c.key}-remove`}
+                                onClick={() => onReplaceLine(removeComponent(line, c.key))}
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ) : (
+                            c.label
+                          )}
+                          {custom && !c.isCustomRow && (
                             <span className="badge save-pending" style={{ marginLeft: 4 }}>
                               custom
                             </span>
@@ -832,14 +925,21 @@ function LineCard({
                           />
                         </td>
                         <td>
-                          <OptionSelect
-                            width={130}
-                            disabled={!c.inScope}
-                            testId={`component-${c.key}-material`}
-                            value={c.material}
-                            options={componentMaterialOptionsFor(familyCode, c.key)}
-                            onChange={(v) => onPatchComponent(c.key, { material: v })}
-                          />
+                          {/* Material belongs to a casting. A motor, coupling
+                              or guard has none; seal and gland materials are
+                              captured once in the Seal section. */}
+                          {componentHasMaterial(c.key) || c.isCustomRow ? (
+                            <OptionSelect
+                              width={130}
+                              disabled={!c.inScope}
+                              testId={`component-${c.key}-material`}
+                              value={c.material}
+                              options={componentMaterialOptionsFor(familyCode, c.key)}
+                              onChange={(v) => onPatchComponent(c.key, { material: v })}
+                            />
+                          ) : (
+                            <span style={{ color: "var(--text-subtle)" }}>—</span>
+                          )}
                         </td>
                         <td>
                           <input
@@ -868,6 +968,18 @@ function LineCard({
                   })}
                 </tbody>
               </table>
+              <button
+                type="button"
+                className="btn"
+                data-testid={`line-${index + 1}-add-component`}
+                onClick={() => onReplaceLine(addCustomComponent(line))}
+              >
+                + Add component to BOM
+              </button>
+              <span className="from-default" style={{ marginLeft: 8 }}>
+                For anything the model template does not carry — special fittings, extra gasket
+                sets, customer-supplied parts to be received.
+              </span>
             </>
           ) : (
             <div className="field-row">
