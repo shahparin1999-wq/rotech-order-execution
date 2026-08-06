@@ -734,6 +734,8 @@ export interface ConfiguredComponentRecord {
   quantity: number;
   notes: string;
   inScope: boolean;
+  selectionMode: string;
+  responsibility: string;
   isCustom: boolean;
 }
 

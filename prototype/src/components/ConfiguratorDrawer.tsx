@@ -51,6 +51,13 @@ import {
   catalogueProvenance
 } from "@/domain/model1196";
 import { capabilitiesForFamily, familyShape } from "@/domain/familyShapes";
+import {
+  isOutOfScope,
+  needsReview,
+  SELECTION_MODE_LABELS,
+  SELECTION_MODES,
+  type SelectionMode
+} from "@/domain/packageDefaults";
 import { assemblyPartNumber, majorComponentPartCodes } from "@/domain/partNumbers";
 import { FieldGroup, Modal } from "./Drawer";
 
@@ -166,6 +173,13 @@ export function ConfiguratorDrawer({ onClose }: { onClose: () => void }) {
         // Choosing a new size re-derives the whole line from the reference.
         if ("size" in p) {
           merged = { ...merged, coordinatorEdited: [] };
+          merged = applyReferenceDefaults(merged);
+        }
+        // Build type changes WHAT the package block should contain — a bare
+        // pump end has no motor, a package takes the size's default HP — so the
+        // defaults are re-derived. Coordinator edits survive via
+        // coordinatorEdited, so this never overwrites a typed value.
+        if ("buildType" in p) {
           merged = applyReferenceDefaults(merged);
         }
         const reseeds = "size" in p || "materialBuild" in p || "buildType" in p;
@@ -629,6 +643,99 @@ function LineCard({
                 </FieldGroup>
               )}
 
+              {line.buildType === "CompletePackage" && line.packageConfig && (
+                <div className="config-section" data-testid={`line-${index + 1}-package-section`}>
+                  <h4>Package</h4>
+                  <p className="from-default" style={{ marginTop: 0 }}>
+                    Filled from the reference the way the CPQ fills it. Change anything that differs.
+                  </p>
+                  <div className="field-grid">
+                    <FieldGroup label="Baseplate">
+                      <input
+                        data-testid={`line-${index + 1}-baseplate-type`}
+                        value={line.packageConfig.baseplateType}
+                        onChange={(e) =>
+                          onPatch({ packageConfig: { ...line.packageConfig!, baseplateType: e.target.value } })
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Coupling">
+                      <input
+                        data-testid={`line-${index + 1}-coupling-type`}
+                        value={line.packageConfig.couplingType}
+                        onChange={(e) =>
+                          onPatch({ packageConfig: { ...line.packageConfig!, couplingType: e.target.value } })
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Coupling guard">
+                      <input
+                        data-testid={`line-${index + 1}-guard-type`}
+                        value={line.packageConfig.couplingGuardType}
+                        onChange={(e) =>
+                          onPatch({ packageConfig: { ...line.packageConfig!, couplingGuardType: e.target.value } })
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Motor HP">
+                      <input
+                        data-testid={`line-${index + 1}-motor-hp`}
+                        value={line.packageConfig.motorHp}
+                        onChange={(e) =>
+                          onPatch({ packageConfig: { ...line.packageConfig!, motorHp: e.target.value } })
+                        }
+                      />
+                      <span className="from-default">Default for this size.</span>
+                    </FieldGroup>
+                    <FieldGroup label="Motor manufacturer">
+                      <input
+                        data-testid={`line-${index + 1}-motor-mfr`}
+                        value={line.packageConfig.motorManufacturer}
+                        onChange={(e) =>
+                          onPatch({ packageConfig: { ...line.packageConfig!, motorManufacturer: e.target.value } })
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Motor standard">
+                      <input
+                        data-testid={`line-${index + 1}-motor-standard`}
+                        value={line.packageConfig.motorStandard}
+                        onChange={(e) =>
+                          onPatch({ packageConfig: { ...line.packageConfig!, motorStandard: e.target.value } })
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Motor speed (RPM)">
+                      <input
+                        data-testid={`line-${index + 1}-motor-speed`}
+                        value={line.packageConfig.motorSpeed}
+                        onChange={(e) =>
+                          onPatch({ packageConfig: { ...line.packageConfig!, motorSpeed: e.target.value } })
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Motor voltage">
+                      <input
+                        data-testid={`line-${index + 1}-motor-voltage`}
+                        value={line.packageConfig.motorVoltage}
+                        onChange={(e) =>
+                          onPatch({ packageConfig: { ...line.packageConfig!, motorVoltage: e.target.value } })
+                        }
+                      />
+                    </FieldGroup>
+                    <FieldGroup label="Drive type">
+                      <input
+                        data-testid={`line-${index + 1}-drive-type`}
+                        value={line.packageConfig.driveType}
+                        onChange={(e) =>
+                          onPatch({ packageConfig: { ...line.packageConfig!, driveType: e.target.value } })
+                        }
+                      />
+                    </FieldGroup>
+                  </div>
+                </div>
+              )}
+
               {caps.choosesTrim && (
                 <div className="config-section">
                   <h4>Impeller</h4>
@@ -851,7 +958,7 @@ function LineCard({
               <table className="data" data-testid={`line-${index + 1}-components`}>
                 <thead>
                   <tr>
-                    <th>In scope</th>
+                    <th>Scope</th>
                     <th>Component</th>
                     <th>Part number</th>
                     <th>Brand</th>
@@ -866,13 +973,51 @@ function LineCard({
                     return (
                       <tr key={c.key} data-testid={`component-${c.key}`} style={{ opacity: c.inScope ? 1 : 0.5 }}>
                         <td>
-                          <input
-                            type="checkbox"
-                            checked={c.inScope}
-                            aria-label={`${c.label} in scope`}
-                            data-testid={`component-${c.key}-inscope`}
-                            onChange={(e) => onPatchComponent(c.key, { inScope: e.target.checked })}
-                          />
+                          {/* CPQ's scope model, not a bare checkbox: this is
+                              what decides whether the component creates a
+                              purchase demand, receipt work, or nothing. */}
+                          <select
+                            style={{ width: 130 }}
+                            data-testid={`component-${c.key}-scope`}
+                            aria-label={`${c.label} scope`}
+                            value={c.selectionMode}
+                            onChange={(e) => {
+                              const mode = e.target.value as SelectionMode;
+                              onPatchComponent(c.key, {
+                                selectionMode: mode,
+                                // by-others only makes sense when nothing is included
+                                responsibility: mode === "not-included" ? "by-others" : c.responsibility,
+                                inScope: !isOutOfScope({ selectionMode: mode, responsibility: c.responsibility })
+                              });
+                            }}
+                          >
+                            {SELECTION_MODES.map((m) => (
+                              <option key={m} value={m}>
+                                {SELECTION_MODE_LABELS[m]}
+                              </option>
+                            ))}
+                          </select>
+                          {c.selectionMode !== "not-included" && (
+                            <select
+                              style={{ width: 130, marginTop: 4 }}
+                              data-testid={`component-${c.key}-responsibility`}
+                              aria-label={`${c.label} responsibility`}
+                              value={c.responsibility}
+                              onChange={(e) =>
+                                onPatchComponent(c.key, {
+                                  responsibility: e.target.value as "in-scope" | "by-others"
+                                })
+                              }
+                            >
+                              <option value="in-scope">Rotech supplies</option>
+                              <option value="by-others">By others</option>
+                            </select>
+                          )}
+                          {needsReview({ selectionMode: c.selectionMode, responsibility: c.responsibility }) && (
+                            <span className="badge save-pending" style={{ marginTop: 4, display: "inline-block" }}>
+                              review
+                            </span>
+                          )}
                         </td>
                         <td>
                           {c.isCustomRow ? (

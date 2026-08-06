@@ -13,7 +13,15 @@
 //
 // PURE DOMAIN — no React, no localStorage.
 
-import type { ConfiguredComponentRecord, ConfiguredLineRecord } from "../types";
+import {
+  createsPurchaseDemand,
+  createsReceiptExpectation,
+  isOutOfScope,
+  type ComponentScope,
+  type Responsibility,
+  type SelectionMode
+} from "../packageDefaults";
+import type { ConfiguredLineRecord } from "../types";
 import type { ExecutionRequirement, FulfillmentRecord, RequirementSource } from "./requirement";
 
 export interface GenerateRequirementsInput {
@@ -52,14 +60,15 @@ const OWNER_BY_COMPONENT: Record<string, string> = {
   accessories: "Purchasing"
 };
 
-// A component whose scope says the customer supplies it must create receipt and
-// verification work but NEVER a purchasing demand (INV-006). The configurator
-// records that as free text today, so the check is deliberately literal rather
-// than clever — a value it does not recognise is treated as Rotech-supplied,
-// which fails safe (it creates demand rather than silently expecting nothing).
-export function isCustomerSupplied(component: ConfiguredComponentRecord): boolean {
-  const haystack = `${component.brand} ${component.notes} ${component.reference}`.toLowerCase();
-  return /customer[- ]?(supplied|furnished)|by customer|cfe/.test(haystack);
+// Scope now comes from an explicit selection rather than being guessed from
+// free text. The previous implementation regex-matched the brand field for
+// "customer supplied", which could only ever be a guess — and guessing wrong
+// either orders a part twice or waits forever for one nobody ordered.
+export function scopeOf(component: { selectionMode?: string; responsibility?: string }): ComponentScope {
+  return {
+    selectionMode: (component.selectionMode as SelectionMode) ?? "standard",
+    responsibility: (component.responsibility as Responsibility) ?? "in-scope"
+  };
 }
 
 function idFactory(prefix: string) {
@@ -91,9 +100,11 @@ export function requirementsFromConfiguredLine(input: GenerateRequirementsInput)
   // --- Component requirements: one per in-scope row, per Unit -------------
   for (const unitId of unitIds) {
     for (const component of line.components) {
-      if (!component.inScope) continue; // not in scope creates nothing (INV-007)
+      const scope = scopeOf(component);
+      if (isOutOfScope(scope)) continue; // not in scope creates nothing (INV-007)
 
-      const customerSupplied = isCustomerSupplied(component);
+      const customerSupplied = createsReceiptExpectation(scope);
+      const purchased = createsPurchaseDemand(scope);
       const spec = [component.material, component.partNumber].filter(Boolean).join(" · ");
 
       const requirement: ExecutionRequirement = {
@@ -123,7 +134,10 @@ export function requirementsFromConfiguredLine(input: GenerateRequirementsInput)
       requirements.push(requirement);
 
       // A customer-supplied item gets an expectation to receive and verify, and
-      // no purchase demand at all.
+      // no purchase demand at all (INV-006). A by-others item creates neither.
+      if (!purchased && !customerSupplied) {
+        requirement.description += " (by others)";
+      }
       if (customerSupplied) {
         const fulfillment: FulfillmentRecord = {
           id: nextFulId(),

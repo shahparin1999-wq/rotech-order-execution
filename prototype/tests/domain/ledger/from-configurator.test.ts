@@ -11,7 +11,7 @@ import {
   reseedAssembly,
   type ConfiguratorDraft
 } from "@/domain/configurator";
-import { isCustomerSupplied } from "@/domain/ledger/fromConfigurator";
+
 import { isOpen } from "@/domain/ledger/requirement";
 
 function draft(lines: ConfiguratorDraft["lines"]): ConfiguratorDraft {
@@ -104,19 +104,13 @@ describe("A configured order generates real requirements", () => {
 });
 
 describe("Customer-supplied items create receipt work, never purchase demand", () => {
-  it("recognises a customer-supplied marking", () => {
-    const base = { key: "motor", label: "Motor", partNumber: "", material: "", reference: "", referenceLabel: "", quantity: 1, notes: "", inScope: true, isCustom: false, brand: "" };
-    expect(isCustomerSupplied({ ...base, brand: "Customer supplied" })).toBe(true);
-    expect(isCustomerSupplied({ ...base, notes: "by customer" })).toBe(true);
-    expect(isCustomerSupplied({ ...base, brand: "WEG" })).toBe(false);
-  });
-
   it("opens a receipt expectation and assigns it to Receiving", () => {
     let line = reseedAssembly({ ...newAssemblyLine("l1"), buildType: "CompletePackage" });
+    // Scope is an explicit selection now, not a guess from free text.
     line = {
       ...line,
       components: line.components.map((c) =>
-        c.key === "motor" ? { ...c, brand: "Customer supplied" } : c
+        c.key === "motor" ? { ...c, selectionMode: "customer-supplied" as const } : c
       )
     };
     const state = build([line]);

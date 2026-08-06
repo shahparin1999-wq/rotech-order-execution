@@ -2737,6 +2737,8 @@ export function createConfiguredOrder(
           quantity: c.quantity,
           notes: c.notes.trim(),
           inScope: c.inScope,
+          selectionMode: c.selectionMode,
+          responsibility: c.responsibility,
           isCustom: isCustomValue(c, "material") || isCustomValue(c, "partNumber")
         })),
       createdAt: ts,

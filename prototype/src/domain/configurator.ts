@@ -29,6 +29,14 @@ import {
   shaftTypesFor
 } from "./model1196";
 import { capabilitiesForFamily, familyShape, type FamilyShape } from "./familyShapes";
+import {
+  defaultComponentScope,
+  isOutOfScope,
+  packageDefaultsFor,
+  type PackageConfiguration,
+  type Responsibility,
+  type SelectionMode
+} from "./packageDefaults";
 
 export type ConfiguratorLineKind = "ConfiguredAssembly" | "Spare" | "Item";
 
@@ -60,6 +68,13 @@ export interface ComponentEntry {
   notes: string;
   /** Set when the row was seeded from the catalogue, for provenance display. */
   seededValue?: { partNumber?: string; material?: string };
+  /**
+   * CPQ's scope model. `inScope` is retained as a derived convenience for the
+   * existing reads, but selectionMode is what actually decides whether this
+   * component creates a purchasing demand, a receipt expectation, or nothing.
+   */
+  selectionMode: SelectionMode;
+  responsibility: Responsibility;
   inScope: boolean;
   /** True for a row a coordinator added by hand; its label is editable and it
    *  carries no catalogue provenance. */
@@ -98,6 +113,9 @@ export interface ConfiguratorLine {
   sealPartNumber?: string;
   /** Derived from frame for ANSI families (owner-supplied table). */
   sealSize?: number | null;
+
+  /** Package component defaults, filled the way CPQ fills them. */
+  packageConfig?: PackageConfiguration;
 
   /** Selected testing requirements (CPQ testingAdders vocabulary). */
   testingRequirements?: string[];
@@ -166,6 +184,8 @@ function emptyEntry(t: ComponentTemplate): ComponentEntry {
     referenceLabel: t.referenceLabel,
     quantity: 1,
     notes: "",
+    selectionMode: "standard",
+    responsibility: "in-scope",
     inScope: true
   };
 }
@@ -213,9 +233,14 @@ export function seedComponents(
     if (row.key === "impeller" && sizeEntry) {
       row.notes = `Full diameter ${sizeEntry.fullImpellerTrim} in`;
     }
-    // Accessories default out of scope — an unselected accessory should create
-    // no work at all (R-1196-016).
-    if (row.key === "accessories") row.inScope = false;
+    // Scope is DERIVED the way CPQ derives it, rather than every row simply
+    // defaulting to "in scope": a bare pump end leaves the package by others,
+    // a close-coupled pump has no baseplate at all, and accessories stay off
+    // until somebody asks for them (R-1196-016).
+    const scope = defaultComponentScope(familyCode, row.key, buildType);
+    row.selectionMode = scope.selectionMode;
+    row.responsibility = scope.responsibility;
+    row.inScope = !isOutOfScope(scope);
   }
   return rows;
 }
@@ -278,7 +303,14 @@ export function applyReferenceDefaults(line: ConfiguratorLine): ConfiguratorLine
     sealGlandMoc: seal ? keep("sealGlandMoc", line.sealGlandMoc, seal.sealGlandMoc) : line.sealGlandMoc,
     sealPlan: seal ? keep("sealPlan", line.sealPlan, seal.sealPlanOption) : line.sealPlan,
     sealManufacturer: seal ? keep("sealManufacturer", line.sealManufacturer, seal.sealManufacturer) : line.sealManufacturer,
-    sealSize: sealSizeForFrame(familyCode, frame)
+    sealSize: sealSizeForFrame(familyCode, frame),
+    // Named package defaults + motor HP from the size, the way CPQ does it.
+    packageConfig: packageDefaultsFor({
+      familyCode,
+      buildType: line.buildType ?? "BarePumpEnd",
+      defaultMotorHp: entry?.defaultMotorHp,
+      current: line.packageConfig
+    })
   };
 }
 
@@ -361,6 +393,8 @@ export function reseedAssembly(line: ConfiguratorLine): ConfiguratorLine {
       reference: existing.reference,
       quantity: existing.quantity,
       notes: existing.notes || row.notes,
+      selectionMode: existing.selectionMode,
+      responsibility: existing.responsibility,
       inScope: existing.inScope,
       // Keep a typed-over material; otherwise take the newly seeded one.
       material: isCustomValue(existing, "material") ? existing.material : row.material
@@ -459,6 +493,9 @@ export function addCustomComponent(line: ConfiguratorLine, label = ""): Configur
     referenceLabel: "Reference",
     quantity: 1,
     notes: "",
+    // A coordinator-added row is Rotech's to supply unless they say otherwise.
+    selectionMode: "standard",
+    responsibility: "in-scope",
     inScope: true,
     isCustomRow: true
   };
