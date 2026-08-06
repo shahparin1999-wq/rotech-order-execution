@@ -1,4 +1,8 @@
 import type { ExecutionRequirement, FulfillmentRecord } from "./ledger/requirement";
+import type { InventoryIdentity, InventoryLocation } from "./inventory/identity";
+import type { InventoryMovement } from "./inventory/movement";
+import type { InventoryReceipt, InventoryReceiptLine } from "./inventory/receipt";
+import type { InternalJob } from "./inventory/internalJobs";
 
 // Domain types for the mock vertical slice. All data is fixture/mock data;
 // nothing here talks to AIMCOR, Azure, Entra, Teams, or a database.
@@ -434,7 +438,8 @@ export type QrRecordType =
   | "Component"
   | "MaterialLot"
   | "Transfer"
-  | "Pallet";
+  | "Pallet"
+  | "InventoryItem";
 
 export interface LabelPrintEvent {
   at: string;
@@ -811,6 +816,14 @@ export interface AppState {
   // generates the requirements that receiving later matches against.
   requirements: ExecutionRequirement[];
   fulfillments: FulfillmentRecord[];
+  // Inventory. Quantities and locations are DERIVED from movements — there is
+  // deliberately no stored on-hand field anywhere in this slice.
+  inventoryIdentities: InventoryIdentity[];
+  inventoryMovements: InventoryMovement[];
+  inventoryReceipts: InventoryReceipt[];
+  inventoryReceiptLines: InventoryReceiptLine[];
+  inventoryLocations: InventoryLocation[];
+  internalJobs: InternalJob[];
   favourites: string[]; // view ids or order numbers
   followedOrders: string[];
   nextId: number;

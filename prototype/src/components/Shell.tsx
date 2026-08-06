@@ -23,6 +23,7 @@ const railItems = [
   { href: "/views/my-work", icon: MyWorkIcon, label: "My Work" },
   { href: "/orders", icon: OrdersIcon, label: "Orders" },
   { href: "/planner", icon: PlannerIcon, label: "Planner" },
+  { href: "/inventory", icon: GridIcon, label: "Inventory" },
   { href: "/customers", icon: CustomersIcon, label: "Customers" },
   { href: "/views/quality", icon: QualityIcon, label: "Quality" },
   { href: "/scan", icon: ScanIcon, label: "Scan" },

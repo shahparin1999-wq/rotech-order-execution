@@ -21,6 +21,18 @@ import { buildInitialState } from "@/domain/fixtures";
 import { recomputeUnitProjection } from "@/domain/projections";
 import type { AppState, PackageDrawing1196, PlannerBucket, Priority } from "@/domain/types";
 import type { ConfiguratorDraft } from "@/domain/configurator";
+import {
+  adjustInventory,
+  createPutAwayJob,
+  inspectInventory,
+  installInventory,
+  issueInventoryToUnit,
+  putAwayInventory,
+  receiveInventory,
+  reserveInventory,
+  returnInventoryToStock,
+  type ReceiveInput
+} from "@/domain/inventoryActions";
 import { parseStoredEnvelope, serializeEnvelope, STORAGE_KEY } from "./persistence";
 import {
   addAttachment,
@@ -110,6 +122,15 @@ export type Action =
   | { type: "importExecutionPackage"; input: ImportPackageInput }
   | { type: "create1196PumpEnd"; input: Create1196PumpEndInput }
   | { type: "createConfiguredOrder"; draft: ConfiguratorDraft }
+  | { type: "receiveInventory"; input: ReceiveInput }
+  | { type: "inspectInventory"; identityId: string; decision: "Accept" | "Reject"; note: string }
+  | { type: "putAwayInventory"; identityId: string; locationId: string }
+  | { type: "reserveInventory"; identityId: string; unitId: string; quantity: number; requirementId?: string }
+  | { type: "issueInventoryToUnit"; identityId: string; unitId: string; quantity: number }
+  | { type: "installInventory"; identityId: string; unitId: string; quantity: number }
+  | { type: "returnInventoryToStock"; identityId: string; unitId: string; quantity: number; reason: string; locationId: string }
+  | { type: "adjustInventory"; identityId: string; delta: number; reason: string; authorizedBy: string }
+  | { type: "createPutAwayJob"; identityIds: string[]; facility: string }
   | { type: "decidePowerEndAvailability"; unitId: string; decision: "Available" | "BuildRequired" }
   | { type: "recordComponentUsage1196"; requirementId: string; input: RecordComponentUsageInput }
   | { type: "confirmGateItem1196"; lineId: string; gateKey: string; note: string | null }
@@ -199,6 +220,24 @@ function buildReducer(onError: (message: string) => void) {
           return create1196PumpEnd(state, actor, action.input);
         case "createConfiguredOrder":
           return createConfiguredOrder(state, actor, action.draft);
+        case "receiveInventory":
+          return receiveInventory(state, actor, action.input);
+        case "inspectInventory":
+          return inspectInventory(state, actor, action.identityId, action.decision, action.note);
+        case "putAwayInventory":
+          return putAwayInventory(state, actor, action.identityId, action.locationId);
+        case "reserveInventory":
+          return reserveInventory(state, actor, action.identityId, action.unitId, action.quantity, action.requirementId);
+        case "issueInventoryToUnit":
+          return issueInventoryToUnit(state, actor, action.identityId, action.unitId, action.quantity);
+        case "installInventory":
+          return installInventory(state, actor, action.identityId, action.unitId, action.quantity);
+        case "returnInventoryToStock":
+          return returnInventoryToStock(state, actor, action.identityId, action.unitId, action.quantity, action.reason, action.locationId);
+        case "adjustInventory":
+          return adjustInventory(state, actor, action.identityId, action.delta, action.reason, action.authorizedBy);
+        case "createPutAwayJob":
+          return createPutAwayJob(state, actor, action.identityIds, action.facility);
         case "decidePowerEndAvailability":
           return decidePowerEndAvailability(state, actor, action.unitId, action.decision);
         case "recordComponentUsage1196":

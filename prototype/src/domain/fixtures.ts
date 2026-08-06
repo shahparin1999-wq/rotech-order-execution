@@ -730,6 +730,18 @@ const checklistDefs: ChecklistItemDef[] = [
   { key: "packaging-photo", label: "Packaging complete with photo", responseType: "checkbox", unit: null, nominal: null, min: null, max: null, requiresPhoto: true, requiresNote: false, placeholderTolerance: false }
 ];
 
+// Shop storage locations. Fictional but shaped the way a real rack/bin scheme
+// is, so the put-away and label flows have somewhere to point at.
+const DEMO_LOCATIONS = [
+  { id: "LOC-MIS-RECV", facility: "Mississauga", area: "Receiving dock", description: "Inbound staging" },
+  { id: "LOC-MIS-QUAR", facility: "Mississauga", area: "Quarantine cage", description: "Awaiting incoming inspection" },
+  { id: "LOC-MIS-B04-03", facility: "Mississauga", area: "Rack B04", bin: "Bin 03" },
+  { id: "LOC-MIS-B04-04", facility: "Mississauga", area: "Rack B04", bin: "Bin 04" },
+  { id: "LOC-MIS-C02", facility: "Mississauga", area: "Rack C02", bin: "Bin 01" },
+  { id: "LOC-HOU-RECV", facility: "Houston", area: "Receiving dock", description: "Inbound staging" },
+  { id: "LOC-HOU-A1", facility: "Houston", area: "Rack A1", bin: "Bin 01" }
+];
+
 export function buildInitialState(): AppState {
   const units = [...mainUnits, ...houstonUnits];
   const now = new Date();
@@ -1296,6 +1308,12 @@ export function buildInitialState(): AppState {
     configuredLines: [],
     requirements: [],
     fulfillments: [],
+    inventoryIdentities: [],
+    inventoryMovements: [],
+    inventoryReceipts: [],
+    inventoryReceiptLines: [],
+    inventoryLocations: DEMO_LOCATIONS,
+    internalJobs: [],
     favourites: ["view:orders", "view:quality"],
     followedOrders: [ORDER_NO],
     nextId: 1000
