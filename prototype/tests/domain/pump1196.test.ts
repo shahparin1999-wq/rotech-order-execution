@@ -6,6 +6,7 @@
 // Unit isolation (protected invariants).
 
 import { describe, expect, it } from "vitest";
+import { usageForUnit } from "@/domain/ledger/componentUsage";
 import { buildInitialState, CUSTOMER_ACME } from "@/domain/fixtures";
 import {
   confirmGateItem1196,
@@ -431,7 +432,8 @@ describe("Unit isolation (protected invariant)", () => {
     const unit2Casing = componentRequirementsForScope(state, "Unit", unit2).find((r) => r.key === "casing")!;
     expect(unit1Casing.availabilityState).toBe("Complete");
     expect(unit2Casing.availabilityState).toBe("Required"); // untouched
-    expect(state.componentUsages1196.filter((u) => u.unitId === unit2)).toHaveLength(0);
+    expect(usageForUnit(state.componentUsages, unit2)).toHaveLength(0);
+    expect(usageForUnit(state.componentUsages, unit1).map((u) => u.partNumber)).toEqual(["CAS-UNIT1"]);
 
     const view1 = unit1196View(state, unit1)!;
     const view2 = unit1196View(state, unit2)!;

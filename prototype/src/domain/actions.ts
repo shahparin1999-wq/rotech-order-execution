@@ -12,7 +12,6 @@ import type {
   ChecklistResponse,
   ChecklistSubItem,
   ComponentRequirement1196,
-  ComponentUsage1196,
   ConfirmationRecord1196,
   ConvertedKind,
   ConfigurationAdjustment,
@@ -65,6 +64,14 @@ import {
 } from "./orderHandoffV2";
 import { getModelTemplate, type ModelRouteStep } from "./modelTemplates";
 import { requirementsFromConfiguredLine } from "./ledger/fromConfigurator";
+import {
+  evaluateMatch,
+  requiredSpecFromDescription,
+  type ComponentUsage,
+  type RequiredSpec,
+  type UsageSource,
+  type UsageTrackingType
+} from "./ledger/componentUsage";
 import type { ExecutionRequirement, FulfillmentRecord } from "./ledger/requirement";
 import {
   isCustomValue,
@@ -2560,9 +2567,12 @@ export interface RecordComponentUsageInput {
   serial?: string | null;
 }
 
-// Records the actual part/material used against a requirement, advancing its
-// availability state to Complete. Scoped strictly to the requirement's own
-// Unit (R-1196-026: never visible on a sibling).
+// Records the actual part/material used against a 1196 requirement, advancing
+// its availability state to Complete. This is now a thin adapter over the
+// generic actual-part capture (`recordComponentUsage`) so a 1196 part lands in
+// the same as-built layer as every other family and reaches the QC document.
+// Scoped strictly to the requirement's own Unit (R-1196-026: never visible on
+// a sibling).
 export function recordComponentUsage1196(
   state: AppState,
   actorId: string,
@@ -2575,31 +2585,26 @@ export function recordComponentUsage1196(
   if (requirement.scopeType !== "Unit") {
     throw new Error("Component usage can only be recorded against a Unit-scoped requirement");
   }
-  const ts = nowIso(at);
-  const [id, s0] = takeId(state, "usage1196");
-  const usage: ComponentUsage1196 = {
-    id,
-    requirementId,
-    unitId: requirement.scopeId,
-    partNumber: input.partNumber?.trim() || null,
-    material: input.material?.trim() || null,
-    heatLot: input.heatLot?.trim() || null,
-    serial: input.serial?.trim() || null,
-    recordedAt: ts,
-    recordedBy: actorId
-  };
-  let s: AppState = {
+  const s0 = recordComponentUsage(
+    state,
+    actorId,
+    {
+      requirementId,
+      unitId: requirement.scopeId,
+      componentRole: requirement.key,
+      partNumber: input.partNumber ?? undefined,
+      material: input.material ?? undefined,
+      heatLot: input.heatLot ?? undefined,
+      serial: input.serial ?? undefined
+    },
+    at
+  );
+  return {
     ...s0,
-    componentUsages1196: [...s0.componentUsages1196, usage],
     componentRequirements1196: s0.componentRequirements1196.map((r) =>
       r.id === requirementId ? { ...r, availabilityState: "Complete" } : r
     )
   };
-  s = appendAudit(s, {
-    at: ts, actorId, action: "pump1196.componentUsageRecorded", targetType: "ComponentRequirement1196", targetId: requirementId,
-    unitId: requirement.scopeId, detail: `Actual component recorded for "${requirement.label}" (${usage.partNumber ?? "no part number"}).`, supersedesEventId: null
-  });
-  return s;
 }
 
 // Append-only confirmation of one 3.3 gate item. A later confirmation of the
@@ -2886,4 +2891,173 @@ export function setPackageDrawing1196(
     supersedesEventId: null
   });
   return s;
+}
+
+
+// ---------------------------------------------------------------------------
+// Actual-part capture (as built)
+// ---------------------------------------------------------------------------
+
+export interface RecordUsageInput {
+  requirementId: string;
+  unitId: string;
+  componentRole: string;
+  quantity?: number;
+  trackingType?: UsageTrackingType;
+  source?: UsageSource;
+  inventoryIdentityId?: string;
+  partNumber?: string;
+  manufacturer?: string;
+  model?: string;
+  material?: string;
+  heatLot?: string;
+  serial?: string;
+  /** Defaults to Installed; Allocated/Issued are used earlier in the flow. */
+  usageStatus?: ComponentUsage["usageStatus"];
+  /** Set when this replaces a part that was removed. */
+  supersedesUsageId?: string;
+}
+
+interface UsageTarget {
+  unitId?: string;
+  required: RequiredSpec;
+}
+
+/**
+ * A usage record may hang off either the Execution Requirement Ledger or the
+ * 1196 component-requirement list, which is still the shop-floor surface for
+ * that family. Both resolve to the same thing here: which Unit the requirement
+ * belongs to, and what it required — so actual-part capture is one contract
+ * regardless of which side generated the requirement.
+ */
+function resolveUsageTarget(state: AppState, requirementId: string): UsageTarget {
+  const ledger = state.requirements.find((r) => r.id === requirementId);
+  if (ledger) {
+    return { unitId: ledger.unitId, required: requiredSpecFromDescription(ledger.description) };
+  }
+  const legacy = state.componentRequirements1196.find((r) => r.id === requirementId);
+  if (legacy) {
+    if (legacy.scopeType !== "Unit") {
+      throw new Error("Component usage can only be recorded against a Unit-scoped requirement");
+    }
+    return {
+      unitId: legacy.scopeId,
+      required: { partNumber: legacy.catalogPartNumber ?? undefined, description: legacy.label }
+    };
+  }
+  throw new Error(`Unknown requirement ${requirementId}`);
+}
+
+/**
+ * Records what was ACTUALLY fitted. The ordered configuration is never touched
+ * — actual use is a separate layer, and a disagreement produces a review rather
+ * than a silent overwrite.
+ */
+export function recordComponentUsage(
+  state: AppState,
+  actorId: string,
+  input: RecordUsageInput,
+  at?: string
+): AppState {
+  const requirement = resolveUsageTarget(state, input.requirementId);
+  if (requirement.unitId && requirement.unitId !== input.unitId) {
+    throw new Error(
+      `Requirement ${input.requirementId} belongs to ${requirement.unitId}, not ${input.unitId}`
+    );
+  }
+
+  const ts = nowIso(at);
+  const [id, s0] = takeId(state, "use");
+
+  // The system evaluates the difference; it does not just show two values.
+  const required = requirement.required;
+  const match = evaluateMatch(required, {
+    partNumber: input.partNumber,
+    manufacturer: input.manufacturer,
+    material: input.material
+  });
+
+  const usage: ComponentUsage = {
+    id,
+    requirementId: input.requirementId,
+    unitId: input.unitId,
+    componentRole: input.componentRole,
+    quantity: input.quantity ?? 1,
+    trackingType: input.trackingType ?? "QuantityTracked",
+    source: input.source ?? "ManualUntracked",
+    inventoryIdentityId: input.inventoryIdentityId,
+    partNumber: input.partNumber?.trim() || undefined,
+    manufacturer: input.manufacturer?.trim() || undefined,
+    model: input.model?.trim() || undefined,
+    material: input.material?.trim() || undefined,
+    heatLot: input.heatLot?.trim() || undefined,
+    serial: input.serial?.trim() || undefined,
+    usageStatus: input.usageStatus ?? "Installed",
+    matchStatus: match.status,
+    matchNote: match.note,
+    supersedesUsageId: input.supersedesUsageId,
+    recordedBy: actorId,
+    recordedAt: ts
+  };
+
+  let s: AppState = { ...s0, componentUsages: [...s0.componentUsages, usage] };
+
+  // A superseded record is retained, never deleted.
+  if (input.supersedesUsageId) {
+    s = {
+      ...s,
+      componentUsages: s.componentUsages.map((u) =>
+        u.id === input.supersedesUsageId ? { ...u, usageStatus: "Superseded" as const } : u
+      )
+    };
+  }
+
+  return appendAudit(s, {
+    at: ts,
+    actorId,
+    action: "usage.recorded",
+    targetType: "Unit",
+    targetId: input.unitId,
+    unitId: input.unitId,
+    detail:
+      `Recorded actual ${input.componentRole}` +
+      `${usage.partNumber ? ` ${usage.partNumber}` : ""}` +
+      `${usage.serial ? ` serial ${usage.serial}` : usage.heatLot ? ` heat/lot ${usage.heatLot}` : ""}` +
+      ` — ${match.status}. ${match.note}`,
+    supersedesEventId: null
+  });
+}
+
+/** Authorised acceptance of a mismatch. The difference stays on the record. */
+export function approveUsageSubstitution(
+  state: AppState,
+  actorId: string,
+  usageId: string,
+  reason: string,
+  at?: string
+): AppState {
+  const usage = state.componentUsages.find((u) => u.id === usageId);
+  if (!usage) throw new Error(`Unknown usage record ${usageId}`);
+  if (!reason.trim()) throw new Error("Approving a substitution requires a reason");
+  const ts = nowIso(at);
+
+  const s: AppState = {
+    ...state,
+    componentUsages: state.componentUsages.map((u) =>
+      u.id === usageId
+        ? { ...u, matchStatus: "ApprovedSubstitution" as const, approvedBy: actorId, approvedReason: reason.trim() }
+        : u
+    )
+  };
+
+  return appendAudit(s, {
+    at: ts,
+    actorId,
+    action: "usage.substitutionApproved",
+    targetType: "Unit",
+    targetId: usage.unitId,
+    unitId: usage.unitId,
+    detail: `Approved substitution for ${usage.componentRole}: ${reason.trim()}`,
+    supersedesEventId: null
+  });
 }

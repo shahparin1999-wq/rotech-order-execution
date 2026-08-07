@@ -10,7 +10,6 @@ import type {
   AppState,
   ChecklistItemDef,
   ComponentRequirement1196,
-  ComponentUsage1196,
   ConfirmationRecord1196,
   Contact,
   Customer,
@@ -24,6 +23,7 @@ import type {
   Task,
   Unit
 } from "./types";
+import type { ComponentUsage } from "./ledger/componentUsage";
 
 export const ORDER_NO = "SAMPLE1001";
 export const HOUSTON_ORDER_NO = "SAMPLE1002";
@@ -371,15 +371,22 @@ const demo1196Requirements: ComponentRequirement1196[] = [
   baselineReq("req-d2-guard", D2, "couplingGuard", "Coupling guard (Rotech supplied)", "Required", "R-1196-023")
 ];
 
-const demo1196Usages: ComponentUsage1196[] = [
+// The 1196 demo Unit's casing, captured in the generic as-built layer.
+const demo1196Usages: ComponentUsage[] = [
   {
     id: "usage-d1-casing",
     requirementId: "req-d1-casing",
     unitId: D1,
+    componentRole: "casing",
+    quantity: 1,
+    trackingType: "HeatTracked",
+    source: "Inventory",
     partNumber: "CAS-3X4-13-316",
     material: "316SS",
     heatLot: "HL-2231",
-    serial: null,
+    usageStatus: "Installed",
+    matchStatus: "Matched",
+    matchNote: "Matches the ordered specification.",
     recordedAt: "2026-07-21T13:00:00Z",
     recordedBy: "e-dave"
   }
@@ -1302,12 +1309,12 @@ export function buildInitialState(): AppState {
     attentionItems: [],
     pump1196Configs: [demo1196Config],
     componentRequirements1196: demo1196Requirements,
-    componentUsages1196: demo1196Usages,
     serviceRequirements1196: demo1196Services,
     confirmationRecords1196: demo1196Confirmations,
     configuredLines: [],
     requirements: [],
     fulfillments: [],
+    componentUsages: demo1196Usages,
     inventoryIdentities: [],
     inventoryMovements: [],
     inventoryReceipts: [],

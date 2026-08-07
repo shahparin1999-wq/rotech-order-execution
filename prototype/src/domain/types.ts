@@ -1,4 +1,5 @@
 import type { ExecutionRequirement, FulfillmentRecord } from "./ledger/requirement";
+import type { ComponentUsage } from "./ledger/componentUsage";
 import type { InventoryIdentity, InventoryLocation } from "./inventory/identity";
 import type { InventoryMovement } from "./inventory/movement";
 import type { InventoryReceipt, InventoryReceiptLine } from "./inventory/receipt";
@@ -679,18 +680,6 @@ export interface ComponentRequirement1196 {
   createdAt: string;
 }
 
-export interface ComponentUsage1196 {
-  id: string;
-  requirementId: string;
-  unitId: string;
-  partNumber: string | null;
-  material: string | null;
-  heatLot: string | null;
-  serial: string | null;
-  recordedAt: string;
-  recordedBy: string;
-}
-
 export interface ServiceRequirement1196 {
   id: string;
   orderNumber: string;
@@ -808,7 +797,6 @@ export interface AppState {
   attentionItems: AttentionItem[]; // unresolved items surfaced from CPQ handoffs
   pump1196Configs: Pump1196LineConfig[];
   componentRequirements1196: ComponentRequirement1196[];
-  componentUsages1196: ComponentUsage1196[];
   serviceRequirements1196: ServiceRequirement1196[];
   confirmationRecords1196: ConfirmationRecord1196[];
   configuredLines: ConfiguredLineRecord[]; // internal configurator output
@@ -818,6 +806,9 @@ export interface AppState {
   fulfillments: FulfillmentRecord[];
   // Inventory. Quantities and locations are DERIVED from movements — there is
   // deliberately no stored on-hand field anywhere in this slice.
+  // The as-built layer: actual parts fitted to each Unit. Many records may
+  // hang off one requirement (two bearings, several lots, a replacement).
+  componentUsages: ComponentUsage[];
   inventoryIdentities: InventoryIdentity[];
   inventoryMovements: InventoryMovement[];
   inventoryReceipts: InventoryReceipt[];
