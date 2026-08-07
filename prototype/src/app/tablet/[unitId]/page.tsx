@@ -19,12 +19,13 @@ import { IdentityBanner } from "@/components/IdentityBanner";
 import { TaskControls } from "@/components/TaskControls";
 import { PhotoCapture } from "@/components/PhotoCapture";
 import { Checklist } from "@/components/Checklist";
+import { RequiredVsActualPanel } from "@/components/RequiredVsActual";
 import { Exact, SaveStateBadge } from "@/components/bits";
 
 function TabletView({ unitId }: { unitId: string }) {
   const state = useAppState();
   const unit = unitById(state, unitId);
-  const [panel, setPanel] = useState<null | "photo" | "file" | "measure" | "checklist">(null);
+  const [panel, setPanel] = useState<null | "photo" | "file" | "measure" | "checklist" | "parts">(null);
   const me = state.employees.find((e) => e.id === state.currentUserId)!;
 
   if (!unit) {
@@ -84,6 +85,9 @@ function TabletView({ unitId }: { unitId: string }) {
           <button className="btn btn-big" data-testid="tablet-measure" onClick={() => setPanel(panel === "measure" ? null : "measure")}>
             <span className="icon">📏</span>Enter Measurement
           </button>
+          <button className="btn btn-big" data-testid="tablet-parts" onClick={() => setPanel(panel === "parts" ? null : "parts")}>
+            <span className="icon">🔩</span>Parts Used
+          </button>
           <button className="btn btn-big" data-testid="tablet-checklist" onClick={() => setPanel(panel === "checklist" ? null : "checklist")}>
             <span className="icon">☑️</span>Complete Checklist
           </button>
@@ -125,6 +129,17 @@ function TabletView({ unitId }: { unitId: string }) {
         )}
 
         {panel === "checklist" && <Checklist unitId={unitId} orderNumber={unit.orderNumber} />}
+
+        {panel === "parts" && (
+          <div className="card">
+            <h3 style={{ marginTop: 0 }}>Parts used on {unitId}</h3>
+            <p style={{ fontSize: 13, color: "var(--text-subtle)" }}>
+              Record the part in your hand. If it is not what the order called for, the row will tell you exactly
+              what differs — do not fit it until the difference is approved.
+            </p>
+            <RequiredVsActualPanel unitId={unitId} />
+          </div>
+        )}
 
         <div className="card">
           <h3 style={{ marginTop: 0 }}>Requirements still outstanding</h3>

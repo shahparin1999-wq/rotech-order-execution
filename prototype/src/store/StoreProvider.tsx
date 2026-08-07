@@ -63,6 +63,8 @@ import {
   decidePowerEndAvailability,
   editOrder,
   importExecutionPackage,
+  approveUsageSubstitution,
+  recordComponentUsage,
   recordComponentUsage1196,
   removeWorkingBomRow,
   seedWorkingBom,
@@ -91,6 +93,7 @@ import {
   type OrderEditInput,
   type PauseInput,
   type RecordComponentUsageInput,
+  type RecordUsageInput,
   type ResponseInput,
   type TaskInput,
   type WorkingBomPatch,
@@ -133,6 +136,8 @@ export type Action =
   | { type: "createPutAwayJob"; identityIds: string[]; facility: string }
   | { type: "decidePowerEndAvailability"; unitId: string; decision: "Available" | "BuildRequired" }
   | { type: "recordComponentUsage1196"; requirementId: string; input: RecordComponentUsageInput }
+  | { type: "recordComponentUsage"; input: RecordUsageInput }
+  | { type: "approveUsageSubstitution"; usageId: string; reason: string }
   | { type: "confirmGateItem1196"; lineId: string; gateKey: string; note: string | null }
   | { type: "setPackageDrawing1196"; lineId: string; drawing: PackageDrawing1196 }
   | { type: "addManufacturingNote"; input: ManufacturingNoteInput }
@@ -240,6 +245,10 @@ function buildReducer(onError: (message: string) => void) {
           return createPutAwayJob(state, actor, action.identityIds, action.facility);
         case "decidePowerEndAvailability":
           return decidePowerEndAvailability(state, actor, action.unitId, action.decision);
+        case "recordComponentUsage":
+          return recordComponentUsage(state, actor, action.input);
+        case "approveUsageSubstitution":
+          return approveUsageSubstitution(state, actor, action.usageId, action.reason);
         case "recordComponentUsage1196":
           return recordComponentUsage1196(state, actor, action.requirementId, action.input);
         case "confirmGateItem1196":

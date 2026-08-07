@@ -14,6 +14,7 @@ import {
   unitById
 } from "@/domain/selectors";
 import { Pump1196RequirementTable } from "@/components/Pump1196Requirement";
+import { RequiredVsActualPanel } from "@/components/RequiredVsActual";
 import { IdentityBanner } from "@/components/IdentityBanner";
 import { Checklist } from "@/components/Checklist";
 import { ActivityFeed } from "@/components/ActivityFeed";
@@ -27,7 +28,7 @@ import {
   TaskStatusBadge
 } from "@/components/bits";
 
-const TABS = ["overview", "checklist", "evidence", "activity", "audit"] as const;
+const TABS = ["overview", "parts", "checklist", "evidence", "activity", "audit"] as const;
 type Tab = (typeof TABS)[number] | "pump1196";
 
 function UnitView({ unitId }: { unitId: string }) {
@@ -303,6 +304,18 @@ function UnitView({ unitId }: { unitId: string }) {
               </div>
             </div>
           </>
+        )}
+
+        {tab === "parts" && (
+          <div className="card" data-testid="unit-parts">
+            <h3 style={{ marginTop: 0 }}>Ordered vs actually used — {unitId}</h3>
+            <p style={{ fontSize: 13.5, color: "var(--text-subtle)" }}>
+              What was ordered is frozen. Recording an actual part never changes it — where the two disagree the row
+              says so in words and stays open until someone with authority accepts the substitution. Everything here
+              belongs to {unitId} alone and never appears on a sibling Unit.
+            </p>
+            <RequiredVsActualPanel unitId={unitId} />
+          </div>
         )}
 
         {tab === "pump1196" && view1196 && (
