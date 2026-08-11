@@ -20,7 +20,7 @@ import {
   type MatchStatus,
   type RequiredSpec
 } from "./componentUsage";
-import { isInert, type ExecutionRequirement } from "./requirement";
+import { isInert, isPhysicalCategory, type ExecutionRequirement } from "./requirement";
 
 /** Nothing recorded yet is a distinct state from "recorded and matching". */
 export type RowMatchState = MatchStatus | "NotRecorded";
@@ -68,7 +68,7 @@ function worstMatch(records: ComponentUsage[]): { state: RowMatchState; note?: s
  * A test or a drawing approval is satisfied by other evidence.
  */
 export function isPhysicalRequirement(r: ExecutionRequirement): boolean {
-  return r.category === "Component" || r.category === "Material";
+  return isPhysicalCategory(r.category);
 }
 
 /**

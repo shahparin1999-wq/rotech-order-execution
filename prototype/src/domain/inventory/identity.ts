@@ -77,6 +77,8 @@ export interface InventoryIdentity {
   partNumber: string;
   description: string;
   material: string;
+  /** Component role (e.g. "casing", "impeller") when known — drives availability matching and Stock grouping. */
+  componentKey?: string;
   trackingPolicy: TrackingPolicy;
   /** Whichever of these the policy demanded at receipt. */
   serialNumber?: string;

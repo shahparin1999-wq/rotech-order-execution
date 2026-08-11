@@ -109,6 +109,13 @@ export interface ExecutionRequirement {
   createdAt: string;
 }
 
+// Only these categories name a physical thing that can be matched against
+// inventory. A test result or a drawing approval is satisfied by other
+// evidence, never by a part.
+export function isPhysicalCategory(category: RequirementCategory): boolean {
+  return category === "Component" || category === "Material";
+}
+
 // A requirement is "open" when it still demands action.
 export function isOpen(requirement: ExecutionRequirement): boolean {
   return (

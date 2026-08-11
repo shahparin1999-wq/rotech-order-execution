@@ -153,6 +153,7 @@ export function receiveInventory(
     partNumber: line.partNumber,
     description: line.description,
     material: line.material ?? "",
+    componentKey: input.componentKey?.trim() || undefined,
     trackingPolicy: policy,
     serialNumber: line.serialNumber,
     lotNumber: line.lotNumber,
