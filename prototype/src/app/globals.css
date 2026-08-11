@@ -318,6 +318,68 @@ button {
 .badge.s-inprogress { background: var(--info-soft); color: var(--info); }
 .badge.s-ready { background: #e2f4f1; color: #045c4c; }
 .badge.s-waitinginspection { background: var(--warn-soft); color: var(--warn); }
+.badge.s-partiallycomplete { background: var(--info-soft); color: var(--info); }
+.badge.s-done { background: var(--ok-soft); color: var(--ok); }
+
+/* Order -> Line -> Unit drill-down tree */
+.order-tree {
+  font-size: 13.5px;
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+}
+.tree-row.selected {
+  background: var(--accent-soft);
+}
+.tree-row-order .tree-label { font-size: 15px; }
+.tree-expander {
+  width: 18px;
+  flex: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-subtle);
+  padding: 0;
+}
+.tree-expander-leaf {
+  cursor: default;
+  text-align: center;
+}
+.tree-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  text-decoration: none;
+}
+.tree-label:hover {
+  text-decoration: underline;
+}
+.order-explorer {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.order-explorer-tree {
+  position: sticky;
+  top: 12px;
+}
+@media (max-width: 900px) {
+  .order-explorer {
+    grid-template-columns: 1fr;
+  }
+  .order-explorer-tree {
+    position: static;
+  }
+}
 
 .badge.save-saved { background: var(--ok-soft); color: var(--ok); }
 .badge.save-pending { background: var(--warn-soft); color: var(--warn); }

@@ -14,15 +14,26 @@ test.describe("Order execution workspace", () => {
     await expect(page.getByTestId("fraction-Blocked").first()).toContainText("1/5");
   });
 
-  test("all nine tabs are present and reachable", async ({ page }) => {
+  test("Execution, Activity and Audit are present and reachable", async ({ page }) => {
     await page.goto(`/orders/${ORDER}`);
     const tabs = page.getByRole("navigation", { name: "Order tabs" });
-    for (const tab of [
-      "Overview", "Units", "Tasks", "Activity",
-      "Materials", "Quality", "Documents", "Shipping", "Audit"
-    ]) {
+    for (const tab of ["Execution", "Activity", "Audit"]) {
       await expect(tabs.getByRole("link", { name: tab, exact: true })).toBeVisible();
     }
+  });
+
+  test("Execution is the default landing tab and shows the Order -> Line -> Unit tree", async ({ page }) => {
+    await page.goto(`/orders/${ORDER}`);
+    await expect(page.getByTestId("order-tree")).toBeVisible();
+    await expect(page.getByTestId("tree-node-order")).toContainText(ORDER);
+    await expect(page.getByTestId("tree-node-line:1")).toBeVisible();
+  });
+
+  test("selecting a Unit node in the tree opens its detail pane, addressed by the URL", async ({ page }) => {
+    await page.goto(`/orders/${ORDER}?tab=execution&node=line:1`);
+    await page.getByTestId(`tree-node-unit:${ORDER}_1.1`).click();
+    await expect(page).toHaveURL(new RegExp(`node=unit%3A${ORDER}_1.1`));
+    await expect(page.getByTestId("order-detail-pane")).toContainText(`${ORDER}-1.1`);
   });
 
   test("Units tab lists exactly the five Units with mixed states", async ({ page }) => {

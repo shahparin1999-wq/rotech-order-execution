@@ -127,16 +127,16 @@ test.describe("Checklist", () => {
     // Navigate to the sibling client-side so the in-memory store persists;
     // a full reload would reset it and make this assertion meaningless.
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByRole("link", { name: "Units", exact: true }).click();
-    await page.getByRole("link", { name: U(3), exact: true }).click();
+    await page.getByTestId(`tree-node-unit:${U(3)}`).click();
+    await page.getByRole("link", { name: /Open full Unit page/ }).click();
     await page.getByRole("link", { name: "Checklist", exact: true }).click();
     await expect(page.getByTestId("identity-banner")).toContainText(U(3));
     await expect(page.getByTestId("checklist-item-shaft-runout")).not.toContainText("Recorded:");
 
     // Returning to 1.5 still shows its own reading — the store was live.
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByRole("link", { name: "Units", exact: true }).click();
-    await page.getByRole("link", { name: U(5), exact: true }).click();
+    await page.getByTestId(`tree-node-unit:${U(5)}`).click();
+    await page.getByRole("link", { name: /Open full Unit page/ }).click();
     await page.getByRole("link", { name: "Checklist", exact: true }).click();
     await expect(page.getByTestId("response-shaft-runout")).toContainText("1.7");
   });
@@ -165,8 +165,8 @@ test.describe("Photo capture target locking", () => {
     // It must not appear on a sibling. Navigate client-side so the store
     // stays live; a reload would reset it and hide a real leak.
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByRole("link", { name: "Units", exact: true }).click();
-    await page.getByRole("link", { name: U(3), exact: true }).click();
+    await page.getByTestId(`tree-node-unit:${U(3)}`).click();
+    await page.getByRole("link", { name: /Open full Unit page/ }).click();
     await page.getByRole("link", { name: "Evidence", exact: true }).click();
     await expect(page.getByTestId("identity-banner")).toContainText(U(3));
     await expect(page.getByText("nameplate-SAMPLE1001_1.5.jpg")).toHaveCount(0);

@@ -9,6 +9,19 @@ export function unitIdFor(
   return `${orderNumber}_${lineNumber}.${sequence}`;
 }
 
+// Display-only. The stored unitId keeps its underscore separator because a
+// Unit's publicRef (its QR identity) is seeded from that exact string, and
+// order numbers can themselves contain hyphens (e.g. "TEST1196-01"), which
+// would make a hyphenated id ambiguous to read back apart. What people read
+// on screen can still look like "26WO00225-1.1" without any of that changing.
+export function unitDisplayRef(unit: Pick<Unit, "orderNumber" | "lineNumber" | "sequence">): string {
+  return `${unit.orderNumber}-${unit.lineNumber}.${unit.sequence}`;
+}
+
+export function lineDisplayRef(orderNumber: string, lineNumber: number): string {
+  return `${orderNumber}-${lineNumber}`;
+}
+
 // Deterministic, opaque-looking public refs for the mock QR identities.
 // A real implementation uses random 128-bit URL-safe base32 values; the
 // prototype derives a stable mock value so tests and screenshots are

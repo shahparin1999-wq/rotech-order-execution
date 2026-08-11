@@ -67,8 +67,8 @@ test.describe("C1 - two sibling Unit documents in one live session", () => {
     // ---- prove the session never reset ----
     await page.getByRole("link", { name: `← Unit ${U(4)}` }).click();
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByRole("link", { name: "Units", exact: true }).click();
-    await page.getByRole("link", { name: U(1), exact: true }).click();
+    await page.getByTestId(`tree-node-unit:${U(1)}`).click();
+    await page.getByRole("link", { name: /Open full Unit page/ }).click();
     await page.getByRole("link", { name: "Evidence", exact: true }).click();
     await expect(page.getByText("material-marking-SAMPLE1001_1.1.jpg")).toBeVisible();
   });

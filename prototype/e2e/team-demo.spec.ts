@@ -20,12 +20,11 @@ test.describe("Calculated status moves visibly", () => {
     await expect(banner).not.toContainText("Blocked");
     await expect(banner).toContainText("In assembly");
 
-    // The order workspace's Units tab reflects the same recomputed status,
-    // not a stale cached one.
+    // The order workspace's tree reflects the same recomputed status, not a
+    // stale cached one.
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByRole("link", { name: "Units", exact: true }).click();
-    await expect(page.getByTestId(`unit-row-${U(3)}`)).toContainText("In assembly");
-    await expect(page.getByTestId(`unit-row-${U(3)}`)).not.toContainText("Blocked");
+    await expect(page.getByTestId(`tree-row-unit:${U(3)}`)).toContainText("In assembly");
+    await expect(page.getByTestId(`tree-row-unit:${U(3)}`)).not.toContainText("Blocked");
   });
 });
 
