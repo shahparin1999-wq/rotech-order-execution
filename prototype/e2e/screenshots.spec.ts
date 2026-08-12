@@ -106,6 +106,7 @@ test.describe("Screenshot evidence", () => {
 
   test("review fix - append-only handoff history", async ({ page }) => {
     await page.goto(`/units/${U(5)}`);
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("user-switcher").selectOption("e-miguel");
     await page.getByRole("button", { name: /Start Work/ }).click();
     await page.getByTestId("pause-t-15-intake").click();
@@ -115,6 +116,7 @@ test.describe("Screenshot evidence", () => {
     await page.getByTestId("handoff-location").fill("Parts staging rack B");
     await page.getByTestId("handoff-storageState").fill("Parts binned");
     await page.getByTestId("confirm-pause").click();
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("user-switcher").selectOption("e-alex");
     await page.getByTestId("resume-t-15-intake").click();
     await page.getByTestId("pause-t-15-intake").click();

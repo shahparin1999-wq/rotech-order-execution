@@ -5,6 +5,7 @@
 
 import { generateUnits, mockPublicRef, unitIdFor } from "./ids";
 import { recomputeUnitProjection } from "./projections";
+import { seedInventory } from "./inventorySeed";
 import { RULES_VERSION_1196 } from "./model1196";
 import type {
   AppState,
@@ -1328,8 +1329,12 @@ export function buildInitialState(): AppState {
 
   // Seed the calculated Unit/Operation statuses the same way live mutations
   // do, so the demo narrative and the projection can never silently disagree.
-  return units.reduce(
+  const projected = units.reduce(
     (s, u) => recomputeUnitProjection(s, u.unitId),
     initial
   );
+
+  // Stock last: it replays real receive/inspect/put-away/reserve actions, and
+  // reserving needs the Units to already exist.
+  return seedInventory(projected);
 }

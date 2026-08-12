@@ -13,6 +13,23 @@ import { inspectInventory, receiveInventory, reserveInventory } from "@/domain/i
 import { newAssemblyLine } from "@/domain/configurator";
 import type { AppState } from "@/domain/types";
 
+/**
+ * These tests exercise the availability ALGORITHM, so they start from a state
+ * with no stock at all — otherwise the demo seed (inventorySeed.ts) supplies
+ * matching castings and every assertion here would be measuring the fixtures
+ * rather than the rules.
+ */
+function emptyInventoryState(): AppState {
+  const s = buildInitialState();
+  return {
+    ...s,
+    inventoryIdentities: [],
+    inventoryMovements: [],
+    inventoryReceipts: [],
+    inventoryReceiptLines: []
+  };
+}
+
 function orderWithCasingRequirement(state: AppState, orderNumber: string, priority: "Urgent" | "High" | "Medium" | "Low", dueDate: string) {
   return createConfiguredOrder(state, "e-sarah", {
     orderNumber,
@@ -59,7 +76,7 @@ describe("componentKeyOf", () => {
 
 describe("NoRecipe — nothing to match against", () => {
   it("reports NoRecipe when the requirement carries no part number or material", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "NR-001", "Medium", "2026-10-01");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "NR-001", "Medium", "2026-10-01");
     const req = casingRequirement(state, "NR-001_1.1");
     state = {
       ...state,
@@ -70,7 +87,7 @@ describe("NoRecipe — nothing to match against", () => {
   });
 
   it("reports NoRecipe when nothing in inventory, quarantined or accepted, matches", () => {
-    const state = orderWithCasingRequirement(buildInitialState(), "NR-002", "Medium", "2026-10-01");
+    const state = orderWithCasingRequirement(emptyInventoryState(), "NR-002", "Medium", "2026-10-01");
     const req = casingRequirement(state, "NR-002_1.1");
     expect(availabilityForRequirement(state, req.id).state).toBe("NoRecipe");
   });
@@ -78,7 +95,7 @@ describe("NoRecipe — nothing to match against", () => {
 
 describe("Expected — arrived but not yet cleared", () => {
   it("reports Expected when matching stock is sitting in quarantine", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "EX-001", "Medium", "2026-10-01");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "EX-001", "Medium", "2026-10-01");
     state = receiveInventory(state, "e-dave", {
       kind: "Stock",
       facility: "Mississauga",
@@ -98,7 +115,7 @@ describe("Expected — arrived but not yet cleared", () => {
 
 describe("InStock — already reserved to this Unit", () => {
   it("wins regardless of what else is competing for the pool", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "IS-001", "Low", "2026-10-01");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "IS-001", "Low", "2026-10-01");
     const req = casingRequirement(state, "IS-001_1.1");
     const receipt = acceptedCasing(state);
     state = receipt.state;
@@ -112,7 +129,7 @@ describe("InStock — already reserved to this Unit", () => {
 
 describe("NotAvailable — a real reservation already holds it", () => {
   it("names the order that holds the matching stock", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "HOLD-001", "Medium", "2026-10-01");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "HOLD-001", "Medium", "2026-10-01");
     state = orderWithCasingRequirement(state, "HOLD-002", "Medium", "2026-10-01");
     const reqA = casingRequirement(state, "HOLD-001_1.1");
     const reqB = casingRequirement(state, "HOLD-002_1.1");
@@ -130,7 +147,7 @@ describe("NotAvailable — a real reservation already holds it", () => {
 
 describe("NotAvailable — nothing reserved yet, but a higher-priority order would claim it first", () => {
   it("ranks Urgent ahead of Low for the same free item", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "PRI-URGENT", "Urgent", "2026-09-01");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "PRI-URGENT", "Urgent", "2026-09-01");
     state = orderWithCasingRequirement(state, "PRI-LOW", "Low", "2026-09-01");
     const receipt = acceptedCasing(state);
     state = receipt.state;
@@ -148,7 +165,7 @@ describe("NotAvailable — nothing reserved yet, but a higher-priority order wou
   });
 
   it("is only a preview — no movement is actually written", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "PRI2-URGENT", "Urgent", "2026-09-01");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "PRI2-URGENT", "Urgent", "2026-09-01");
     state = orderWithCasingRequirement(state, "PRI2-LOW", "Low", "2026-09-01");
     const receipt = acceptedCasing(state);
     state = receipt.state;
@@ -162,7 +179,7 @@ describe("NotAvailable — nothing reserved yet, but a higher-priority order wou
 
 describe("Component role prevents cross-role false matches", () => {
   it("does not let an impeller satisfy a casing requirement, even with the same material", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "ROLE-001", "Medium", "2026-10-01");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "ROLE-001", "Medium", "2026-10-01");
     const receipt = acceptedCasing(state, { componentKey: "impeller" });
     state = receipt.state;
 
@@ -171,7 +188,7 @@ describe("Component role prevents cross-role false matches", () => {
   });
 
   it("still matches on spec alone when the identity carries no recorded role", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "ROLE-002", "Medium", "2026-10-01");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "ROLE-002", "Medium", "2026-10-01");
     const receipt = acceptedCasing(state, { componentKey: null as unknown as undefined });
     state = receipt.state;
 
@@ -180,7 +197,7 @@ describe("Component role prevents cross-role false matches", () => {
   });
 
   it("does not match on role alone when the material genuinely differs", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "ROLE-003", "Medium", "2026-10-01");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "ROLE-003", "Medium", "2026-10-01");
     const receipt = acceptedCasing(state, { material: "CD4MCU" });
     state = receipt.state;
 
@@ -191,7 +208,7 @@ describe("Component role prevents cross-role false matches", () => {
 
 describe("competingRequirements", () => {
   it("orders by priority, then due date, then order number", () => {
-    let state = orderWithCasingRequirement(buildInitialState(), "RANK-B", "Medium", "2026-09-10");
+    let state = orderWithCasingRequirement(emptyInventoryState(), "RANK-B", "Medium", "2026-09-10");
     state = orderWithCasingRequirement(state, "RANK-A", "Medium", "2026-09-05");
     state = orderWithCasingRequirement(state, "RANK-URGENT", "Urgent", "2026-09-20");
 

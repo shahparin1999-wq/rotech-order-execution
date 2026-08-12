@@ -79,6 +79,7 @@ test.describe("Reset to sample data", () => {
     await page.getByTestId("resolve-t-13-verify").click();
     await expect(page.getByTestId("identity-banner")).toContainText("In assembly");
 
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("reset-to-fixtures").click();
 
     await page.goto(`/units/${U(3)}`);

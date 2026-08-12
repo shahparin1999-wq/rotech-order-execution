@@ -87,6 +87,7 @@ test.describe("C2 - handoff history is append-only in the UI", () => {
     await page.goto(`/units/${U(5)}`);
 
     // First handoff, recorded by Miguel.
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("user-switcher").selectOption("e-miguel");
     await page.getByRole("button", { name: /Start Work/ }).click();
     await page.getByTestId("pause-t-15-intake").click();
@@ -101,6 +102,7 @@ test.describe("C2 - handoff history is append-only in the UI", () => {
     await expect(card).toContainText("First pause - end of shift");
 
     // Second handoff, recorded by Alex.
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("user-switcher").selectOption("e-alex");
     await page.getByTestId("resume-t-15-intake").click();
     await page.getByTestId("pause-t-15-intake").click();

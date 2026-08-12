@@ -38,6 +38,57 @@ export function isSerialized(policy: TrackingPolicy): boolean {
   return policy === "Serialized";
 }
 
+// ---------------------------------------------------------------------------
+// Category
+// ---------------------------------------------------------------------------
+
+// Inventory identity must work for everything Rotech stocks, not just pump
+// castings. Category is the ONE universal axis; anything pump-specific
+// (family, size, frame) lives in `attributes` and is a category-scoped FILTER,
+// never part of the identity spine. A motor, a bearing and a box of fasteners
+// are all first-class here.
+export const INVENTORY_CATEGORIES = [
+  "Casting",
+  "Rotating",
+  "Seal",
+  "Bearing",
+  "Motor",
+  "Coupling",
+  "Baseplate",
+  "Guard",
+  "Instrument",
+  "Hardware",
+  "Accessory"
+] as const;
+export type InventoryCategory = (typeof INVENTORY_CATEGORIES)[number];
+
+// Default category per component role, for the roles that have one. A part
+// received without a role falls back to Accessory rather than guessing.
+const CATEGORY_BY_COMPONENT: Record<string, InventoryCategory> = {
+  casing: "Casting",
+  stuffingBoxCover: "Casting",
+  powerFrame: "Casting",
+  impeller: "Rotating",
+  shaftKit: "Rotating",
+  stubShaft: "Rotating",
+  adapter: "Casting",
+  seal: "Seal",
+  sealGland: "Seal",
+  bearings: "Bearing",
+  motor: "Motor",
+  coupling: "Coupling",
+  couplingGuard: "Guard",
+  baseplate: "Baseplate",
+  gasket: "Hardware",
+  fasteners: "Hardware",
+  paint: "Accessory",
+  accessories: "Accessory"
+};
+
+export function categoryFor(componentKey: string | undefined): InventoryCategory {
+  return (componentKey && CATEGORY_BY_COMPONENT[componentKey]) || "Accessory";
+}
+
 // Default policy per component role. Mirrors the brief's table; a component not
 // listed falls back to QuantityTracked, which is the weakest claim we can make
 // honestly rather than over-promising traceability we do not capture.
@@ -77,8 +128,17 @@ export interface InventoryIdentity {
   partNumber: string;
   description: string;
   material: string;
-  /** Component role (e.g. "casing", "impeller") when known — drives availability matching and Stock grouping. */
+  /** Component role (e.g. "casing", "impeller") when known — drives availability matching. */
   componentKey?: string;
+  /** The one universal axis. Filters and grouping hang off this. */
+  category: InventoryCategory;
+  /**
+   * Category-specific attributes — e.g. { family: "1196", size: "6X8-13",
+   * frame: "XLR" } for a casting, { hp: "20", frame: "256T" } for a motor.
+   * These drive category-scoped filters. They are NOT the identity: two items
+   * with the same part number are the same item whatever these say.
+   */
+  attributes?: Record<string, string>;
   trackingPolicy: TrackingPolicy;
   /** Whichever of these the policy demanded at receipt. */
   serialNumber?: string;

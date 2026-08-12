@@ -42,6 +42,11 @@
   --muted: #5f5b55;
   --muted-soft: #f4f3f1;
 
+  /* Touch sizing. 44px is the Apple HIG minimum; every interactive control
+     in the app is at least this tall. --nav-w is the single nav column. */
+  --tap: 44px;
+  --nav-w: 88px;
+
   --radius: 4px;
   --radius-lg: 8px;
   --shadow: 0 1px 2px rgba(29, 28, 26, 0.08);
@@ -66,20 +71,34 @@ a {
   color: var(--accent);
   text-decoration: none;
 }
-a:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  a:hover {
+    text-decoration: underline;
+  }
 }
 
 button {
   font-family: inherit;
 }
 
+/* Kill the grey flash and the 300ms delay on tap; stop long-press selecting
+   labels while someone is scrolling a list with a gloved finger. */
+button,
+a,
+[role="button"],
+.tab,
+.view-link {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 /* ---------- Application shell ---------- */
 
 .shell {
   display: grid;
-  grid-template-columns: 68px 232px 1fr;
-  height: 100vh;
+  grid-template-columns: var(--nav-w) 1fr;
+  /* dvh, not vh: iPadOS' collapsing toolbars otherwise clip the last row. */
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -89,7 +108,7 @@ button {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding: 8px 0;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
@@ -106,11 +125,11 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 9px 2px;
-  min-height: 48px;
+  gap: 4px;
+  padding: 11px 4px;
+  min-height: 60px;
   color: #c8c6c4;
-  font-size: 10.5px;
+  font-size: 12px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -118,9 +137,11 @@ button {
   text-decoration: none;
   position: relative;
 }
-.rail-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  text-decoration: none;
+@media (hover: hover) {
+  .rail-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    text-decoration: none;
+  }
 }
 .rail-item.active {
   color: #ffffff;
@@ -174,16 +195,18 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  min-height: 32px;
+  padding: 8px 10px;
+  min-height: var(--tap);
   border-radius: var(--radius);
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   text-decoration: none;
 }
-.view-link:hover {
-  background: var(--bg-subtle-2);
-  text-decoration: none;
+@media (hover: hover) {
+  .view-link:hover {
+    background: var(--bg-subtle-2);
+    text-decoration: none;
+  }
 }
 .view-link.active {
   background: var(--accent-soft);
@@ -220,7 +243,7 @@ button {
 }
 
 .page {
-  padding: 16px 20px 36px;
+  padding: 16px 20px calc(36px + env(safe-area-inset-bottom));
   width: 100%;
 }
 
@@ -251,9 +274,9 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 32px;
-  padding: 5px 12px;
-  font-size: 13px;
+  min-height: var(--tap);
+  padding: 8px 14px;
+  font-size: 14px;
   font-weight: 600;
   border-radius: var(--radius);
   border: 1px solid var(--border-strong);
@@ -261,16 +284,20 @@ button {
   color: var(--text);
   cursor: pointer;
 }
-.btn:hover {
-  background: var(--bg-subtle);
+@media (hover: hover) {
+  .btn:hover {
+    background: var(--bg-subtle);
+  }
 }
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
-.btn-primary:hover {
-  background: var(--accent-hover);
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--accent-hover);
+  }
 }
 .btn-danger {
   background: var(--danger);
@@ -291,8 +318,10 @@ button {
   background: transparent;
   border-color: transparent;
 }
-.btn-subtle:hover {
-  background: var(--bg-subtle-2);
+@media (hover: hover) {
+  .btn-subtle:hover {
+    background: var(--bg-subtle-2);
+  }
 }
 .btn:disabled {
   opacity: 0.5;
@@ -359,8 +388,10 @@ button {
   color: inherit;
   text-decoration: none;
 }
-.tree-label:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .tree-label:hover {
+    text-decoration: underline;
+  }
 }
 .order-explorer {
   display: grid;
@@ -452,7 +483,7 @@ button {
   margin: 0 auto 0 0;
 }
 .command-bar .btn {
-  min-height: 30px;
+  min-height: var(--tap);
 }
 
 /* ---------- Saved views (chips) ---------- */
@@ -468,7 +499,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  min-height: 28px;
+  min-height: var(--tap);
   border-radius: 14px;
   border: 1px solid var(--border-strong);
   background: var(--bg-panel);
@@ -477,8 +508,10 @@ button {
   color: var(--text-subtle);
   cursor: pointer;
 }
-.saved-view-chip:hover {
-  background: var(--bg-subtle);
+@media (hover: hover) {
+  .saved-view-chip:hover {
+    background: var(--bg-subtle);
+  }
 }
 .saved-view-chip.active {
   background: var(--accent);
@@ -502,7 +535,7 @@ button {
 .filter-panel select,
 .filter-panel input {
   width: auto;
-  min-height: 30px;
+  min-height: var(--tap);
   padding: 4px 8px;
   font-size: 12.5px;
 }
@@ -547,7 +580,10 @@ table.data-grid th button {
   font-weight: 600;
   color: inherit;
   cursor: pointer;
-  padding: 0;
+  /* Was padding:0 with no height — a ~16px sort target, smaller than a
+     fingertip. */
+  padding: 6px 0;
+  min-height: var(--tap);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -558,8 +594,10 @@ table.data-grid td {
   vertical-align: middle;
   white-space: nowrap;
 }
-table.data-grid tbody tr:hover td {
-  background: var(--bg-subtle);
+@media (hover: hover) {
+  table.data-grid tbody tr:hover td {
+    background: var(--bg-subtle);
+  }
 }
 table.data-grid .group-row td {
   background: var(--bg-subtle-2);
@@ -569,8 +607,8 @@ table.data-grid .group-row td {
   padding: 5px 10px;
 }
 .grid-checkbox {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
 }
 
 /* ---------- Right-side drawer (New Work Order, New Customer, New Task) ---------- */
@@ -784,8 +822,10 @@ table.data td {
   padding: 8px 10px;
   vertical-align: top;
 }
-table.data tr:hover td {
-  background: var(--bg-subtle);
+@media (hover: hover) {
+  table.data tr:hover td {
+    background: var(--bg-subtle);
+  }
 }
 
 .record-list-item {
@@ -798,9 +838,11 @@ table.data tr:hover td {
   color: inherit;
   text-decoration: none;
 }
-.record-list-item:hover {
-  border-color: var(--accent);
-  text-decoration: none;
+@media (hover: hover) {
+  .record-list-item:hover {
+    border-color: var(--accent);
+    text-decoration: none;
+  }
 }
 
 /* ---------- Activity ---------- */
@@ -866,18 +908,23 @@ table.data tr:hover td {
   flex-direction: column;
   gap: 8px;
 }
+/* `input` bare, not input[type=...]: most fields in this app have no type
+   attribute, and a typed-only selector left them at 13.5px — which is exactly
+   the size that makes iPadOS zoom. Checkbox/radio are excluded and sized
+   separately below. */
 .composer textarea,
 .composer input,
 select,
 textarea,
-input[type="text"],
-input[type="number"],
-input[type="date"] {
+input:not([type="checkbox"]):not([type="radio"]) {
   font-family: inherit;
-  font-size: 13.5px;
+  /* Never below 16px: iPadOS Safari auto-zooms the viewport on focus for any
+     smaller field, which yanks the page scale on every tap into an input. */
+  font-size: 16px;
+  min-height: var(--tap);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  padding: 7px 10px;
+  padding: 9px 12px;
   width: 100%;
   background: var(--bg-panel);
   color: var(--text);
@@ -898,9 +945,9 @@ input[type="date"] {
   overflow-x: auto;
 }
 .tab {
-  padding: 8px 14px;
-  min-height: 36px;
-  font-size: 13px;
+  padding: 10px 16px;
+  min-height: var(--tap);
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-subtle);
   border: none;
@@ -912,9 +959,11 @@ input[type="date"] {
   display: inline-flex;
   align-items: center;
 }
-.tab:hover {
-  color: var(--text);
-  text-decoration: none;
+@media (hover: hover) {
+  .tab:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
 }
 .tab.active {
   color: var(--accent);
@@ -1072,35 +1121,88 @@ input[type="date"] {
   height: 100%;
 }
 
-/* ---------- Responsive ---------- */
+/* ---------- Profile menu (sidebar footer) ---------- */
 
-/* The views toggle is only needed once the column can collapse. */
-.rail-views-toggle {
-  display: none;
+.rail-spacer {
+  flex: 1;
 }
 
-@media (max-width: 1100px) {
-  .shell {
-    grid-template-columns: 60px 1fr;
-  }
-  .views-col {
-    display: none;
-  }
-  .shell.show-views {
-    grid-template-columns: 60px 232px 1fr;
-  }
-  .shell.show-views .views-col {
-    display: block;
-  }
-  .rail-views-toggle {
-    display: flex;
-  }
+.profile-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  border: none;
+  background: rgba(29, 28, 26, 0.25);
+  cursor: default;
+}
+.profile-menu {
+  position: fixed;
+  left: calc(var(--nav-w) + 8px);
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 160;
+  width: min(320px, calc(100vw - var(--nav-w) - 24px));
+  max-height: 80dvh;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.profile-menu-head {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.profile-note {
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-subtle);
+}
+.profile-links {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+}
+.profile-links a {
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* ---------- Responsive ---------- */
+
+/* iPad landscape (1024-1365) and portrait (768-1023). Neither width was
+   addressed before this pass — every iPad got the untouched desktop shell. */
+@media (max-width: 1365px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 1023px) {
+  :root { --nav-w: 76px; }
+  .page { padding: 12px 14px calc(28px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 720px) {
-  .shell {
-    grid-template-columns: 56px 1fr;
-  }
+  :root { --nav-w: 64px; }
   .page {
     padding: 12px;
   }
@@ -1224,4 +1326,67 @@ input[type="date"] {
 
 .modal-header {
   border-bottom: 2px solid var(--brand-orange);
+}
+
+/* ---------- Action rows (Work, and the Actions section of an Order) ---------- */
+
+.section-head {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+  margin: 18px 0 8px;
+}
+.section-head.danger {
+  color: var(--danger);
+}
+
+.action-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  min-height: var(--tap);
+}
+.action-main {
+  flex: 1;
+  min-width: 0;
+}
+.action-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+.action-blocker {
+  margin-top: 5px;
+  font-size: 13px;
+  color: var(--danger);
+}
+.action-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: none;
+}
+
+/* Checkboxes and radios: a 16px box is unhittable with a finger. */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  accent-color: var(--accent);
 }

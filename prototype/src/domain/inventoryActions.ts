@@ -10,7 +10,9 @@ import {
   locationLabel,
   missingTrackingFields,
   permitsDirectAcceptance,
+  categoryFor,
   trackingPolicyFor,
+  type InventoryCategory,
   type InventoryIdentity,
   type TrackingPolicy
 } from "./inventory/identity";
@@ -73,6 +75,10 @@ export interface ReceiveInput {
   /** Defaults from the component role when not given. */
   trackingPolicy?: TrackingPolicy;
   componentKey?: string;
+  /** Defaults from the component role when not given. */
+  category?: InventoryCategory;
+  /** Category-specific attributes (size/frame/family for a casting, hp/frame for a motor…). */
+  attributes?: Record<string, string>;
   serialNumber?: string;
   lotNumber?: string;
   heatNumber?: string;
@@ -154,6 +160,8 @@ export function receiveInventory(
     description: line.description,
     material: line.material ?? "",
     componentKey: input.componentKey?.trim() || undefined,
+    category: input.category ?? categoryFor(input.componentKey),
+    attributes: input.attributes,
     trackingPolicy: policy,
     serialNumber: line.serialNumber,
     lotNumber: line.lotNumber,

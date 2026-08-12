@@ -69,6 +69,7 @@ function identity(p: Partial<InventoryIdentity> = {}): InventoryIdentity {
     partNumber: "101-AT-M-A-S6",
     description: "1196 MTR 316SS Impeller",
     material: "316SS",
+    category: "Rotating",
     trackingPolicy: "HeatTracked",
     heatNumber: "H316-8821",
     receivedQuantity: 1,
