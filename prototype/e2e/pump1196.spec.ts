@@ -28,13 +28,14 @@ test.describe("1196 standard pump-end configuration", () => {
     await expect(page).toHaveURL(/\/orders\/E2E-1196-01/);
 
     // Quantity 2 creates exactly 2 independent Units.
-    await page.goto("/orders/E2E-1196-01?tab=units");
+    await page.goto("/orders/E2E-1196-01");
     await expect(page.locator('[data-testid^="unit-row-"]')).toHaveCount(2);
 
     // The generated standard baseline is visible on the Configuration sub-tab
     // before any confirmation happens.
-    await page.goto("/orders/E2E-1196-01?tab=lines");
-    await page.getByTestId("line-1-subtab-config").click();
+    await page.goto("/orders/E2E-1196-01");
+    await page.getByTestId("line-details-1").click();
+    await page.getByTestId("line-sheet-config").click();
     const configTable = page.getByTestId("pump1196-config-table");
     await expect(configTable).toBeVisible();
     await expect(configTable).toContainText("150# FF");
@@ -44,12 +45,12 @@ test.describe("1196 standard pump-end configuration", () => {
 
     // Bare pump end: package components (motor/baseplate/coupling/guard) are
     // Not in scope and create no requirement rows at all.
-    await page.getByTestId("line-1-subtab-parts1196").click();
+    await page.getByTestId("line-sheet-parts1196").click();
     await expect(page.getByText("motor", { exact: false })).toHaveCount(0);
     await expect(page.getByText("baseplate", { exact: false })).toHaveCount(0);
 
     // Confirmation gate: nothing confirmed yet -> release blocked.
-    await page.getByTestId("line-1-subtab-gate1196").click();
+    await page.getByTestId("line-sheet-gate1196").click();
     await expect(page.getByTestId("pump1196-release-status")).toContainText("Release blocked");
 
     // Confirm all 8 gate items -> release no longer blocked by the gate
@@ -110,8 +111,9 @@ test.describe("1196 standard pump-end configuration", () => {
     await expect(page).toHaveURL(/\/orders\/E2E-1196-03/);
 
     // The drawing the package is built to is visible on the frozen configuration.
-    await page.goto("/orders/E2E-1196-03?tab=lines");
-    await page.getByTestId("line-1-subtab-config").click();
+    await page.goto("/orders/E2E-1196-03");
+    await page.getByTestId("line-details-1").click();
+    await page.getByTestId("line-sheet-config").click();
     await expect(page.getByTestId("pump1196-package-drawing")).toContainText("BP-2026-114");
     await expect(page.getByTestId("pump1196-package-drawing")).toContainText("Custom baseplate");
 

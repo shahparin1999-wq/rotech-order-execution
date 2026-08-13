@@ -25,10 +25,10 @@ test.describe("New work order", () => {
     await page.getByTestId("submit-new-work-order").click();
 
     await expect(page).toHaveURL(/\/orders\/DEMO-E2E-001/);
-    await expect(page.getByTestId("tree-node-unit:DEMO-E2E-001_1.1")).toBeVisible();
-    await expect(page.getByTestId("tree-node-unit:DEMO-E2E-001_1.2")).toBeVisible();
-    await expect(page.getByTestId("tree-node-unit:DEMO-E2E-001_1.3")).toBeVisible();
-    await expect(page.getByTestId("tree-node-unit:DEMO-E2E-001_1.4")).toHaveCount(0);
+    await expect(page.getByTestId("unit-row-DEMO-E2E-001_1.1")).toBeVisible();
+    await expect(page.getByTestId("unit-row-DEMO-E2E-001_1.2")).toBeVisible();
+    await expect(page.getByTestId("unit-row-DEMO-E2E-001_1.3")).toBeVisible();
+    await expect(page.getByTestId("unit-row-DEMO-E2E-001_1.4")).toHaveCount(0);
   });
 });
 

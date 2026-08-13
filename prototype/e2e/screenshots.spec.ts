@@ -24,12 +24,13 @@ test.describe("Screenshot evidence", () => {
   });
 
   test("five-Unit progress and drill-down", async ({ page }) => {
-    await page.goto(`/orders/${ORDER}?tab=units`);
+    await page.goto(`/orders/${ORDER}`);
     await expect(page.getByTestId(`unit-row-${U(5)}`)).toBeVisible();
     await page.screenshot({ path: shot("03-five-unit-progress"), fullPage: true });
 
-    await page.goto(`/orders/${ORDER}?tab=units&status=Blocked`);
-    await expect(page.getByTestId("drilldown-note")).toBeVisible();
+    // Line technical detail on demand, rather than a permanent tab strip.
+    await page.getByTestId("line-details-1").click();
+    await expect(page.getByRole("dialog")).toBeVisible();
     await page.screenshot({ path: shot("04-progress-drilldown"), fullPage: true });
   });
 
@@ -39,9 +40,9 @@ test.describe("Screenshot evidence", () => {
     await page.screenshot({ path: shot("05-unit-detail"), fullPage: true });
   });
 
-  test("materials tab showing Unit-scoped change", async ({ page }) => {
-    await page.goto(`/orders/${ORDER}?tab=materials`);
-    await expect(page.getByTestId("mc-mc-001")).toBeVisible();
+  test("Unit-scoped material change on the Unit itself", async ({ page }) => {
+    await page.goto(`/units/${U(1)}`);
+    await expect(page.getByTestId("unit-mc-mc-001")).toBeVisible();
     await page.screenshot({ path: shot("06-material-change-isolation"), fullPage: true });
   });
 

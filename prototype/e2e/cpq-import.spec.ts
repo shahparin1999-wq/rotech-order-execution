@@ -24,13 +24,15 @@ test.describe("CPQ package import", () => {
     await expect(page).toHaveURL(new RegExp(`/orders/${ORDER}`));
 
     // Three isolated units across the two lines.
-    await page.goto(`/orders/${ORDER}?tab=units`);
+    await page.goto(`/orders/${ORDER}`);
     await expect(page.locator('[data-testid^="unit-row-"]')).toHaveCount(3);
 
-    // Lines tab: two line cards, frozen checksum on the imported line.
-    await page.goto(`/orders/${ORDER}?tab=lines`);
-    await expect(page.getByTestId("line-card-1")).toBeVisible();
-    await expect(page.getByTestId("line-card-2")).toBeVisible();
+    // Two line groups on the landing view; the frozen checksum is traceability
+    // detail, so it lives in the Line details sheet.
+    await page.goto(`/orders/${ORDER}`);
+    await expect(page.getByTestId("line-group-1")).toBeVisible();
+    await expect(page.getByTestId("line-group-2")).toBeVisible();
+    await page.getByTestId("line-details-1").click();
     await expect(page.getByTestId("line-checksum-1")).toBeVisible();
   });
 });

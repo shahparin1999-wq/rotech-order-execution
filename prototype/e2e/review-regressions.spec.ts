@@ -54,8 +54,8 @@ test.describe("C1 - two sibling Unit documents in one live session", () => {
     // ---- client-side navigation to Unit 1.4's document ----
     await page.getByRole("link", { name: `← Unit ${U(1)}` }).click();
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByRole("link", { name: "Documents", exact: true }).click();
-    await page.getByRole("link", { name: `${U(4)}_Unit_QC_and_Manufacturing_History.pdf` }).click();
+    await page.getByTestId(`unit-row-${U(4)}`).click();
+    await page.getByRole("link", { name: /Unit QC history preview/ }).click();
     await expect(page).toHaveURL(new RegExp(`/documents/${ORDER}_1\\.4`));
 
     const doc14 = (await page.getByTestId("qc-document").textContent()) ?? "";
@@ -67,8 +67,7 @@ test.describe("C1 - two sibling Unit documents in one live session", () => {
     // ---- prove the session never reset ----
     await page.getByRole("link", { name: `← Unit ${U(4)}` }).click();
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByTestId(`tree-node-unit:${U(1)}`).click();
-    await page.getByRole("link", { name: /Open full Unit page/ }).click();
+    await page.getByTestId(`unit-row-${U(1)}`).click();
     await page.getByRole("link", { name: "Evidence", exact: true }).click();
     await expect(page.getByText("material-marking-SAMPLE1001_1.1.jpg")).toBeVisible();
   });

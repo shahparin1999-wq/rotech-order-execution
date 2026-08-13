@@ -19,11 +19,11 @@ test.describe("CPQ real handshake bundle (browser)", () => {
     await page.getByTestId("confirm-cpq-import").click();
     await expect(page).toHaveURL(/\/orders\/26CPQ0003-R3/);
 
-    await page.goto("/orders/26CPQ0003-R3?tab=units");
+    await page.goto("/orders/26CPQ0003-R3");
     await expect(page.locator('[data-testid^="unit-row-"]')).toHaveCount(3);
 
-    await page.goto("/orders/26CPQ0003-R3?tab=lines");
-    await expect(page.getByTestId("line-card-1")).toBeVisible();
-    await expect(page.getByTestId("line-card-4")).toBeVisible();
+    await page.goto("/orders/26CPQ0003-R3");
+    await expect(page.getByTestId("line-group-1")).toBeVisible();
+    await expect(page.getByTestId("line-group-4")).toBeVisible();
   });
 });

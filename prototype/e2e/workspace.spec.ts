@@ -2,78 +2,75 @@ import { expect, test } from "@playwright/test";
 
 const ORDER = "SAMPLE1001";
 
-test.describe("Order execution workspace", () => {
-  test("header shows customer, PO, due date, facility and progress", async ({ page }) => {
+test.describe("Order workspace", () => {
+  test("identity, progress and the exception summary are on the landing view", async ({ page }) => {
     await page.goto(`/orders/${ORDER}`);
     await expect(page.getByRole("heading", { name: ORDER })).toBeVisible();
     await expect(page.getByText("Acme Sample Industries - Fairview")).toBeVisible();
     await expect(page.getByText("PO DEMO-0001")).toBeVisible();
     await expect(page.getByText("Due 2026-07-28")).toBeVisible();
-    await expect(page.getByText("ANSI 1196 · Bare pump end")).toBeVisible();
-    await expect(page.getByTestId("fraction-Complete").first()).toContainText("1/5");
-    await expect(page.getByTestId("fraction-Blocked").first()).toContainText("1/5");
+    await expect(page.getByTestId("order-progress")).toContainText("1 of 5 Units complete");
+    await expect(page.getByTestId("order-progress")).toContainText("1 blocked");
   });
 
-  test("Execution, Activity and Audit are present and reachable", async ({ page }) => {
+  test("exceptions come first — Attention sits above Lines and Units", async ({ page }) => {
     await page.goto(`/orders/${ORDER}`);
-    const tabs = page.getByRole("navigation", { name: "Order tabs" });
-    for (const tab of ["Execution", "Activity", "Audit"]) {
-      await expect(tabs.getByRole("link", { name: tab, exact: true })).toBeVisible();
-    }
+    const attention = page.getByTestId("order-attention");
+    await expect(attention).toBeVisible();
+    // The blocked Unit's problem is surfaced without anyone typing a remark.
+    await expect(attention).toContainText("Impeller casting not received");
+
+    const attentionBox = await attention.boundingBox();
+    const linesBox = await page.getByTestId("line-group-1").boundingBox();
+    expect(attentionBox!.y).toBeLessThan(linesBox!.y);
   });
 
-  test("Execution is the default landing tab and shows the Order -> Line -> Unit tree", async ({ page }) => {
+  test("Units are grouped under their line, whole row tappable", async ({ page }) => {
     await page.goto(`/orders/${ORDER}`);
-    await expect(page.getByTestId("order-tree")).toBeVisible();
-    await expect(page.getByTestId("tree-node-order")).toContainText(ORDER);
-    await expect(page.getByTestId("tree-node-line:1")).toBeVisible();
-  });
-
-  test("selecting a Unit node in the tree opens its detail pane, addressed by the URL", async ({ page }) => {
-    await page.goto(`/orders/${ORDER}?tab=execution&node=line:1`);
-    await page.getByTestId(`tree-node-unit:${ORDER}_1.1`).click();
-    await expect(page).toHaveURL(new RegExp(`node=unit%3A${ORDER}_1.1`));
-    await expect(page.getByTestId("order-detail-pane")).toContainText(`${ORDER}-1.1`);
-  });
-
-  test("Units tab lists exactly the five Units with mixed states", async ({ page }) => {
-    await page.goto(`/orders/${ORDER}?tab=units`);
+    const group = page.getByTestId("line-group-1");
+    await expect(group).toContainText("1196 3x4-13");
     for (let i = 1; i <= 5; i++) {
-      await expect(page.getByTestId(`unit-row-${ORDER}_1.${i}`)).toBeVisible();
+      await expect(group.getByTestId(`unit-row-${ORDER}_1.${i}`)).toBeVisible();
     }
-    await expect(page.locator("tbody tr")).toHaveCount(5);
-    // Serial present on 1.1, pending on the rest.
     await expect(page.getByTestId(`unit-row-${ORDER}_1.1`)).toContainText("DEMO-SN-0001");
-    await expect(page.getByTestId(`unit-row-${ORDER}_1.2`)).toContainText("Serial pending");
+    await expect(page.getByTestId(`unit-row-${ORDER}_1.3`)).toContainText("Missing impeller casting");
+
+    await page.getByTestId(`unit-row-${ORDER}_1.2`).click();
+    await expect(page).toHaveURL(new RegExp(`/units/${ORDER}_1\.2`));
   });
 
-  test("progress fraction drill-down returns the exact Unit set", async ({ page }) => {
+  test("Actions, Shipments and Activity are counts, not expanded lists", async ({ page }) => {
     await page.goto(`/orders/${ORDER}`);
-    await page.getByTestId("fraction-Blocked").first().click();
-    await expect(page).toHaveURL(/tab=units&status=Blocked/);
-    await expect(page.getByTestId("drilldown-note")).toContainText("exactly 1 Unit");
-    await expect(page.getByTestId(`unit-row-${ORDER}_1.3`)).toBeVisible();
-    await expect(page.locator("tbody tr")).toHaveCount(1);
-
-    // Complete drill-down returns only 1.1
-    await page.goto(`/orders/${ORDER}?tab=units&status=Complete`);
-    await expect(page.getByTestId(`unit-row-${ORDER}_1.1`)).toBeVisible();
-    await expect(page.locator("tbody tr")).toHaveCount(1);
+    const counts = page.getByTestId("order-counts");
+    await expect(counts.getByTestId("count-actions")).toBeVisible();
+    await expect(counts.getByTestId("count-shipments")).toBeVisible();
+    await expect(counts.getByTestId("count-activity")).toBeVisible();
+    // Detail on demand: no activity post body is rendered on the landing view.
+    await expect(page.locator('[data-testid^="post-"]')).toHaveCount(0);
   });
 
-  test("material change is Unit-scoped: 1.1 is CD4MCu, siblings stay 316SS", async ({ page }) => {
-    await page.goto(`/orders/${ORDER}?tab=materials`);
-    await expect(page.getByTestId("mc-mc-001")).toContainText("316SS → CD4MCu");
-    await expect(page.getByTestId("mc-mc-001")).toContainText(`${ORDER}_1.1`);
-    await expect(page.getByTestId(`material-${ORDER}_1.1`)).toContainText("CD4MCu");
+  test("line technical detail opens on demand in a sheet, not as a permanent tab strip", async ({ page }) => {
+    await page.goto(`/orders/${ORDER}`);
+    await expect(page.getByTestId("line-sheet-config")).toHaveCount(0);
+
+    await page.getByTestId("line-details-1").click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByTestId("line-sheet-bom")).toBeVisible();
+
+    await page.getByTestId("line-sheet-done").click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("material change stays Unit-scoped: 1.1 is CD4MCu, siblings stay 316SS", async ({ page }) => {
+    await page.goto(`/units/${ORDER}_1.1`);
+    await expect(page.getByTestId("identity-banner")).toContainText("CD4MCu");
     for (const i of [2, 3, 4, 5]) {
-      const row = page.getByTestId(`material-${ORDER}_1.${i}`);
-      await expect(row).toContainText("316SS");
-      await expect(row).not.toContainText("CD4MCu");
+      await page.goto(`/units/${ORDER}_1.${i}`);
+      await expect(page.getByTestId("identity-banner")).not.toContainText("CD4MCu");
     }
   });
 
-  test("audit tab shows append-only events including a supersession", async ({ page }) => {
+  test("audit shows append-only events including a supersession", async ({ page }) => {
     await page.goto(`/orders/${ORDER}?tab=audit`);
     await expect(page.getByText("checklistResponse.superseded")).toBeVisible();
     await expect(page.getByText("label.reprinted").first()).toBeVisible();

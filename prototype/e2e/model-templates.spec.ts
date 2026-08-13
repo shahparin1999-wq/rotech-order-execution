@@ -35,7 +35,8 @@ test.describe("Model templates (master routing)", () => {
     await expect(page).toHaveURL(/\/orders\/TMPL-E2E-1/);
 
     // The line's Configuration shows the model's master routing.
-    await page.goto("/orders/TMPL-E2E-1?tab=lines");
+    await page.goto("/orders/TMPL-E2E-1");
+    await page.getByTestId("line-details-1").click();
     await expect(page.getByTestId("line-template-1")).toContainText("Hydrotest");
     await expect(page.getByTestId("line-template-1")).toContainText("1196 Pump End");
   });

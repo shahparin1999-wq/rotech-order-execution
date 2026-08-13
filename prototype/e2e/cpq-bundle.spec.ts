@@ -86,7 +86,7 @@ test.describe("CPQ transfer bundle import", () => {
 
     await page.getByTestId("confirm-cpq-import").click();
     await expect(page).toHaveURL(/\/orders\/Q-DEMO-1001-R3/);
-    await page.goto("/orders/Q-DEMO-1001-R3?tab=units");
+    await page.goto("/orders/Q-DEMO-1001-R3");
     await expect(page.locator('[data-testid^="unit-row-"]')).toHaveCount(3);
   });
 });

@@ -17,19 +17,21 @@ test.describe("Post-creation editing", () => {
     await expect(page).toHaveURL(/\/orders\/EDIT-E2E-1/);
 
     // Starts with one Unit.
-    await page.goto("/orders/EDIT-E2E-1?tab=units");
+    await page.goto("/orders/EDIT-E2E-1");
     await expect(page.locator('[data-testid^="unit-row-"]')).toHaveCount(1);
 
-    // Add two more Units from the Lines tab.
-    await page.goto("/orders/EDIT-E2E-1?tab=lines");
+    // Add two more Units from the Line details sheet.
+    await page.goto("/orders/EDIT-E2E-1");
+    await page.getByTestId("line-details-1").click();
     await page.getByTestId("add-units-count-1").fill("2");
     await page.getByTestId("add-units-1").click();
-    await page.goto("/orders/EDIT-E2E-1?tab=units");
+    await page.goto("/orders/EDIT-E2E-1");
     await expect(page.locator('[data-testid^="unit-row-"]')).toHaveCount(3);
 
     // Working BOM: seed from the template skeleton, then add a row.
-    await page.goto("/orders/EDIT-E2E-1?tab=lines");
-    await page.getByTestId("line-1-subtab-bom").click();
+    await page.goto("/orders/EDIT-E2E-1");
+    await page.getByTestId("line-details-1").click();
+    await page.getByTestId("line-sheet-bom").click();
     await page.getByTestId("working-bom-seed-1").click();
     await expect(page.locator('[data-testid^="working-bom-row-"]')).toHaveCount(5); // pump-end skeleton
 

@@ -647,8 +647,12 @@ table.data-grid .group-row td {
   border: none;
   cursor: pointer;
   color: var(--text-subtle);
-  padding: 4px;
+  /* Was a ~26px hit area: the one control you reach for when you want out. */
+  min-width: var(--tap);
+  min-height: var(--tap);
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .drawer-body {
   flex: 1;
@@ -1389,4 +1393,175 @@ input[type="radio"] {
   height: 24px;
   min-height: 24px;
   accent-color: var(--accent);
+}
+
+/* ---------- Order workspace ---------- */
+
+.order-head h1 {
+  margin: 0 0 4px;
+}
+.order-head-line {
+  font-size: 14px;
+  color: var(--text-subtle);
+}
+
+/* Attention: exceptions first, and legible at arm's length on a tablet. */
+.attention-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--muted);
+  border-radius: var(--radius-lg);
+  padding: 11px 14px;
+  margin-bottom: 8px;
+}
+.attention-row.blocker {
+  border-left-color: var(--danger);
+}
+.attention-row.warning {
+  border-left-color: var(--warn);
+}
+.attention-kind {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+  padding-top: 3px;
+  min-width: 74px;
+}
+.attention-body {
+  min-width: 0;
+  flex: 1;
+}
+.attention-title {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+.attention-detail {
+  font-size: 13.5px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+.attention-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.more-note {
+  font-size: 13px;
+  color: var(--text-subtle);
+  margin: 4px 0 0;
+}
+
+/* Line groups: a heading, not a navigation level. */
+.line-group {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.line-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+}
+.line-group-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.line-group-sub {
+  font-size: 13px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+
+/* Whole row is the tap target — not one small link inside a dense cell. */
+.unit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+.unit-row:last-child {
+  border-bottom: none;
+}
+@media (hover: hover) {
+  .unit-row:hover {
+    background: var(--bg-subtle);
+    text-decoration: none;
+  }
+}
+.unit-row-ref {
+  font-weight: 700;
+  font-size: 15px;
+  min-width: 150px;
+}
+.unit-row-meta {
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+.unit-row-hold {
+  font-size: 13px;
+  color: var(--danger);
+  flex-basis: 100%;
+}
+
+/* Counts, not expanded lists. */
+.order-counts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.count-card {
+  flex: 1 1 140px;
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-subtle);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .count-card:hover {
+    background: var(--bg-subtle);
+    text-decoration: none;
+  }
+}
+.count-n {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.line-provenance {
+  font-size: 13px;
+  color: var(--text-subtle);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
 }

@@ -63,8 +63,8 @@ test.describe("Label previews", () => {
     await expect(page.getByText(`Unit count remains 9`)).toBeVisible();
 
     // The Unit list still has exactly five Units for this order.
-    await page.goto(`/orders/${ORDER}?tab=units`);
-    await expect(page.locator("tbody tr")).toHaveCount(5);
+    await page.goto(`/orders/${ORDER}`);
+    await expect(page.getByTestId("line-group-1").locator(".unit-row")).toHaveCount(5);
   });
 });
 

@@ -23,8 +23,8 @@ test.describe("Calculated status moves visibly", () => {
     // The order workspace's tree reflects the same recomputed status, not a
     // stale cached one.
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await expect(page.getByTestId(`tree-row-unit:${U(3)}`)).toContainText("In assembly");
-    await expect(page.getByTestId(`tree-row-unit:${U(3)}`)).not.toContainText("Blocked");
+    await expect(page.getByTestId(`unit-row-${U(3)}`)).toContainText("In assembly");
+    await expect(page.getByTestId(`unit-row-${U(3)}`)).not.toContainText("Blocked");
   });
 });
 
