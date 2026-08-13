@@ -31,7 +31,8 @@ test.describe("Unit detail", () => {
     await page.goto(`/units/${U(3)}`);
     await expect(page.getByTestId("unit-mc-mc-001")).toHaveCount(0);
     await expect(page.getByTestId("unit-swi-swi-001")).toHaveCount(0);
-    await expect(page.getByText("No material change")).toBeVisible();
+    // No empty sections: a Unit with no change renders no change section.
+    await expect(page.getByTestId("unit-changes")).toHaveCount(0);
 
     await page.goto(`/units/${U(1)}`);
     await expect(page.getByTestId("unit-mc-mc-001")).toBeVisible();
@@ -43,12 +44,14 @@ test.describe("Unit detail", () => {
   });
 
   test("evidence tab shows only this Unit's attachments", async ({ page }) => {
-    await page.goto(`/units/${U(1)}?tab=evidence`);
+    await page.goto(`/units/${U(1)}`);
+    await page.getByTestId("summary-photos").click();
     await expect(page.getByTestId("attachment-a-nameplate-11")).toBeVisible();
     // Unit 1.4's nameplate photo must not appear here.
     await expect(page.getByTestId("attachment-a-nameplate-14")).toHaveCount(0);
 
-    await page.goto(`/units/${U(4)}?tab=evidence`);
+    await page.goto(`/units/${U(4)}`);
+    await page.getByTestId("summary-photos").click();
     await expect(page.getByTestId("attachment-a-nameplate-14")).toBeVisible();
     await expect(page.getByTestId("attachment-a-nameplate-11")).toHaveCount(0);
   });
@@ -101,7 +104,8 @@ test.describe("Pause / handoff / resume", () => {
 
 test.describe("Checklist", () => {
   test("checklist shows placeholder tolerance labels and save states", async ({ page }) => {
-    await page.goto(`/units/${U(1)}?tab=checklist`);
+    await page.goto(`/units/${U(1)}`);
+    await page.getByTestId("summary-qc").click();
     await expect(page.getByText("Pilot placeholder - owner approval required").first()).toBeVisible();
     await expect(page.getByTestId("checklist-item-impeller-trim")).toContainText("12.51");
     // Correction/supersession is visible, original retained.
@@ -110,37 +114,43 @@ test.describe("Checklist", () => {
   });
 
   test("Unit 1.2 shows Pending and Error states; 1.4 shows Needs Review", async ({ page }) => {
-    await page.goto(`/units/${U(2)}?tab=checklist`);
+    await page.goto(`/units/${U(2)}`);
+    await page.getByTestId("summary-qc").click();
     await expect(page.getByTestId("checklist-item-impeller-trim")).toContainText("Pending");
     await expect(page.getByTestId("checklist-item-free-rotation")).toContainText("Error");
 
-    await page.goto(`/units/${U(4)}?tab=checklist`);
+    await page.goto(`/units/${U(4)}`);
+    await page.getByTestId("summary-qc").click();
     await expect(page.getByTestId("checklist-item-axial-play")).toContainText("Needs Review");
   });
 
   test("a measurement recorded on Unit 1.5 does not appear on siblings", async ({ page }) => {
-    await page.goto(`/units/${U(5)}?tab=checklist`);
+    await page.goto(`/units/${U(5)}`);
+    await page.getByTestId("summary-qc").click();
     await page.getByTestId("measure-input-shaft-runout").fill("1.7");
     await page.getByTestId("measure-save-shaft-runout").click();
     await expect(page.getByTestId("response-shaft-runout")).toContainText("1.7");
+    await page.getByTestId("checklist-done").click();
 
     // Navigate to the sibling client-side so the in-memory store persists;
     // a full reload would reset it and make this assertion meaningless.
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
     await page.getByTestId(`unit-row-${U(3)}`).click();
-    await page.getByRole("link", { name: "Checklist", exact: true }).click();
+    await page.getByTestId("summary-qc").click();
     await expect(page.getByTestId("identity-banner")).toContainText(U(3));
     await expect(page.getByTestId("checklist-item-shaft-runout")).not.toContainText("Recorded:");
+    await page.getByTestId("checklist-done").click();
 
     // Returning to 1.5 still shows its own reading — the store was live.
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
     await page.getByTestId(`unit-row-${U(5)}`).click();
-    await page.getByRole("link", { name: "Checklist", exact: true }).click();
+    await page.getByTestId("summary-qc").click();
     await expect(page.getByTestId("response-shaft-runout")).toContainText("1.7");
   });
 
   test("out-of-range measurement is flagged against the placeholder limit", async ({ page }) => {
-    await page.goto(`/units/${U(5)}?tab=checklist`);
+    await page.goto(`/units/${U(5)}`);
+    await page.getByTestId("summary-qc").click();
     await page.getByTestId("measure-input-impeller-trim").fill("13.9");
     await page.getByTestId("measure-save-impeller-trim").click();
     await expect(page.getByTestId("checklist-item-impeller-trim")).toContainText("outside placeholder range");
@@ -149,7 +159,8 @@ test.describe("Checklist", () => {
 
 test.describe("Photo capture target locking", () => {
   test("capture shows the locked target and saves to the selected Unit only", async ({ page }) => {
-    await page.goto(`/units/${U(5)}?tab=evidence`);
+    await page.goto(`/units/${U(5)}`);
+    await page.getByTestId("summary-photos").click();
     await page.getByTestId("take-photo").click();
     await expect(page.getByTestId("capture-target-unit")).toHaveText(U(5));
     await page.getByTestId("capture-category").selectOption("Nameplate");
@@ -159,12 +170,13 @@ test.describe("Photo capture target locking", () => {
     await expect(page.getByTestId("capture-category")).toBeDisabled();
     await page.getByTestId("capture-save").click();
     await expect(page.getByText("nameplate-SAMPLE1001_1.5.jpg")).toBeVisible();
+    await page.getByTestId("photo-done").click();
 
     // It must not appear on a sibling. Navigate client-side so the store
     // stays live; a reload would reset it and hide a real leak.
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
     await page.getByTestId(`unit-row-${U(3)}`).click();
-    await page.getByRole("link", { name: "Evidence", exact: true }).click();
+    await page.getByTestId("summary-photos").click();
     await expect(page.getByTestId("identity-banner")).toContainText(U(3));
     await expect(page.getByText("nameplate-SAMPLE1001_1.5.jpg")).toHaveCount(0);
   });

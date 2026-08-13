@@ -58,7 +58,7 @@ test.describe("Responsive layout", () => {
 
   test("no horizontal page scroll at tablet portrait", async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
-    await page.goto(`/tablet/${U}`);
+    await page.goto(`/units/${U}`);
     await expect(page.getByTestId("identity-banner")).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth

@@ -25,7 +25,7 @@ test.describe("QR scan simulation", () => {
     }
 
     await page.getByTestId("scan-open-unit").click();
-    await expect(page).toHaveURL(new RegExp(`/tablet/${ORDER}_1\\.2`));
+    await expect(page).toHaveURL(new RegExp(`/units/${ORDER}_1\\.2`));
   });
 
   test("an unknown reference fails safely without disclosing details", async ({ page }) => {

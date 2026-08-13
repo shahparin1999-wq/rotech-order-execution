@@ -1565,3 +1565,56 @@ input[type="radio"] {
   border-bottom: 1px solid var(--border);
   margin-bottom: 8px;
 }
+
+/* ---------- Unit workspace summaries ---------- */
+
+.summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+@media (hover: hover) {
+  .summary-row:hover {
+    background: var(--bg-subtle);
+  }
+}
+.summary-label {
+  flex: none;
+  min-width: 96px;
+  font-weight: 700;
+  font-size: 15px;
+}
+.summary-value {
+  flex: 1;
+  font-size: 14px;
+}
+.summary-detail {
+  color: var(--text-subtle);
+}
+.summary-open {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}

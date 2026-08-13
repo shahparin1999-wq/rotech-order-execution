@@ -47,7 +47,8 @@ test.describe("Screenshot evidence", () => {
   });
 
   test("checklist", async ({ page }) => {
-    await page.goto(`/units/${U(1)}?tab=checklist`);
+    await page.goto(`/units/${U(1)}`);
+    await page.getByTestId("summary-qc").click();
     await expect(page.getByTestId("checklist")).toBeVisible();
     await page.screenshot({ path: shot("07-checklist"), fullPage: true });
   });
@@ -100,7 +101,8 @@ test.describe("Screenshot evidence", () => {
   });
 
   test("review fix - hydrotest placeholder flagged", async ({ page }) => {
-    await page.goto(`/units/${U(1)}?tab=checklist`);
+    await page.goto(`/units/${U(1)}`);
+    await page.getByTestId("summary-qc").click();
     await expect(page.getByTestId("placeholder-hydrotest")).toBeVisible();
     await page.screenshot({ path: shot("20-fix-placeholder-flags"), fullPage: true });
   });
@@ -142,13 +144,13 @@ test.describe("Tablet screenshot evidence", () => {
   test.use({ viewport: { width: 1024, height: 768 }, hasTouch: true });
 
   test("shop-floor tablet", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
-    await expect(page.getByTestId("tablet-actions")).toBeVisible();
+    await page.goto(`/units/${U(2)}`);
+    await expect(page.getByTestId("unit-summaries")).toBeVisible();
     await page.screenshot({ path: shot("15-shop-floor-tablet"), fullPage: true });
   });
 
   test("tablet pause handoff dialog", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
+    await page.goto(`/units/${U(2)}`);
     await page.getByRole("button", { name: /Resume Work/ }).click();
     await page.getByRole("button", { name: /Pause \/ Handoff/ }).click();
     await expect(page.getByTestId("pause-dialog")).toBeVisible();
@@ -156,8 +158,9 @@ test.describe("Tablet screenshot evidence", () => {
   });
 
   test("tablet photo capture target lock", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
-    await page.getByTestId("tablet-take-photo").click();
+    await page.goto(`/units/${U(2)}`);
+    await page.getByTestId("summary-photos").click();
+    await page.getByTestId("take-photo").click();
     await page.getByTestId("capture-now").click();
     await expect(page.getByTestId("target-locked-note")).toBeVisible();
     await page.screenshot({ path: shot("17-tablet-photo-target-lock"), fullPage: true });

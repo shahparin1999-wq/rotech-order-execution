@@ -119,8 +119,12 @@ test.describe("1196 standard pump-end configuration", () => {
 
     // A mechanic landing on the Unit (the QR-scan view) sees the drawing and
     // can record what was actually used without going through the order.
-    await page.goto("/units/E2E-1196-03_1.1?tab=pump1196");
+    await page.goto("/units/E2E-1196-03_1.1");
+    await page.getByTestId("summary-drawings").click();
     await expect(page.getByTestId("unit-pump1196-drawing")).toContainText("BP-2026-114");
+    await page.getByTestId("drawings-done").click();
+
+    await page.getByTestId("summary-parts").click();
     const casingRow = page.locator('[data-testid^="req1196-"]').filter({ hasText: "casing" }).first();
     await expect(casingRow).toContainText("Required");
     await casingRow.getByRole("textbox").fill("CAS-3X4-13-DI");

@@ -53,9 +53,10 @@ test("one employee pauses with a handoff and a different employee resumes it", a
 });
 
 test("the acting employee is reflected on newly captured evidence", async ({ page }) => {
-  await page.goto(`/units/${U}?tab=evidence`);
+  await page.goto(`/units/${U}`);
   await page.getByTestId("profile-toggle").click();
   await page.getByTestId("user-switcher").selectOption("e-priya");
+  await page.getByTestId("summary-photos").click();
   await page.getByTestId("take-photo").click();
   await expect(page.getByTestId("capture-target")).toContainText("Priya Sharma");
   await page.getByTestId("capture-now").click();

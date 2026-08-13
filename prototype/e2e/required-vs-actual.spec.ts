@@ -30,7 +30,8 @@ test.describe("Required vs actual", () => {
   });
 
   test("a wrong material is named, blocks, and only clears on an approval with a reason", async ({ page }) => {
-    await page.goto(`/units/${ORDER}_1.1?tab=parts`);
+    await page.goto(`/units/${ORDER}_1.1`);
+    await page.getByTestId("summary-parts").click();
     await expect(page.getByTestId("required-vs-actual")).toBeVisible();
 
     const reqId = await casingRequirementId(page);
@@ -62,20 +63,23 @@ test.describe("Required vs actual", () => {
   });
 
   test("the sibling Unit shows none of it", async ({ page }) => {
-    await page.goto(`/units/${ORDER}_1.1?tab=parts`);
+    await page.goto(`/units/${ORDER}_1.1`);
+    await page.getByTestId("summary-parts").click();
     const reqId = await casingRequirementId(page);
     await page.getByTestId(`record-actual-${reqId}`).click();
     await page.getByTestId(`actual-heat-${reqId}`).fill("H-ONLY-ON-UNIT-1");
     await page.getByTestId(`actual-save-${reqId}`).click();
     await expect(page.getByTestId(`rva-${reqId}`)).toContainText("H-ONLY-ON-UNIT-1");
 
-    await page.goto(`/units/${ORDER}_1.2?tab=parts`);
+    await page.goto(`/units/${ORDER}_1.2`);
+    await page.getByTestId("summary-parts").click();
     await expect(page.getByTestId("required-vs-actual")).toBeVisible();
     await expect(page.getByTestId("required-vs-actual")).not.toContainText("H-ONLY-ON-UNIT-1");
   });
 
   test("a manual entry is usable but flagged for verification", async ({ page }) => {
-    await page.goto(`/units/${ORDER}_1.1?tab=parts`);
+    await page.goto(`/units/${ORDER}_1.1`);
+    await page.getByTestId("summary-parts").click();
     const reqId = await casingRequirementId(page);
     await page.getByTestId(`record-actual-${reqId}`).click();
     await page.getByTestId(`actual-part-${reqId}`).fill("CAS-OFF-SHELF");
@@ -85,9 +89,10 @@ test.describe("Required vs actual", () => {
     await expect(page.getByTestId(`rva-${reqId}`)).toContainText("needs verification");
   });
 
-  test("the shop-floor tablet reaches the same panel", async ({ page }) => {
-    await page.goto(`/tablet/${ORDER}_1.1`);
-    await page.getByTestId("tablet-parts").click();
+  test("the Unit workspace reaches the same panel on a tablet viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.goto(`/units/${ORDER}_1.1`);
+    await page.getByTestId("summary-parts").click();
     await expect(page.getByTestId("required-vs-actual")).toContainText("Casing — Ductile Iron");
   });
 });
