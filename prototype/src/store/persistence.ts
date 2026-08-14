@@ -21,7 +21,12 @@ export const STORAGE_KEY = "rotech-proto-state";
 // v3: CPQ import - first-class OrderLine fields (id/sourceSystem/family/model)
 // plus configurationSnapshots, manufacturingNotes, and configurationAdjustments
 // arrays. A v2 save lacks these, so it must not be trusted.
-export const SCHEMA_VERSION = 3;
+// v4: post-creation editing - the editable workingBomRows array. A v3 save lacks
+// it, so it must not be trusted.
+// v5: CPQ internal handoff v2 - the attentionItems array plus optional OrderLine
+// (executionDisposition/commercialState/executionState) and Order (scopeItems)
+// fields. A v4 save lacks the array, so it must not be trusted.
+export const SCHEMA_VERSION = 10;
 
 export interface StoredEnvelope {
   schemaVersion: number;
@@ -45,6 +50,8 @@ function looksLikeAppState(value: unknown): value is AppState {
     Array.isArray(v.configurationSnapshots) &&
     Array.isArray(v.manufacturingNotes) &&
     Array.isArray(v.configurationAdjustments) &&
+    Array.isArray(v.workingBomRows) &&
+    Array.isArray(v.attentionItems) &&
     typeof v.nextId === "number" &&
     typeof v.currentUserId === "string"
   );

@@ -106,7 +106,7 @@ describe("Search, sort, and group", () => {
     const asc = sortOrders(state.orders, state, "dueDate", "asc");
     expect(asc[0].orderNumber).toBe(ORDER_NO); // earlier due date
     const desc = sortOrders(state.orders, state, "dueDate", "desc");
-    expect(desc[0].orderNumber).toBe(HOUSTON_ORDER_NO);
+    expect(desc[0].orderNumber).toBe("DEMO1196STD-1"); // latest due date (2026-08-20)
   });
 
   it("groupOrdersBy groups by facility with no order lost or duplicated", () => {

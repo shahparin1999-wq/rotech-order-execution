@@ -60,6 +60,22 @@ describe("execution package validation", () => {
     expect(result.errors.some((e) => e.includes("quantity"))).toBe(true);
   });
 
+  it("rejects a spare line type fail-closed", () => {
+    const bad = loadSample();
+    (bad.lines[0] as { lineType: string }).lineType = "spare";
+    const result = validateExecutionPackage(bad);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes("lineType"))).toBe(true);
+  });
+
+  it("rejects a missing line type", () => {
+    const bad = loadSample();
+    delete (bad.lines[0] as { lineType?: string }).lineType;
+    const result = validateExecutionPackage(bad);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes("lineType"))).toBe(true);
+  });
+
   it("rejects a tampered package (checksum mismatch)", () => {
     const bad = loadSample();
     bad.lines[0].configuration.casingMaterial = "TamperedMaterial";
@@ -180,6 +196,93 @@ describe("manufacturing notes", () => {
         description: "y"
       })
     ).toThrow(/Inconsistent ancestors/);
+  });
+});
+
+describe("schema v1.0 / v1.1 and optional config-rules version", () => {
+  it("validates when configurationRulesVersion is omitted (CPQ has no such provenance)", () => {
+    const pkg = loadSample();
+    for (const line of pkg.lines) delete (line.versions as { configurationRulesVersion?: string }).configurationRulesVersion;
+    pkg.checksum = computeChecksum(pkg);
+    const result = validateExecutionPackage(pkg);
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects notes on a "1.0" package', () => {
+    const pkg = loadSample();
+    pkg.lines[0].notes = [{ classification: "ShopInstruction", text: "x", source: "cpq" }];
+    pkg.checksum = computeChecksum(pkg);
+    const result = validateExecutionPackage(pkg);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((e) => e.includes('"1.1"'))).toBe(true);
+  });
+
+  it("accepts a valid 1.1 package with classified notes", () => {
+    const pkg = loadSample();
+    pkg.schemaVersion = "1.1";
+    pkg.lines[0].notes = [
+      { classification: "ShopInstruction", text: "Deburr all edges", source: "eng.dana" },
+      { classification: "Provenance", text: "Config approved 2026-07-18", source: "cpq" }
+    ];
+    pkg.checksum = computeChecksum(pkg);
+    const result = validateExecutionPackage(pkg);
+    expect(result.ok).toBe(true);
+  });
+
+  it("seeds ManufacturingNotes from actionable 1.1 notes and skips Provenance", () => {
+    const pkg = loadSample();
+    pkg.schemaVersion = "1.1";
+    pkg.lines[0].notes = [
+      { classification: "ShopInstruction", text: "Deburr all edges", source: "eng.dana" },
+      { classification: "QualityRequirement", text: "Extra witness point", source: "qa.sam" },
+      { classification: "Provenance", text: "Config approved 2026-07-18", source: "cpq" }
+    ];
+    pkg.checksum = computeChecksum(pkg);
+    const on = orderNumberFor(pkg);
+    const state = importExecutionPackage(buildInitialState(), "e-alex", importInput(pkg, on));
+
+    const seeded = state.manufacturingNotes.filter((n) => n.orderNumber === on);
+    expect(seeded).toHaveLength(2); // Provenance not seeded
+    expect(seeded.every((n) => n.source === "CPQ")).toBe(true);
+    expect(seeded.map((n) => n.category).sort()).toEqual(["QualityRequirement", "ShopInstruction"]);
+    // Provenance text remains available only in the frozen snapshot payload.
+    const snap = state.configurationSnapshots.find((s) => s.lineNumber === 1)!;
+    const payload = snap.payload as ExecutionPackageV1["lines"][number];
+    expect(payload.notes?.some((n) => n.classification === "Provenance")).toBe(true);
+  });
+});
+
+describe("source-tuple idempotency", () => {
+  it("rejects a second import of the same quote+revision even under a different order number", () => {
+    const pkg = loadSample();
+    const on = orderNumberFor(pkg);
+    const state = importExecutionPackage(buildInitialState(), "e-alex", importInput(pkg, on));
+    expect(() =>
+      importExecutionPackage(state, "e-alex", importInput(pkg, "SOME-OTHER-ORDER"))
+    ).toThrow(/already imported/);
+  });
+});
+
+describe("PO attachment from a transfer bundle", () => {
+  it("stores the accepted PO as an Order attachment with its integrity hash", () => {
+    const pkg = loadSample();
+    const on = orderNumberFor(pkg);
+    const state = importExecutionPackage(buildInitialState(), "e-alex", {
+      ...importInput(pkg, on),
+      po: {
+        fileName: "PO-ACME-88213.pdf",
+        sha256: "a".repeat(64),
+        sizeBytes: 12345,
+        mediaType: "application/pdf",
+        acceptedPoSubmissionId: "sub-1"
+      }
+    });
+    const att = state.attachments.filter((a) => a.orderNumber === on && a.source === "CPQ");
+    expect(att).toHaveLength(1);
+    expect(att[0].kind).toBe("file");
+    expect(att[0].sha256).toBe("a".repeat(64));
+    expect(att[0].targetRef).toBe("sub-1");
+    expect(state.auditEvents.some((e) => e.action === "po.attached")).toBe(true);
   });
 });
 

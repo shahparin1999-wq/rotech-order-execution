@@ -27,7 +27,8 @@ async function expectPresent(text: string, values: string[]) {
 test.describe("C1 - two sibling Unit documents in one live session", () => {
   test("neither document contains any of the other Unit's data", async ({ page }) => {
     // Single hard load. Everything after this is client-side navigation.
-    await page.goto(`/units/${U(1)}?tab=evidence`);
+    await page.goto(`/units/${U(1)}`);
+    await page.getByTestId("summary-photos").click();
 
     // Create runtime evidence on Unit 1.1 so the store is demonstrably live
     // and demonstrably mutated during this session.
@@ -37,6 +38,7 @@ test.describe("C1 - two sibling Unit documents in one live session", () => {
     await page.getByTestId("capture-now").click();
     await page.getByTestId("capture-save").click();
     await expect(page.getByText("material-marking-SAMPLE1001_1.1.jpg")).toBeVisible();
+    await page.getByTestId("photo-done").click();
 
     // ---- Unit 1.1 document ----
     await page.getByRole("link", { name: /Unit QC history preview/ }).click();
@@ -54,8 +56,8 @@ test.describe("C1 - two sibling Unit documents in one live session", () => {
     // ---- client-side navigation to Unit 1.4's document ----
     await page.getByRole("link", { name: `← Unit ${U(1)}` }).click();
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByRole("link", { name: "Documents", exact: true }).click();
-    await page.getByRole("link", { name: `${U(4)}_Unit_QC_and_Manufacturing_History.pdf` }).click();
+    await page.getByTestId(`unit-row-${U(4)}`).click();
+    await page.getByRole("link", { name: /Unit QC history preview/ }).click();
     await expect(page).toHaveURL(new RegExp(`/documents/${ORDER}_1\\.4`));
 
     const doc14 = (await page.getByTestId("qc-document").textContent()) ?? "";
@@ -67,10 +69,10 @@ test.describe("C1 - two sibling Unit documents in one live session", () => {
     // ---- prove the session never reset ----
     await page.getByRole("link", { name: `← Unit ${U(4)}` }).click();
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByRole("link", { name: "Units", exact: true }).click();
-    await page.getByRole("link", { name: U(1), exact: true }).click();
-    await page.getByRole("link", { name: "Evidence", exact: true }).click();
+    await page.getByTestId(`unit-row-${U(1)}`).click();
+    await page.getByTestId("summary-photos").click();
     await expect(page.getByText("material-marking-SAMPLE1001_1.1.jpg")).toBeVisible();
+    await page.getByTestId("photo-done").click();
   });
 
   test("a Unit with no shipment shows none rather than a sibling's pallet", async ({ page }) => {
@@ -87,6 +89,7 @@ test.describe("C2 - handoff history is append-only in the UI", () => {
     await page.goto(`/units/${U(5)}`);
 
     // First handoff, recorded by Miguel.
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("user-switcher").selectOption("e-miguel");
     await page.getByRole("button", { name: /Start Work/ }).click();
     await page.getByTestId("pause-t-15-intake").click();
@@ -101,6 +104,7 @@ test.describe("C2 - handoff history is append-only in the UI", () => {
     await expect(card).toContainText("First pause - end of shift");
 
     // Second handoff, recorded by Alex.
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("user-switcher").selectOption("e-alex");
     await page.getByTestId("resume-t-15-intake").click();
     await page.getByTestId("pause-t-15-intake").click();
@@ -127,8 +131,12 @@ test.describe("C2 - handoff history is append-only in the UI", () => {
     await expect(history).toContainText("Parts staging rack B");
     await expect(history).toContainText("Miguel Torres");
 
-    // Audit retains both pause events.
+    // Audit retains both pause events. Wait for the tab to actually land —
+    // without this the assertions below can run against the overview, where
+    // the handoff card also contains "supersedes", passing for the wrong
+    // reason.
     await page.getByRole("link", { name: "Audit", exact: true }).click();
+    await page.waitForURL(/tab=audit/);
     const audit = page.locator("table.data");
     await expect(audit).toContainText("supersedes");
     expect(
@@ -139,7 +147,8 @@ test.describe("C2 - handoff history is append-only in the UI", () => {
 
 test.describe("U1 - unapproved placeholders are always identified", () => {
   test("the pass/fail hydrotest criterion carries its placeholder warning", async ({ page }) => {
-    await page.goto(`/units/${U(1)}?tab=checklist`);
+    await page.goto(`/units/${U(1)}`);
+    await page.getByTestId("summary-qc").click();
     // The defect: only measurement items showed the warning.
     await expect(page.getByTestId("placeholder-hydrotest")).toBeVisible();
     await expect(page.getByTestId("checklist-item-hydrotest")).toContainText(
@@ -179,7 +188,7 @@ test.describe("U2 - release presentation follows the real quality record", () =>
 
     // Fail the final inspection, client-side, in the same session.
     await page.getByRole("link", { name: `← Unit ${U(1)}` }).click();
-    await page.getByRole("link", { name: "Checklist", exact: true }).click();
+    await page.getByTestId("summary-qc").click();
     const item = page.getByTestId("checklist-item-final-quality");
     await item.getByRole("textbox").fill("Seal face scored on re-check.");
     await item.getByRole("button", { name: "Fail" }).click();
@@ -187,6 +196,7 @@ test.describe("U2 - release presentation follows the real quality record", () =>
 
     // The superseded pass is retained.
     await expect(item).toContainText("Superseded entries (1)");
+    await page.getByTestId("checklist-done").click();
 
     await page.getByRole("link", { name: /Unit QC history preview/ }).click();
     await expect(page.getByTestId("release-badge")).toContainText("Draft - not released");

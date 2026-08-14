@@ -20,10 +20,9 @@ test.describe("Calculated status moves visibly", () => {
     await expect(banner).not.toContainText("Blocked");
     await expect(banner).toContainText("In assembly");
 
-    // The order workspace's Units tab reflects the same recomputed status,
-    // not a stale cached one.
+    // The order workspace's tree reflects the same recomputed status, not a
+    // stale cached one.
     await page.getByRole("link", { name: `← Order ${ORDER}` }).click();
-    await page.getByRole("link", { name: "Units", exact: true }).click();
     await expect(page.getByTestId(`unit-row-${U(3)}`)).toContainText("In assembly");
     await expect(page.getByTestId(`unit-row-${U(3)}`)).not.toContainText("Blocked");
   });
@@ -80,6 +79,7 @@ test.describe("Reset to sample data", () => {
     await page.getByTestId("resolve-t-13-verify").click();
     await expect(page.getByTestId("identity-banner")).toContainText("In assembly");
 
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("reset-to-fixtures").click();
 
     await page.goto(`/units/${U(3)}`);

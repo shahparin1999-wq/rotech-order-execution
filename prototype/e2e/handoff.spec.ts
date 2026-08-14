@@ -9,6 +9,7 @@ test("one employee pauses with a handoff and a different employee resumes it", a
   await page.goto(`/units/${U}`);
 
   // Act as Miguel Torres and start the intake task.
+  await page.getByTestId("profile-toggle").click();
   await page.getByTestId("user-switcher").selectOption("e-miguel");
   await page.getByRole("button", { name: /Start Work/ }).click();
   await expect(page.getByTestId("task-controls-t-15-intake")).toContainText("Miguel Torres");
@@ -25,6 +26,7 @@ test("one employee pauses with a handoff and a different employee resumes it", a
   await expect(page.getByTestId("task-controls-t-15-intake")).toContainText("Paused");
 
   // Switch to a different employee, who sees every handoff field.
+  await page.getByTestId("profile-toggle").click();
   await page.getByTestId("user-switcher").selectOption("e-alex");
   const handoff = page.getByTestId("handoff-card-t-15-intake").first();
   await expect(handoff).toContainText("Handoff from Miguel Torres");
@@ -51,8 +53,10 @@ test("one employee pauses with a handoff and a different employee resumes it", a
 });
 
 test("the acting employee is reflected on newly captured evidence", async ({ page }) => {
-  await page.goto(`/units/${U}?tab=evidence`);
+  await page.goto(`/units/${U}`);
+  await page.getByTestId("profile-toggle").click();
   await page.getByTestId("user-switcher").selectOption("e-priya");
+  await page.getByTestId("summary-photos").click();
   await page.getByTestId("take-photo").click();
   await expect(page.getByTestId("capture-target")).toContainText("Priya Sharma");
   await page.getByTestId("capture-now").click();

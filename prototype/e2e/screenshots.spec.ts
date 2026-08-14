@@ -24,12 +24,13 @@ test.describe("Screenshot evidence", () => {
   });
 
   test("five-Unit progress and drill-down", async ({ page }) => {
-    await page.goto(`/orders/${ORDER}?tab=units`);
+    await page.goto(`/orders/${ORDER}`);
     await expect(page.getByTestId(`unit-row-${U(5)}`)).toBeVisible();
     await page.screenshot({ path: shot("03-five-unit-progress"), fullPage: true });
 
-    await page.goto(`/orders/${ORDER}?tab=units&status=Blocked`);
-    await expect(page.getByTestId("drilldown-note")).toBeVisible();
+    // Line technical detail on demand, rather than a permanent tab strip.
+    await page.getByTestId("line-details-1").click();
+    await expect(page.getByRole("dialog")).toBeVisible();
     await page.screenshot({ path: shot("04-progress-drilldown"), fullPage: true });
   });
 
@@ -39,14 +40,15 @@ test.describe("Screenshot evidence", () => {
     await page.screenshot({ path: shot("05-unit-detail"), fullPage: true });
   });
 
-  test("materials tab showing Unit-scoped change", async ({ page }) => {
-    await page.goto(`/orders/${ORDER}?tab=materials`);
-    await expect(page.getByTestId("mc-mc-001")).toBeVisible();
+  test("Unit-scoped material change on the Unit itself", async ({ page }) => {
+    await page.goto(`/units/${U(1)}`);
+    await expect(page.getByTestId("unit-mc-mc-001")).toBeVisible();
     await page.screenshot({ path: shot("06-material-change-isolation"), fullPage: true });
   });
 
   test("checklist", async ({ page }) => {
-    await page.goto(`/units/${U(1)}?tab=checklist`);
+    await page.goto(`/units/${U(1)}`);
+    await page.getByTestId("summary-qc").click();
     await expect(page.getByTestId("checklist")).toBeVisible();
     await page.screenshot({ path: shot("07-checklist"), fullPage: true });
   });
@@ -99,13 +101,15 @@ test.describe("Screenshot evidence", () => {
   });
 
   test("review fix - hydrotest placeholder flagged", async ({ page }) => {
-    await page.goto(`/units/${U(1)}?tab=checklist`);
+    await page.goto(`/units/${U(1)}`);
+    await page.getByTestId("summary-qc").click();
     await expect(page.getByTestId("placeholder-hydrotest")).toBeVisible();
     await page.screenshot({ path: shot("20-fix-placeholder-flags"), fullPage: true });
   });
 
   test("review fix - append-only handoff history", async ({ page }) => {
     await page.goto(`/units/${U(5)}`);
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("user-switcher").selectOption("e-miguel");
     await page.getByRole("button", { name: /Start Work/ }).click();
     await page.getByTestId("pause-t-15-intake").click();
@@ -115,6 +119,7 @@ test.describe("Screenshot evidence", () => {
     await page.getByTestId("handoff-location").fill("Parts staging rack B");
     await page.getByTestId("handoff-storageState").fill("Parts binned");
     await page.getByTestId("confirm-pause").click();
+    await page.getByTestId("profile-toggle").click();
     await page.getByTestId("user-switcher").selectOption("e-alex");
     await page.getByTestId("resume-t-15-intake").click();
     await page.getByTestId("pause-t-15-intake").click();
@@ -139,13 +144,13 @@ test.describe("Tablet screenshot evidence", () => {
   test.use({ viewport: { width: 1024, height: 768 }, hasTouch: true });
 
   test("shop-floor tablet", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
-    await expect(page.getByTestId("tablet-actions")).toBeVisible();
+    await page.goto(`/units/${U(2)}`);
+    await expect(page.getByTestId("unit-summaries")).toBeVisible();
     await page.screenshot({ path: shot("15-shop-floor-tablet"), fullPage: true });
   });
 
   test("tablet pause handoff dialog", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
+    await page.goto(`/units/${U(2)}`);
     await page.getByRole("button", { name: /Resume Work/ }).click();
     await page.getByRole("button", { name: /Pause \/ Handoff/ }).click();
     await expect(page.getByTestId("pause-dialog")).toBeVisible();
@@ -153,8 +158,9 @@ test.describe("Tablet screenshot evidence", () => {
   });
 
   test("tablet photo capture target lock", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
-    await page.getByTestId("tablet-take-photo").click();
+    await page.goto(`/units/${U(2)}`);
+    await page.getByTestId("summary-photos").click();
+    await page.getByTestId("take-photo").click();
     await page.getByTestId("capture-now").click();
     await expect(page.getByTestId("target-locked-note")).toBeVisible();
     await page.screenshot({ path: shot("17-tablet-photo-target-lock"), fullPage: true });

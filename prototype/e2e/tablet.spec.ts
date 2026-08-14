@@ -1,65 +1,85 @@
 import { expect, test } from "@playwright/test";
 
 // Runs in the "tablet" Playwright project at 1024x768 with touch enabled.
+//
+// There is no separate /tablet route any more: the Unit workspace IS the
+// shop-floor screen, for everyone. These tests hold it to that.
 
 const ORDER = "SAMPLE1001";
 const U = (n: number) => `${ORDER}_1.${n}`;
 
-test.describe("Shop-floor tablet", () => {
-  test("identity banner and large controls are visible at the tablet viewport", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
+test.describe("Shop-floor Unit workspace", () => {
+  test("identity stays visible and every control is finger-sized", async ({ page }) => {
+    await page.goto(`/units/${U(2)}`);
 
     const banner = page.getByTestId("identity-banner");
     await expect(banner).toBeInViewport();
     await expect(banner).toContainText(U(2));
     await expect(banner).toContainText("Serial pending");
+    await expect(banner).toContainText("Impeller trim");
 
-    await expect(page.getByTestId("tablet-current-op")).toHaveText("Impeller trim");
-
-    for (const id of ["tablet-take-photo", "tablet-measure", "tablet-checklist"]) {
-      const btn = page.getByTestId(id);
-      await expect(btn).toBeVisible();
-      const box = await btn.boundingBox();
-      // Touch targets must be comfortably larger than the 44px minimum.
-      expect(box!.height).toBeGreaterThanOrEqual(44);
-      expect(box!.width).toBeGreaterThanOrEqual(44);
-    }
+    const tooSmall = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>(
+        "button, a.btn, .tab, input, select, textarea, .rail-item, .summary-row"
+      )]
+        .map((e) => ({
+          label: (e.textContent || (e as HTMLInputElement).type || e.tagName).trim().slice(0, 30),
+          height: Math.round(e.getBoundingClientRect().height)
+        }))
+        .filter((x) => x.height > 0 && x.height < 44)
+    );
+    expect(tooSmall).toEqual([]);
   });
 
-  test("primary work controls are present and labelled", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
-    // 1.2 is paused, so Resume is offered.
-    await expect(page.getByRole("button", { name: /Resume Work/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Report Problem/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Take Photo/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Enter Measurement/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Complete Checklist/ })).toBeVisible();
+  test("the work a person can start is above the reference detail", async ({ page }) => {
+    await page.goto(`/units/${U(2)}`);
+    const doNow = await page.getByTestId("unit-do-now").boundingBox();
+    const summaries = await page.getByTestId("unit-summaries").boundingBox();
+    expect(doNow!.y).toBeLessThan(summaries!.y);
+  });
 
-    await page.getByRole("button", { name: /Resume Work/ }).click();
-    await expect(page.getByRole("button", { name: /Complete Step/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Pause \/ Handoff/ })).toBeVisible();
+  test("QC, photos and parts open as full sheets and exit back to the Unit", async ({ page }) => {
+    await page.goto(`/units/${U(2)}`);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    await page.getByTestId("summary-qc").click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByTestId("checklist-item-impeller-trim")).toBeVisible();
+    await page.getByTestId("checklist-done").click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    await page.getByTestId("summary-photos").click();
+    await expect(page.getByTestId("take-photo")).toBeVisible();
+    await page.getByTestId("photo-done").click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
   test("the Unit identity stays visible while a controlled action is performed", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
-    await page.getByTestId("tablet-take-photo").click();
-    await expect(page.getByTestId("capture-target-unit")).toHaveText(U(2));
-    // Banner is still on screen during capture.
+    await page.goto(`/units/${U(2)}`);
+    await page.getByTestId("resume-t-12-trim").click();
     await expect(page.getByTestId("identity-banner")).toBeInViewport();
+    await expect(page.getByTestId("identity-banner")).toContainText(U(2));
   });
 
-  test("a Unit with no serial shows Serial pending on the tablet", async ({ page }) => {
-    await page.goto(`/tablet/${U(5)}`);
+  test("a Unit with no serial says Serial pending", async ({ page }) => {
+    await page.goto(`/units/${U(5)}`);
     await expect(page.getByTestId("identity-banner")).toContainText("Serial pending");
-    await page.goto(`/tablet/${U(1)}`);
+
+    await page.goto(`/units/${U(1)}`);
     await expect(page.getByTestId("identity-banner")).toContainText("DEMO-SN-0001");
   });
 
   test("the page does not scroll horizontally at the tablet viewport", async ({ page }) => {
-    await page.goto(`/tablet/${U(2)}`);
+    await page.goto(`/units/${U(2)}`);
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth
     );
     expect(overflow).toBeLessThanOrEqual(1);
+  });
+
+  test("the retired /tablet route redirects rather than dead-ending a printed label", async ({ page }) => {
+    await page.goto(`/tablet/${U(2)}`);
+    await expect(page).toHaveURL(new RegExp(`/units/${ORDER}_1\\.2`));
+    await expect(page.getByTestId("identity-banner")).toBeVisible();
   });
 });

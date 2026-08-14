@@ -15,6 +15,7 @@ import {
 import { Exact, TaskStatusBadge, UnitStatusBadge } from "@/components/bits";
 import { PlusIcon } from "@/components/icons";
 import { NewWorkOrderDrawer } from "@/components/NewWorkOrderDrawer";
+import { acceptedNotPutAway, awaitingInspection, inventoryPositions } from "@/domain/inventoryActions";
 
 export default function HomePage() {
   const state = useAppState();
@@ -22,6 +23,10 @@ export default function HomePage() {
   const sections = myWorkSections(state, me.id);
   const lastJob = continueLastJob(state, me.id);
   const blockedUnits = state.units.filter((u) => u.status === "Blocked");
+  const positions = inventoryPositions(state);
+  const quarantine = awaitingInspection(state);
+  const notPutAway = acceptedNotPutAway(state);
+  const issuable = positions.filter((p) => p.quality === "Accepted" && p.available > 0);
   const [showNewOrder, setShowNewOrder] = useState(false);
 
   const myWorkPreview = [
@@ -57,6 +62,48 @@ export default function HomePage() {
           </Link>
         </div>
       )}
+
+      {/* Parts in and parts out, straight from the home screen. */}
+      <div className="card" data-testid="home-inventory">
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+          <h3 style={{ margin: 0 }}>Parts tracking</h3>
+          <Link href="/inventory" style={{ fontSize: 12.5 }}>Open inventory</Link>
+        </div>
+        <div className="field-grid" style={{ marginTop: 10 }}>
+          <Link className="btn btn-primary" href="/inventory?tab=intake" data-testid="home-intake">
+            Intake — receive parts
+          </Link>
+          <Link className="btn" href="/inventory?tab=outtake" data-testid="home-outtake">
+            Outtake — issue to a Unit
+          </Link>
+        </div>
+        <table className="data" style={{ marginTop: 10 }}>
+          <tbody>
+            <tr>
+              <td>Awaiting incoming inspection</td>
+              <td data-testid="home-quarantine-count">
+                <b>{quarantine.length}</b>
+                {quarantine.length > 0 && <span className="badge save-pending" style={{ marginLeft: 6 }}>action</span>}
+              </td>
+            </tr>
+            <tr>
+              <td>Accepted, not put away</td>
+              <td data-testid="home-putaway-count">
+                <b>{notPutAway.length}</b>
+                {notPutAway.length > 0 && <span className="badge save-pending" style={{ marginLeft: 6 }}>action</span>}
+              </td>
+            </tr>
+            <tr>
+              <td>Available to issue</td>
+              <td data-testid="home-issuable-count"><b>{issuable.length}</b></td>
+            </tr>
+            <tr>
+              <td>Tracked items on hand</td>
+              <td><b>{positions.filter((p) => p.onHand > 0).length}</b></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <div className="grid-2">
         <div className="card">

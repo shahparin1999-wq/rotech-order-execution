@@ -3,35 +3,54 @@
    shop-floor tablet screens specifically (office screens stay compact). */
 
 :root {
+  /* Rotech brand palette, sampled from rotechpumps.com:
+     orange #F47F31 and blue #1190CF on a warm near-black #1D1C1A.
+     The orange is the identity mark (rail, active state, focus). It is NOT
+     used for text or button fills on white — at 2.5:1 it fails contrast — so
+     primary actions use a darkened brand blue that clears 4.5:1. */
   --font-stack: "Segoe UI", "Segoe UI Variable", system-ui, -apple-system, sans-serif;
-  --bg-app: #faf9f8;
-  --bg-rail: #201f1e;
-  --bg-rail-active: #303030;
+
+  --brand-orange: #f47f31;
+  --brand-orange-dark: #c2601f;
+  --brand-orange-soft: #fdf0e6;
+  --brand-blue: #1190cf;
+
+  --bg-app: #f7f7f6;
+  --bg-rail: #1d1c1a;
+  --bg-rail-active: #2c2a27;
   --bg-panel: #ffffff;
-  --bg-subtle: #f3f2f1;
-  --bg-subtle-2: #edebe9;
-  --border: #e1dfdd;
-  --border-strong: #c8c6c4;
-  --text: #201f1e;
-  --text-subtle: #605e5c;
-  --text-inverse: #f3f2f1;
-  --accent: #0f6cbd;
-  --accent-soft: #e9f1fb;
-  --accent-hover: #0c59a0;
-  --ok: #0f7b0f;
-  --ok-soft: #e6f4e6;
-  --info: #0f6cbd;
-  --info-soft: #e9f1fb;
-  --danger: #c4314b;
-  --danger-soft: #fdedf0;
-  --warn: #9d5d00;
-  --warn-soft: #fff4e0;
-  --muted: #605e5c;
-  --muted-soft: #f3f2f1;
+  --bg-subtle: #f4f3f1;
+  --bg-subtle-2: #eae8e5;
+  --border: #e0ddd9;
+  --border-strong: #c6c2bc;
+  --text: #1d1c1a;
+  --text-subtle: #5f5b55;
+  --text-inverse: #f4f3f1;
+
+  --accent: #0b6e9e;
+  --accent-soft: #e7f2f8;
+  --accent-hover: #095a82;
+
+  --ok: #147a42;
+  --ok-soft: #e6f4ec;
+  --info: #0b6e9e;
+  --info-soft: #e7f2f8;
+  --danger: #b4231f;
+  --danger-soft: #fdecea;
+  --warn: #9a5a00;
+  --warn-soft: #fdf0e6;
+  --muted: #5f5b55;
+  --muted-soft: #f4f3f1;
+
+  /* Touch sizing. 44px is the Apple HIG minimum; every interactive control
+     in the app is at least this tall. --nav-w is the single nav column. */
+  --tap: 44px;
+  --nav-w: 88px;
+
   --radius: 4px;
-  --radius-lg: 6px;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.12);
+  --radius-lg: 8px;
+  --shadow: 0 1px 2px rgba(29, 28, 26, 0.08);
+  --shadow-md: 0 2px 6px rgba(29, 28, 26, 0.12);
 }
 
 * {
@@ -52,20 +71,34 @@ a {
   color: var(--accent);
   text-decoration: none;
 }
-a:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  a:hover {
+    text-decoration: underline;
+  }
 }
 
 button {
   font-family: inherit;
 }
 
+/* Kill the grey flash and the 300ms delay on tap; stop long-press selecting
+   labels while someone is scrolling a list with a gloved finger. */
+button,
+a,
+[role="button"],
+.tab,
+.view-link {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 /* ---------- Application shell ---------- */
 
 .shell {
   display: grid;
-  grid-template-columns: 68px 232px 1fr;
-  height: 100vh;
+  grid-template-columns: var(--nav-w) 1fr;
+  /* dvh, not vh: iPadOS' collapsing toolbars otherwise clip the last row. */
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -75,28 +108,28 @@ button {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  padding: 8px 0;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
   overflow-y: auto;
 }
 
 .rail-brand {
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 11.5px;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   padding: 10px 4px 14px;
-  color: #a5c7ea;
+  color: var(--brand-orange);
 }
 
 .rail-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 9px 2px;
-  min-height: 48px;
+  gap: 4px;
+  padding: 11px 4px;
+  min-height: 60px;
   color: #c8c6c4;
-  font-size: 10.5px;
+  font-size: 12px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -104,13 +137,15 @@ button {
   text-decoration: none;
   position: relative;
 }
-.rail-item:hover {
-  background: rgba(255, 255, 255, 0.06);
-  text-decoration: none;
+@media (hover: hover) {
+  .rail-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    text-decoration: none;
+  }
 }
 .rail-item.active {
   color: #ffffff;
-  border-left-color: var(--accent);
+  border-left-color: var(--brand-orange);
   background: rgba(255, 255, 255, 0.08);
 }
 .rail-icon {
@@ -160,16 +195,18 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
-  min-height: 32px;
+  padding: 8px 10px;
+  min-height: var(--tap);
   border-radius: var(--radius);
   color: var(--text);
-  font-size: 13px;
+  font-size: 14px;
   text-decoration: none;
 }
-.view-link:hover {
-  background: var(--bg-subtle-2);
-  text-decoration: none;
+@media (hover: hover) {
+  .view-link:hover {
+    background: var(--bg-subtle-2);
+    text-decoration: none;
+  }
 }
 .view-link.active {
   background: var(--accent-soft);
@@ -206,7 +243,7 @@ button {
 }
 
 .page {
-  padding: 16px 20px 36px;
+  padding: 16px 20px calc(36px + env(safe-area-inset-bottom));
   width: 100%;
 }
 
@@ -237,9 +274,9 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 32px;
-  padding: 5px 12px;
-  font-size: 13px;
+  min-height: var(--tap);
+  padding: 8px 14px;
+  font-size: 14px;
   font-weight: 600;
   border-radius: var(--radius);
   border: 1px solid var(--border-strong);
@@ -247,16 +284,20 @@ button {
   color: var(--text);
   cursor: pointer;
 }
-.btn:hover {
-  background: var(--bg-subtle);
+@media (hover: hover) {
+  .btn:hover {
+    background: var(--bg-subtle);
+  }
 }
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
 }
-.btn-primary:hover {
-  background: var(--accent-hover);
+@media (hover: hover) {
+  .btn-primary:hover {
+    background: var(--accent-hover);
+  }
 }
 .btn-danger {
   background: var(--danger);
@@ -277,8 +318,10 @@ button {
   background: transparent;
   border-color: transparent;
 }
-.btn-subtle:hover {
-  background: var(--bg-subtle-2);
+@media (hover: hover) {
+  .btn-subtle:hover {
+    background: var(--bg-subtle-2);
+  }
 }
 .btn:disabled {
   opacity: 0.5;
@@ -304,6 +347,70 @@ button {
 .badge.s-inprogress { background: var(--info-soft); color: var(--info); }
 .badge.s-ready { background: #e2f4f1; color: #045c4c; }
 .badge.s-waitinginspection { background: var(--warn-soft); color: var(--warn); }
+.badge.s-partiallycomplete { background: var(--info-soft); color: var(--info); }
+.badge.s-done { background: var(--ok-soft); color: var(--ok); }
+
+/* Order -> Line -> Unit drill-down tree */
+.order-tree {
+  font-size: 13.5px;
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: 6px;
+}
+.tree-row.selected {
+  background: var(--accent-soft);
+}
+.tree-row-order .tree-label { font-size: 15px; }
+.tree-expander {
+  width: 18px;
+  flex: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-subtle);
+  padding: 0;
+}
+.tree-expander-leaf {
+  cursor: default;
+  text-align: center;
+}
+.tree-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .tree-label:hover {
+    text-decoration: underline;
+  }
+}
+.order-explorer {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.order-explorer-tree {
+  position: sticky;
+  top: 12px;
+}
+@media (max-width: 900px) {
+  .order-explorer {
+    grid-template-columns: 1fr;
+  }
+  .order-explorer-tree {
+    position: static;
+  }
+}
 
 .badge.save-saved { background: var(--ok-soft); color: var(--ok); }
 .badge.save-pending { background: var(--warn-soft); color: var(--warn); }
@@ -376,7 +483,7 @@ button {
   margin: 0 auto 0 0;
 }
 .command-bar .btn {
-  min-height: 30px;
+  min-height: var(--tap);
 }
 
 /* ---------- Saved views (chips) ---------- */
@@ -392,7 +499,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 4px 12px;
-  min-height: 28px;
+  min-height: var(--tap);
   border-radius: 14px;
   border: 1px solid var(--border-strong);
   background: var(--bg-panel);
@@ -401,8 +508,10 @@ button {
   color: var(--text-subtle);
   cursor: pointer;
 }
-.saved-view-chip:hover {
-  background: var(--bg-subtle);
+@media (hover: hover) {
+  .saved-view-chip:hover {
+    background: var(--bg-subtle);
+  }
 }
 .saved-view-chip.active {
   background: var(--accent);
@@ -426,7 +535,7 @@ button {
 .filter-panel select,
 .filter-panel input {
   width: auto;
-  min-height: 30px;
+  min-height: var(--tap);
   padding: 4px 8px;
   font-size: 12.5px;
 }
@@ -471,7 +580,10 @@ table.data-grid th button {
   font-weight: 600;
   color: inherit;
   cursor: pointer;
-  padding: 0;
+  /* Was padding:0 with no height — a ~16px sort target, smaller than a
+     fingertip. */
+  padding: 6px 0;
+  min-height: var(--tap);
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -482,8 +594,10 @@ table.data-grid td {
   vertical-align: middle;
   white-space: nowrap;
 }
-table.data-grid tbody tr:hover td {
-  background: var(--bg-subtle);
+@media (hover: hover) {
+  table.data-grid tbody tr:hover td {
+    background: var(--bg-subtle);
+  }
 }
 table.data-grid .group-row td {
   background: var(--bg-subtle-2);
@@ -493,8 +607,8 @@ table.data-grid .group-row td {
   padding: 5px 10px;
 }
 .grid-checkbox {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
 }
 
 /* ---------- Right-side drawer (New Work Order, New Customer, New Task) ---------- */
@@ -533,8 +647,12 @@ table.data-grid .group-row td {
   border: none;
   cursor: pointer;
   color: var(--text-subtle);
-  padding: 4px;
+  /* Was a ~26px hit area: the one control you reach for when you want out. */
+  min-width: var(--tap);
+  min-height: var(--tap);
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .drawer-body {
   flex: 1;
@@ -708,8 +826,10 @@ table.data td {
   padding: 8px 10px;
   vertical-align: top;
 }
-table.data tr:hover td {
-  background: var(--bg-subtle);
+@media (hover: hover) {
+  table.data tr:hover td {
+    background: var(--bg-subtle);
+  }
 }
 
 .record-list-item {
@@ -722,9 +842,11 @@ table.data tr:hover td {
   color: inherit;
   text-decoration: none;
 }
-.record-list-item:hover {
-  border-color: var(--accent);
-  text-decoration: none;
+@media (hover: hover) {
+  .record-list-item:hover {
+    border-color: var(--accent);
+    text-decoration: none;
+  }
 }
 
 /* ---------- Activity ---------- */
@@ -790,18 +912,23 @@ table.data tr:hover td {
   flex-direction: column;
   gap: 8px;
 }
+/* `input` bare, not input[type=...]: most fields in this app have no type
+   attribute, and a typed-only selector left them at 13.5px — which is exactly
+   the size that makes iPadOS zoom. Checkbox/radio are excluded and sized
+   separately below. */
 .composer textarea,
 .composer input,
 select,
 textarea,
-input[type="text"],
-input[type="number"],
-input[type="date"] {
+input:not([type="checkbox"]):not([type="radio"]) {
   font-family: inherit;
-  font-size: 13.5px;
+  /* Never below 16px: iPadOS Safari auto-zooms the viewport on focus for any
+     smaller field, which yanks the page scale on every tap into an input. */
+  font-size: 16px;
+  min-height: var(--tap);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  padding: 7px 10px;
+  padding: 9px 12px;
   width: 100%;
   background: var(--bg-panel);
   color: var(--text);
@@ -822,9 +949,9 @@ input[type="date"] {
   overflow-x: auto;
 }
 .tab {
-  padding: 8px 14px;
-  min-height: 36px;
-  font-size: 13px;
+  padding: 10px 16px;
+  min-height: var(--tap);
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-subtle);
   border: none;
@@ -836,9 +963,11 @@ input[type="date"] {
   display: inline-flex;
   align-items: center;
 }
-.tab:hover {
-  color: var(--text);
-  text-decoration: none;
+@media (hover: hover) {
+  .tab:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
 }
 .tab.active {
   color: var(--accent);
@@ -996,35 +1125,88 @@ input[type="date"] {
   height: 100%;
 }
 
-/* ---------- Responsive ---------- */
+/* ---------- Profile menu (sidebar footer) ---------- */
 
-/* The views toggle is only needed once the column can collapse. */
-.rail-views-toggle {
-  display: none;
+.rail-spacer {
+  flex: 1;
 }
 
-@media (max-width: 1100px) {
-  .shell {
-    grid-template-columns: 60px 1fr;
-  }
-  .views-col {
-    display: none;
-  }
-  .shell.show-views {
-    grid-template-columns: 60px 232px 1fr;
-  }
-  .shell.show-views .views-col {
-    display: block;
-  }
-  .rail-views-toggle {
-    display: flex;
-  }
+.profile-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  border: none;
+  background: rgba(29, 28, 26, 0.25);
+  cursor: default;
+}
+.profile-menu {
+  position: fixed;
+  left: calc(var(--nav-w) + 8px);
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 160;
+  width: min(320px, calc(100vw - var(--nav-w) - 24px));
+  max-height: 80dvh;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.profile-menu-head {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 10px;
+}
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.profile-note {
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-subtle);
+}
+.profile-links {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 0;
+}
+.profile-links a {
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* ---------- Responsive ---------- */
+
+/* iPad landscape (1024-1365) and portrait (768-1023). Neither width was
+   addressed before this pass — every iPad got the untouched desktop shell. */
+@media (max-width: 1365px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
+@media (max-width: 1023px) {
+  :root { --nav-w: 76px; }
+  .page { padding: 12px 14px calc(28px + env(safe-area-inset-bottom)); }
 }
 
 @media (max-width: 720px) {
-  .shell {
-    grid-template-columns: 56px 1fr;
-  }
+  :root { --nav-w: 64px; }
   .page {
     padding: 12px;
   }
@@ -1042,4 +1224,397 @@ input[type="date"] {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* ---------- Wide centred modal (order configurator) ----------
+   The configurator is a workbench, not a side panel: a 480px drawer forced
+   every field into one narrow column. This centres it and gives the field
+   grid room to breathe. */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.modal-panel {
+  width: min(1180px, 100%);
+  max-height: calc(100vh - 48px);
+  background: var(--bg-panel);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header h2 {
+  margin: 0;
+  font-size: 17px;
+}
+.modal-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+/* Multi-column field grid — only usable because the modal is wide. */
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px 14px;
+  margin-bottom: 10px;
+}
+.config-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.config-section > h4 {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+}
+/* A value taken from the CPQ reference rather than typed by a person. */
+.from-default {
+  font-size: 11px;
+  color: var(--text-subtle);
+}
+
+@media (max-width: 900px) {
+  .modal-overlay { padding: 0; }
+  .modal-panel { width: 100vw; max-height: 100vh; border-radius: 0; }
+}
+
+
+/* ---------- Rotech brand accents ---------- */
+
+/* The prototype banner reads as a caution strip in the brand orange rather
+   than an anonymous yellow. */
+.mock-banner {
+  background: var(--brand-orange);
+  color: #1d1c1a;
+  font-weight: 600;
+}
+
+/* Focus ring uses the identity colour; it sits on top of fills so contrast is
+   not a text-legibility concern. */
+:focus-visible {
+  outline: 2px solid var(--brand-orange);
+  outline-offset: 1px;
+}
+
+/* Section headings inside the configurator get a subtle brand rule. */
+.config-section > h4 {
+  border-left: 3px solid var(--brand-orange);
+  padding-left: 8px;
+}
+
+.modal-header {
+  border-bottom: 2px solid var(--brand-orange);
+}
+
+/* ---------- Action rows (Work, and the Actions section of an Order) ---------- */
+
+.section-head {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+  margin: 18px 0 8px;
+}
+.section-head.danger {
+  color: var(--danger);
+}
+
+.action-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  min-height: var(--tap);
+}
+.action-main {
+  flex: 1;
+  min-width: 0;
+}
+.action-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.action-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+.action-blocker {
+  margin-top: 5px;
+  font-size: 13px;
+  color: var(--danger);
+}
+.action-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  flex: none;
+}
+
+/* Checkboxes and radios: a 16px box is unhittable with a finger. */
+input[type="checkbox"],
+input[type="radio"] {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  accent-color: var(--accent);
+}
+
+/* ---------- Order workspace ---------- */
+
+.order-head h1 {
+  margin: 0 0 4px;
+}
+.order-head-line {
+  font-size: 14px;
+  color: var(--text-subtle);
+}
+
+/* Attention: exceptions first, and legible at arm's length on a tablet. */
+.attention-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--muted);
+  border-radius: var(--radius-lg);
+  padding: 11px 14px;
+  margin-bottom: 8px;
+}
+.attention-row.blocker {
+  border-left-color: var(--danger);
+}
+.attention-row.warning {
+  border-left-color: var(--warn);
+}
+.attention-kind {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-subtle);
+  padding-top: 3px;
+  min-width: 74px;
+}
+.attention-body {
+  min-width: 0;
+  flex: 1;
+}
+.attention-title {
+  font-weight: 600;
+  font-size: 14.5px;
+}
+.attention-detail {
+  font-size: 13.5px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+.attention-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.more-note {
+  font-size: 13px;
+  color: var(--text-subtle);
+  margin: 4px 0 0;
+}
+
+/* Line groups: a heading, not a navigation level. */
+.line-group {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.line-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--border);
+}
+.line-group-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.line-group-sub {
+  font-size: 13px;
+  color: var(--text-subtle);
+  margin-top: 2px;
+}
+
+/* Whole row is the tap target — not one small link inside a dense cell. */
+.unit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+.unit-row:last-child {
+  border-bottom: none;
+}
+@media (hover: hover) {
+  .unit-row:hover {
+    background: var(--bg-subtle);
+    text-decoration: none;
+  }
+}
+.unit-row-ref {
+  font-weight: 700;
+  font-size: 15px;
+  min-width: 150px;
+}
+.unit-row-meta {
+  font-size: 13px;
+  color: var(--text-subtle);
+}
+.unit-row-hold {
+  font-size: 13px;
+  color: var(--danger);
+  flex-basis: 100%;
+}
+
+/* Counts, not expanded lists. */
+.order-counts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.count-card {
+  flex: 1 1 140px;
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding: 12px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-subtle);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+@media (hover: hover) {
+  .count-card:hover {
+    background: var(--bg-subtle);
+    text-decoration: none;
+  }
+}
+.count-n {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.line-provenance {
+  font-size: 13px;
+  color: var(--text-subtle);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 8px;
+}
+
+/* ---------- Unit workspace summaries ---------- */
+
+.summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 18px;
+}
+.summary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 14px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+@media (hover: hover) {
+  .summary-row:hover {
+    background: var(--bg-subtle);
+  }
+}
+.summary-label {
+  flex: none;
+  min-width: 96px;
+  font-weight: 700;
+  font-size: 15px;
+}
+.summary-value {
+  flex: 1;
+  font-size: 14px;
+}
+.summary-detail {
+  color: var(--text-subtle);
+}
+.summary-open {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
 }

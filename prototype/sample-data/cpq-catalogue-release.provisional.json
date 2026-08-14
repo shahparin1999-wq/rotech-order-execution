@@ -1,0 +1,3834 @@
+{
+  "schema": "rotech-cpq-catalogue-release/1.0",
+  "catalogueReleaseId": "cat-provisional-multi-0002",
+  "status": "provisional",
+  "publishedAt": "2026-07-27T00:00:00Z",
+  "publishedBy": {
+    "userId": "work-order-prototype"
+  },
+  "sourceEdition": "PROVISIONAL - not a CPQ publication; derived for development only",
+  "checksum": "311f274fbcc626cb4d4721605837016d491518947c9a2c8475b0e33a8bcfd824",
+  "families": [
+    {
+      "familyCode": "1196",
+      "displayName": "1196 ANSI Process Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": true,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "DI/316SS",
+        "316SS/316SS",
+        "CD4MCU/CD4MCU"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "1X1.5-6",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 6.0625,
+          "defaultMotorHp": 1
+        },
+        {
+          "pumpSize": "1.5X3-6",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 6.0625,
+          "defaultMotorHp": 1.5
+        },
+        {
+          "pumpSize": "2X3-6",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 6.0625,
+          "defaultMotorHp": 2
+        },
+        {
+          "pumpSize": "1X1.5-8",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8,
+          "defaultMotorHp": 3
+        },
+        {
+          "pumpSize": "1.5X3-8",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8,
+          "defaultMotorHp": 5
+        },
+        {
+          "pumpSize": "2X3-8",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8.375,
+          "defaultMotorHp": 7.5
+        },
+        {
+          "pumpSize": "3X4-7",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 7.1875,
+          "defaultMotorHp": 10
+        },
+        {
+          "pumpSize": "3X4-8",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8.375,
+          "defaultMotorHp": 10
+        },
+        {
+          "pumpSize": "3X4-8G",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8.375,
+          "defaultMotorHp": 15
+        },
+        {
+          "pumpSize": "1X2-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 20
+        },
+        {
+          "pumpSize": "1.5X3-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 25
+        },
+        {
+          "pumpSize": "2X3-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 30
+        },
+        {
+          "pumpSize": "3X4-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 40
+        },
+        {
+          "pumpSize": "3X4-10H",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 50
+        },
+        {
+          "pumpSize": "4X6-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 60
+        },
+        {
+          "pumpSize": "4X6-10G",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10.25,
+          "defaultMotorHp": 75
+        },
+        {
+          "pumpSize": "4X6-10H",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10.25,
+          "defaultMotorHp": 100
+        },
+        {
+          "pumpSize": "1.5X3-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 13,
+          "defaultMotorHp": 125
+        },
+        {
+          "pumpSize": "2X3-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 13,
+          "defaultMotorHp": 150
+        },
+        {
+          "pumpSize": "3X4-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 13,
+          "defaultMotorHp": 200
+        },
+        {
+          "pumpSize": "4X6-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13,
+          "defaultMotorHp": 250
+        },
+        {
+          "pumpSize": "6X8-13",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13
+        },
+        {
+          "pumpSize": "8X10-13",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13.25
+        },
+        {
+          "pumpSize": "6X8-15",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 15
+        },
+        {
+          "pumpSize": "8X10-15",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 15
+        },
+        {
+          "pumpSize": "8X10-15G",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 15
+        },
+        {
+          "pumpSize": "8X10-16H",
+          "defaultFrame": "XLR-17",
+          "frameOptions": [
+            "XLR-17"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 16.75
+        },
+        {
+          "pumpSize": "3X4-17",
+          "defaultFrame": "XLR-17",
+          "frameOptions": [
+            "XLR-17"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 16.75
+        },
+        {
+          "pumpSize": "4X6-17",
+          "defaultFrame": "XLR-17",
+          "frameOptions": [
+            "XLR-17"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 16.75
+        },
+        {
+          "pumpSize": "6X8-17",
+          "defaultFrame": "XLR-17",
+          "frameOptions": [
+            "XLR-17"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 16.75
+        },
+        {
+          "pumpSize": "8X10-17",
+          "defaultFrame": "XLR-17",
+          "frameOptions": [
+            "XLR-17"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 16.375
+        }
+      ],
+      "shaftTypes": [
+        "4140/316SS SLEEVED SHAFT",
+        "316SS/316SS SLEEVED SHAFT",
+        "316SS SOLID SHAFT"
+      ],
+      "frameSpacing": {
+        "LTR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 1.875
+        },
+        "MTR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 1.125
+        },
+        "STR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 0.875
+        },
+        "XLR": {
+          "dbse": 5.25,
+          "pumpShaftDiameter": 2.375
+        },
+        "XLR-17": {
+          "dbse": 5.25,
+          "pumpShaftDiameter": 2.375
+        }
+      },
+      "partCodeRules": {
+        "powerFrameByShaftType": {
+          "4140/316SS SLEEVED SHAFT": "A530L-P412",
+          "316SS/316SS SLEEVED SHAFT": "A530L-P422",
+          "316SS SOLID SHAFT": "A530O-P420"
+        },
+        "shaftKitByShaftType": {
+          "4140/316SS SLEEVED SHAFT": "A529L-S12",
+          "316SS/316SS SLEEVED SHAFT": "A529L-S22",
+          "316SS SOLID SHAFT": "A529O-S20"
+        },
+        "unsupportedShaftTypesByFrame": {
+          "XLR-17": [
+            "316SS SOLID SHAFT"
+          ]
+        }
+      },
+      "couplingSelection": {
+        "rows": [
+          {
+            "hp": 1,
+            "sizes": {
+              "1160": {
+                "3.75": "5"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 2,
+            "sizes": {
+              "1160": {
+                "3.75": "5"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 3,
+            "sizes": {
+              "1160": {
+                "3.75": "6"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 5,
+            "sizes": {
+              "1160": {
+                "3.75": "6"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 7.5,
+            "sizes": {
+              "1160": {
+                "3.75": "7"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "6"
+              }
+            }
+          },
+          {
+            "hp": 10,
+            "sizes": {
+              "1160": {
+                "3.75": "7"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "6"
+              }
+            }
+          },
+          {
+            "hp": 15,
+            "sizes": {
+              "1160": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "1750": {
+                "3.75": "7"
+              },
+              "3500": {
+                "3.75": "7"
+              }
+            }
+          },
+          {
+            "hp": 20,
+            "sizes": {
+              "1160": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "1750": {
+                "3.75": "7"
+              },
+              "3500": {
+                "3.75": "7"
+              }
+            }
+          },
+          {
+            "hp": 25,
+            "sizes": {
+              "1160": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "1750": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "3500": {
+                "3.75": "7",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 30,
+            "sizes": {
+              "1160": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "1750": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "3500": {
+                "3.75": "7",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 40,
+            "sizes": {
+              "1160": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "1750": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 50,
+            "sizes": {
+              "1160": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "1750": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 60,
+            "sizes": {
+              "1750": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 75,
+            "sizes": {
+              "1750": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "3500": {
+                "3.75": "9",
+                "5.25": "9"
+              }
+            }
+          },
+          {
+            "hp": 100,
+            "sizes": {
+              "3500": {
+                "3.75": "9",
+                "5.25": "9"
+              }
+            }
+          },
+          {
+            "hp": 125,
+            "sizes": {
+              "3500": {
+                "3.75": "10",
+                "5.25": "10"
+              }
+            }
+          },
+          {
+            "hp": 150,
+            "sizes": {
+              "3500": {
+                "3.75": "10",
+                "5.25": "10"
+              }
+            }
+          }
+        ],
+        "maxBoreBySize": {
+          "5": 1.125,
+          "6": 1.375,
+          "7": 1.625,
+          "8": 1.875,
+          "9": 2.125,
+          "10": 2.375,
+          "11": 2.875
+        }
+      },
+      "sealSizeByFrame": {
+        "STR": 1.375,
+        "MTR": 1.75,
+        "LTR": 2.125,
+        "XLR": 2.5
+      },
+      "partNumberCodes": {
+        "seriesCode": "A",
+        "modelCode": "532",
+        "frameCode": {
+          "STR": "S",
+          "MTR": "M",
+          "LTR": "L",
+          "XLR": "X",
+          "XLR-17": "X",
+          "G1": "G1",
+          "G2": "G2",
+          "G3": "G3",
+          "SXT": "SXT",
+          "SXU": "SXU",
+          "SCP": "SCP",
+          "SFP": "SFP",
+          "RE500": "RE500",
+          "RE500CC": "RE500CC"
+        },
+        "flangeCode": {
+          "150#FF": "1F",
+          "150#RF": "1R",
+          "300#FF": "3F",
+          "300#RF": "3R"
+        },
+        "sbcCode": {
+          "STD BORE": "SB",
+          "LARGE BORE": "LB",
+          "TAPER BORE": "TB",
+          "CBS": "CBS",
+          "CBL": "CBL",
+          "FML": "FML",
+          "FMS": "FMS"
+        },
+        "shaftDesignCode": {
+          "4140/316SS SLEEVED SHAFT": "B",
+          "316SS/316SS SLEEVED SHAFT": "C",
+          "316SS SOLID SHAFT": "D",
+          "316SS Stub Shaft": "S"
+        },
+        "materialCode": {
+          "DI/316SS": "42",
+          "316SS/316SS": "22",
+          "CS/316SS": "42",
+          "CD4MCU/CD4MCU": "33",
+          "STANDARD CI/DI": "STD",
+          "CI": "CI",
+          "316SS": "S6"
+        },
+        "pumpSizeCode": {
+          "1X1.5-6": "AA",
+          "1.5X3-6": "AB",
+          "2X3-6": "AC",
+          "1X1.5-8": "AD",
+          "1.5X3-8": "AE",
+          "2X3-8": "AG",
+          "3X4-8": "AH",
+          "3X4-8G": "AI",
+          "1X2-10": "AJ",
+          "1.5X3-10": "AK",
+          "2X3-10": "AL",
+          "3X4-10": "AM",
+          "3X4-10H": "AN",
+          "4X6-10": "AO",
+          "4X6-10G": "AQ",
+          "4X6-10H": "AP",
+          "1.5X3-13": "AR",
+          "2X3-13": "AS",
+          "3X4-13": "AT",
+          "4X6-13": "AU",
+          "6X8-13": "AV",
+          "8X10-13": "AW",
+          "6X8-15": "AX",
+          "8X10-15": "AY",
+          "8X10-15G": "AZ",
+          "8X10-16H": "BA",
+          "3X4-17": "EB",
+          "4X6-17": "BB",
+          "6X8-17": "BC",
+          "8X10-17": "BD"
+        },
+        "componentSizeCodeSource": {},
+        "componentDesignCode": {
+          "default": "A"
+        },
+        "componentPrefixes": {
+          "casing": "100",
+          "impeller": "101",
+          "stuffingBoxCover": "184"
+        },
+        "casingMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "impellerMaterialCode": {
+          "DI/316SS": "S6",
+          "316SS/316SS": "S6",
+          "CS/316SS": "S6",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCodeByFamily": {
+          "CS/316SS": "DI"
+        },
+        "closeCoupled": false
+      },
+      "sealDefaults": {
+        "sealOption": "ROTECH CHOICE",
+        "sealArrangement": "SINGLE CART",
+        "sealManufacturer": "ROTECH CHOICE",
+        "sealMoc": "SSV",
+        "sealGlandMoc": "",
+        "sealPlanOption": "NO PLAN"
+      },
+      "sourceStatus": "approved",
+      "sealSizeSource": "owner-supplied (not in CPQ); confirm before release"
+    },
+    {
+      "familyCode": "1196LF",
+      "displayName": "1196LF Low Flow ANSI Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": true,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "DI/316SS",
+        "316SS/316SS",
+        "CD4MCU/CD4MCU"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "1X1.5-8LF",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8,
+          "defaultFlange": "150#RF",
+          "flangeOptions": [
+            "150#RF",
+            "150#FF",
+            "300#RF",
+            "300#FF"
+          ]
+        },
+        {
+          "pumpSize": "1X2-10LF",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#RF",
+          "flangeOptions": [
+            "150#RF",
+            "150#FF",
+            "300#RF",
+            "300#FF"
+          ]
+        },
+        {
+          "pumpSize": "1.5X3-13LF",
+          "defaultFrame": "LTR",
+          "frameOptions": [
+            "LTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "300#RF",
+          "flangeOptions": [
+            "300#RF"
+          ]
+        }
+      ],
+      "shaftTypes": [
+        "4140/316SS SLEEVED SHAFT",
+        "316SS/316SS SLEEVED SHAFT",
+        "316SS SOLID SHAFT"
+      ],
+      "frameSpacing": {
+        "LTR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 1.875
+        },
+        "MTR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 1.125
+        },
+        "STR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 0.875
+        }
+      },
+      "partCodeRules": {
+        "powerFrameByShaftType": {
+          "4140/316SS SLEEVED SHAFT": "A530L-P412",
+          "316SS/316SS SLEEVED SHAFT": "A530L-P422",
+          "316SS SOLID SHAFT": "A530O-P420"
+        },
+        "shaftKitByShaftType": {
+          "4140/316SS SLEEVED SHAFT": "A529L-S12",
+          "316SS/316SS SLEEVED SHAFT": "A529L-S22",
+          "316SS SOLID SHAFT": "A529O-S20"
+        },
+        "unsupportedShaftTypesByFrame": {}
+      },
+      "couplingSelection": {
+        "rows": [
+          {
+            "hp": 1,
+            "sizes": {
+              "1160": {
+                "3.75": "5"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 2,
+            "sizes": {
+              "1160": {
+                "3.75": "5"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 3,
+            "sizes": {
+              "1160": {
+                "3.75": "6"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 5,
+            "sizes": {
+              "1160": {
+                "3.75": "6"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 7.5,
+            "sizes": {
+              "1160": {
+                "3.75": "7"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "6"
+              }
+            }
+          },
+          {
+            "hp": 10,
+            "sizes": {
+              "1160": {
+                "3.75": "7"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "6"
+              }
+            }
+          },
+          {
+            "hp": 15,
+            "sizes": {
+              "1160": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "1750": {
+                "3.75": "7"
+              },
+              "3500": {
+                "3.75": "7"
+              }
+            }
+          },
+          {
+            "hp": 20,
+            "sizes": {
+              "1160": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "1750": {
+                "3.75": "7"
+              },
+              "3500": {
+                "3.75": "7"
+              }
+            }
+          },
+          {
+            "hp": 25,
+            "sizes": {
+              "1160": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "1750": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "3500": {
+                "3.75": "7",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 30,
+            "sizes": {
+              "1160": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "1750": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "3500": {
+                "3.75": "7",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 40,
+            "sizes": {
+              "1160": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "1750": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 50,
+            "sizes": {
+              "1160": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "1750": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 60,
+            "sizes": {
+              "1750": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 75,
+            "sizes": {
+              "1750": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "3500": {
+                "3.75": "9",
+                "5.25": "9"
+              }
+            }
+          },
+          {
+            "hp": 100,
+            "sizes": {
+              "3500": {
+                "3.75": "9",
+                "5.25": "9"
+              }
+            }
+          },
+          {
+            "hp": 125,
+            "sizes": {
+              "3500": {
+                "3.75": "10",
+                "5.25": "10"
+              }
+            }
+          },
+          {
+            "hp": 150,
+            "sizes": {
+              "3500": {
+                "3.75": "10",
+                "5.25": "10"
+              }
+            }
+          }
+        ],
+        "maxBoreBySize": {
+          "5": 1.125,
+          "6": 1.375,
+          "7": 1.625,
+          "8": 1.875,
+          "9": 2.125,
+          "10": 2.375,
+          "11": 2.875
+        }
+      },
+      "sealSizeByFrame": {
+        "STR": 1.375,
+        "MTR": 1.75,
+        "LTR": 2.125,
+        "XLR": 2.5
+      },
+      "partNumberCodes": {
+        "seriesCode": "B",
+        "modelCode": "532",
+        "frameCode": {
+          "STR": "S",
+          "MTR": "M",
+          "LTR": "L",
+          "XLR": "X",
+          "XLR-17": "X",
+          "G1": "G1",
+          "G2": "G2",
+          "G3": "G3",
+          "SXT": "SXT",
+          "SXU": "SXU",
+          "SCP": "SCP",
+          "SFP": "SFP",
+          "RE500": "RE500",
+          "RE500CC": "RE500CC"
+        },
+        "flangeCode": {
+          "150#FF": "1F",
+          "150#RF": "1R",
+          "300#FF": "3F",
+          "300#RF": "3R"
+        },
+        "sbcCode": {
+          "STD BORE": "SB",
+          "LARGE BORE": "LB",
+          "TAPER BORE": "TB",
+          "CBS": "CBS",
+          "CBL": "CBL",
+          "FML": "FML",
+          "FMS": "FMS"
+        },
+        "shaftDesignCode": {
+          "4140/316SS SLEEVED SHAFT": "B",
+          "316SS/316SS SLEEVED SHAFT": "C",
+          "316SS SOLID SHAFT": "D",
+          "316SS Stub Shaft": "S"
+        },
+        "materialCode": {
+          "DI/316SS": "42",
+          "316SS/316SS": "22",
+          "CS/316SS": "42",
+          "CD4MCU/CD4MCU": "33",
+          "STANDARD CI/DI": "STD",
+          "CI": "CI",
+          "316SS": "S6"
+        },
+        "pumpSizeCode": {
+          "1X1.5-8LF": "AD",
+          "1X2-10LF": "AJ",
+          "1.5X3-13LF": "AR"
+        },
+        "componentSizeCodeSource": {
+          "casing": "1196LF",
+          "impeller": "1196LF",
+          "default": "1196"
+        },
+        "componentDesignCode": {
+          "casing": "B",
+          "impeller": "B",
+          "default": "A"
+        },
+        "componentPrefixes": {
+          "casing": "100",
+          "impeller": "101",
+          "stuffingBoxCover": "184"
+        },
+        "casingMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "impellerMaterialCode": {
+          "DI/316SS": "S6",
+          "316SS/316SS": "S6",
+          "CS/316SS": "S6",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCodeByFamily": {},
+        "closeCoupled": false
+      },
+      "sealDefaults": {
+        "sealOption": "ROTECH CHOICE",
+        "sealArrangement": "SINGLE CART",
+        "sealManufacturer": "ROTECH CHOICE",
+        "sealMoc": "SSV",
+        "sealGlandMoc": "",
+        "sealPlanOption": "NO PLAN"
+      },
+      "sourceStatus": "approved",
+      "sealSizeSource": "owner-supplied (not in CPQ); confirm before release"
+    },
+    {
+      "familyCode": "1796",
+      "displayName": "1796 Self-Primer ANSI Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": true,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "CS/316SS",
+        "316SS/316SS",
+        "CD4MCU/CD4MCU"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "1.5X1.5-8",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 8,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "2X2-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X3-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "4X4-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X3-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "4X4-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "6X6-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR",
+            "LTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        }
+      ],
+      "shaftTypes": [
+        "4140/316SS SLEEVED SHAFT",
+        "316SS/316SS SLEEVED SHAFT",
+        "316SS SOLID SHAFT"
+      ],
+      "frameSpacing": {
+        "LTR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 1.875
+        },
+        "MTR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 1.125
+        },
+        "STR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 0.875
+        }
+      },
+      "partCodeRules": {
+        "powerFrameByShaftType": {
+          "4140/316SS SLEEVED SHAFT": "A530L-P412",
+          "316SS/316SS SLEEVED SHAFT": "A530L-P422",
+          "316SS SOLID SHAFT": "A530O-P420"
+        },
+        "shaftKitByShaftType": {
+          "4140/316SS SLEEVED SHAFT": "A529L-S12",
+          "316SS/316SS SLEEVED SHAFT": "A529L-S22",
+          "316SS SOLID SHAFT": "A529O-S20"
+        },
+        "unsupportedShaftTypesByFrame": {}
+      },
+      "couplingSelection": {
+        "rows": [
+          {
+            "hp": 1,
+            "sizes": {
+              "1160": {
+                "3.75": "5"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 2,
+            "sizes": {
+              "1160": {
+                "3.75": "5"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 3,
+            "sizes": {
+              "1160": {
+                "3.75": "6"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 5,
+            "sizes": {
+              "1160": {
+                "3.75": "6"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 7.5,
+            "sizes": {
+              "1160": {
+                "3.75": "7"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "6"
+              }
+            }
+          },
+          {
+            "hp": 10,
+            "sizes": {
+              "1160": {
+                "3.75": "7"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "6"
+              }
+            }
+          },
+          {
+            "hp": 15,
+            "sizes": {
+              "1160": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "1750": {
+                "3.75": "7"
+              },
+              "3500": {
+                "3.75": "7"
+              }
+            }
+          },
+          {
+            "hp": 20,
+            "sizes": {
+              "1160": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "1750": {
+                "3.75": "7"
+              },
+              "3500": {
+                "3.75": "7"
+              }
+            }
+          },
+          {
+            "hp": 25,
+            "sizes": {
+              "1160": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "1750": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "3500": {
+                "3.75": "7",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 30,
+            "sizes": {
+              "1160": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "1750": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "3500": {
+                "3.75": "7",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 40,
+            "sizes": {
+              "1160": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "1750": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 50,
+            "sizes": {
+              "1160": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "1750": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 60,
+            "sizes": {
+              "1750": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 75,
+            "sizes": {
+              "1750": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "3500": {
+                "3.75": "9",
+                "5.25": "9"
+              }
+            }
+          },
+          {
+            "hp": 100,
+            "sizes": {
+              "3500": {
+                "3.75": "9",
+                "5.25": "9"
+              }
+            }
+          },
+          {
+            "hp": 125,
+            "sizes": {
+              "3500": {
+                "3.75": "10",
+                "5.25": "10"
+              }
+            }
+          },
+          {
+            "hp": 150,
+            "sizes": {
+              "3500": {
+                "3.75": "10",
+                "5.25": "10"
+              }
+            }
+          }
+        ],
+        "maxBoreBySize": {
+          "5": 1.125,
+          "6": 1.375,
+          "7": 1.625,
+          "8": 1.875,
+          "9": 2.125,
+          "10": 2.375,
+          "11": 2.875
+        }
+      },
+      "sealSizeByFrame": {
+        "STR": 1.375,
+        "MTR": 1.75,
+        "LTR": 2.125,
+        "XLR": 2.5
+      },
+      "partNumberCodes": {
+        "seriesCode": "E",
+        "modelCode": "532",
+        "frameCode": {
+          "STR": "S",
+          "MTR": "M",
+          "LTR": "L",
+          "XLR": "X",
+          "XLR-17": "X",
+          "G1": "G1",
+          "G2": "G2",
+          "G3": "G3",
+          "SXT": "SXT",
+          "SXU": "SXU",
+          "SCP": "SCP",
+          "SFP": "SFP",
+          "RE500": "RE500",
+          "RE500CC": "RE500CC"
+        },
+        "flangeCode": {
+          "150#FF": "1F",
+          "150#RF": "1R",
+          "300#FF": "3F",
+          "300#RF": "3R"
+        },
+        "sbcCode": {
+          "STD BORE": "SB",
+          "LARGE BORE": "LB",
+          "TAPER BORE": "TB",
+          "CBS": "CBS",
+          "CBL": "CBL",
+          "FML": "FML",
+          "FMS": "FMS"
+        },
+        "shaftDesignCode": {
+          "4140/316SS SLEEVED SHAFT": "B",
+          "316SS/316SS SLEEVED SHAFT": "C",
+          "316SS SOLID SHAFT": "D",
+          "316SS Stub Shaft": "S"
+        },
+        "materialCode": {
+          "DI/316SS": "42",
+          "316SS/316SS": "22",
+          "CS/316SS": "42",
+          "CD4MCU/CD4MCU": "33",
+          "STANDARD CI/DI": "STD",
+          "CI": "CI",
+          "316SS": "S6"
+        },
+        "pumpSizeCode": {
+          "1.5X1.5-8": "BF",
+          "2X2-10": "BG",
+          "3X3-10": "BH",
+          "4X4-10": "BI",
+          "3X3-13": "BJ",
+          "4X4-13": "BK",
+          "6X6-13": "BL"
+        },
+        "componentSizeCodeSource": {
+          "casing": "1796",
+          "impeller": "1196",
+          "default": "1196"
+        },
+        "componentDesignCode": {
+          "casing": "E",
+          "impeller": "A",
+          "default": "A"
+        },
+        "componentPrefixes": {
+          "casing": "100",
+          "impeller": "101",
+          "stuffingBoxCover": "184"
+        },
+        "casingMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "impellerMaterialCode": {
+          "DI/316SS": "S6",
+          "316SS/316SS": "S6",
+          "CS/316SS": "S6",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCodeByFamily": {},
+        "closeCoupled": false
+      },
+      "sealDefaults": {
+        "sealOption": "ROTECH CHOICE",
+        "sealArrangement": "SINGLE CART",
+        "sealManufacturer": "ROTECH CHOICE",
+        "sealMoc": "SSV",
+        "sealGlandMoc": "",
+        "sealPlanOption": "NO PLAN"
+      },
+      "sourceStatus": "approved",
+      "sealSizeSource": "owner-supplied (not in CPQ); confirm before release"
+    },
+    {
+      "familyCode": "R3",
+      "displayName": "R3 Reverse Vane ANSI Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": true,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "CD4MCU/CD4MCU"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "1.5X1-6",
+          "defaultFrame": "G1",
+          "frameOptions": [
+            "G1"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 6.25,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X1.5-6",
+          "defaultFrame": "G1",
+          "frameOptions": [
+            "G1"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 6.25,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "1.5X1-8",
+          "defaultFrame": "G1",
+          "frameOptions": [
+            "G1"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 8.1875,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X1.5-8",
+          "defaultFrame": "G1",
+          "frameOptions": [
+            "G1"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 8.1875,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X2-6",
+          "defaultFrame": "G1",
+          "frameOptions": [
+            "G1"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 6.25,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X2-82",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 8.1875,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "4X3-82",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 8.1875,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "2X1-10A",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X1.5-10A",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X2-10",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X2-10A",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "4X3-10",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "4X3-10H",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "6X4-10",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "6X4-10H",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X1.5-13",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X2-13",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "4X3-13",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "6X4-13A",
+          "defaultFrame": "G2",
+          "frameOptions": [
+            "G2"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "8X6-14",
+          "defaultFrame": "G3",
+          "frameOptions": [
+            "G3"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 14,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "10X8-14",
+          "defaultFrame": "G3",
+          "frameOptions": [
+            "G3"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 14,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "6X4-16",
+          "defaultFrame": "G3",
+          "frameOptions": [
+            "G3"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 16,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "8X6-16",
+          "defaultFrame": "G3",
+          "frameOptions": [
+            "G3"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 16,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "8X6-16A",
+          "defaultFrame": "G3",
+          "frameOptions": [
+            "G3"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 16,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "10X8-16",
+          "defaultFrame": "G3",
+          "frameOptions": [
+            "G3"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 16,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "10X8-16H",
+          "defaultFrame": "G3",
+          "frameOptions": [
+            "G3"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 15,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "10X8-17",
+          "defaultFrame": "G3",
+          "frameOptions": [
+            "G3"
+          ],
+          "defaultMoc": "CD4MCU/CD4MCU",
+          "fullImpellerTrim": 17,
+          "defaultFlange": "150#FF"
+        }
+      ],
+      "shaftTypes": [
+        "4140/316SS SLEEVED SHAFT",
+        "316SS/316SS SLEEVED SHAFT",
+        "316SS SOLID SHAFT"
+      ],
+      "partCodeRules": {
+        "powerFrameByShaftType": {
+          "4140/316SS SLEEVED SHAFT": "A530L-P412",
+          "316SS/316SS SLEEVED SHAFT": "A530L-P422",
+          "316SS SOLID SHAFT": "A530O-P420"
+        },
+        "shaftKitByShaftType": {
+          "4140/316SS SLEEVED SHAFT": "A529L-S12",
+          "316SS/316SS SLEEVED SHAFT": "A529L-S22",
+          "316SS SOLID SHAFT": "A529O-S20"
+        },
+        "unsupportedShaftTypesByFrame": {}
+      },
+      "couplingSelection": {
+        "rows": [
+          {
+            "hp": 1,
+            "sizes": {
+              "1160": {
+                "3.75": "5"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 2,
+            "sizes": {
+              "1160": {
+                "3.75": "5"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 3,
+            "sizes": {
+              "1160": {
+                "3.75": "6"
+              },
+              "1750": {
+                "3.75": "5"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 5,
+            "sizes": {
+              "1160": {
+                "3.75": "6"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "5"
+              }
+            }
+          },
+          {
+            "hp": 7.5,
+            "sizes": {
+              "1160": {
+                "3.75": "7"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "6"
+              }
+            }
+          },
+          {
+            "hp": 10,
+            "sizes": {
+              "1160": {
+                "3.75": "7"
+              },
+              "1750": {
+                "3.75": "6"
+              },
+              "3500": {
+                "3.75": "6"
+              }
+            }
+          },
+          {
+            "hp": 15,
+            "sizes": {
+              "1160": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "1750": {
+                "3.75": "7"
+              },
+              "3500": {
+                "3.75": "7"
+              }
+            }
+          },
+          {
+            "hp": 20,
+            "sizes": {
+              "1160": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "1750": {
+                "3.75": "7"
+              },
+              "3500": {
+                "3.75": "7"
+              }
+            }
+          },
+          {
+            "hp": 25,
+            "sizes": {
+              "1160": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "1750": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "3500": {
+                "3.75": "7",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 30,
+            "sizes": {
+              "1160": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "1750": {
+                "3.75": "8",
+                "5.25": "8"
+              },
+              "3500": {
+                "3.75": "7",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 40,
+            "sizes": {
+              "1160": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "1750": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 50,
+            "sizes": {
+              "1160": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "1750": {
+                "3.75": "9",
+                "5.25": "9"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 60,
+            "sizes": {
+              "1750": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "3500": {
+                "3.75": "8",
+                "5.25": "8"
+              }
+            }
+          },
+          {
+            "hp": 75,
+            "sizes": {
+              "1750": {
+                "3.75": "10",
+                "5.25": "10"
+              },
+              "3500": {
+                "3.75": "9",
+                "5.25": "9"
+              }
+            }
+          },
+          {
+            "hp": 100,
+            "sizes": {
+              "3500": {
+                "3.75": "9",
+                "5.25": "9"
+              }
+            }
+          },
+          {
+            "hp": 125,
+            "sizes": {
+              "3500": {
+                "3.75": "10",
+                "5.25": "10"
+              }
+            }
+          },
+          {
+            "hp": 150,
+            "sizes": {
+              "3500": {
+                "3.75": "10",
+                "5.25": "10"
+              }
+            }
+          }
+        ],
+        "maxBoreBySize": {
+          "5": 1.125,
+          "6": 1.375,
+          "7": 1.625,
+          "8": 1.875,
+          "9": 2.125,
+          "10": 2.375,
+          "11": 2.875
+        }
+      },
+      "sealSizeByFrame": {
+        "STR": 1.375,
+        "MTR": 1.75,
+        "LTR": 2.125,
+        "XLR": 2.5
+      },
+      "partNumberCodes": {
+        "seriesCode": "R",
+        "modelCode": "532",
+        "frameCode": {
+          "STR": "S",
+          "MTR": "M",
+          "LTR": "L",
+          "XLR": "X",
+          "XLR-17": "X",
+          "G1": "G1",
+          "G2": "G2",
+          "G3": "G3",
+          "SXT": "SXT",
+          "SXU": "SXU",
+          "SCP": "SCP",
+          "SFP": "SFP",
+          "RE500": "RE500",
+          "RE500CC": "RE500CC"
+        },
+        "flangeCode": {
+          "150#FF": "1F",
+          "150#RF": "1R",
+          "300#FF": "3F",
+          "300#RF": "3R"
+        },
+        "sbcCode": {
+          "STD BORE": "SB",
+          "LARGE BORE": "LB",
+          "TAPER BORE": "TB",
+          "CBS": "CBS",
+          "CBL": "CBL",
+          "FML": "FML",
+          "FMS": "FMS"
+        },
+        "shaftDesignCode": {
+          "4140/316SS SLEEVED SHAFT": "B",
+          "316SS/316SS SLEEVED SHAFT": "C",
+          "316SS SOLID SHAFT": "D",
+          "316SS Stub Shaft": "S"
+        },
+        "materialCode": {
+          "DI/316SS": "42",
+          "316SS/316SS": "22",
+          "CS/316SS": "42",
+          "CD4MCU/CD4MCU": "33",
+          "STANDARD CI/DI": "STD",
+          "CI": "CI",
+          "316SS": "S6"
+        },
+        "pumpSizeCode": {
+          "1.5X1-6": "AA",
+          "3X1.5-6": "AB",
+          "3X2-6": "AC",
+          "1.5X1-8": "AD",
+          "3X1.5-8": "AE",
+          "3X2-82": "AG",
+          "4X3-82": "AH",
+          "2X1-10A": "AJ",
+          "3X1.5-10A": "AK",
+          "3X2-10": "AL",
+          "3X2-10A": "AL",
+          "4X3-10": "AM",
+          "4X3-10H": "AN",
+          "6X4-10": "AO",
+          "6X4-10H": "AP",
+          "3X1.5-13": "AR",
+          "3X2-13": "AS",
+          "4X3-13": "AT",
+          "6X4-13A": "AU",
+          "8X6-14": "AV",
+          "10X8-14": "AW",
+          "6X4-16": "BB",
+          "8X6-16": "BC",
+          "8X6-16A": "BCA",
+          "10X8-16": "AY",
+          "10X8-16H": "BA",
+          "10X8-17": "BD"
+        },
+        "componentSizeCodeSource": {},
+        "componentDesignCode": {
+          "default": "R"
+        },
+        "componentPrefixes": {
+          "casing": "100",
+          "impeller": "101",
+          "stuffingBoxCover": "184"
+        },
+        "casingMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "impellerMaterialCode": {
+          "DI/316SS": "S6",
+          "316SS/316SS": "S6",
+          "CS/316SS": "S6",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCodeByFamily": {},
+        "closeCoupled": false
+      },
+      "sealDefaults": {
+        "sealOption": "ROTECH CHOICE",
+        "sealArrangement": "SINGLE CART",
+        "sealManufacturer": "ROTECH CHOICE",
+        "sealMoc": "SSV",
+        "sealGlandMoc": "",
+        "sealPlanOption": "NO PLAN"
+      },
+      "sourceStatus": "approved",
+      "sealSizeSource": "owner-supplied (not in CPQ); confirm before release"
+    },
+    {
+      "familyCode": "1296",
+      "displayName": "1296 Close Coupled ANSI Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": true,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "DI/316SS",
+        "316SS/316SS",
+        "CD4MCU/CD4MCU"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "1X1.5-6",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 6.0625,
+          "defaultMotorHp": 1
+        },
+        {
+          "pumpSize": "1.5X3-6",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 6.0625,
+          "defaultMotorHp": 1.5
+        },
+        {
+          "pumpSize": "2X3-6",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 6.0625,
+          "defaultMotorHp": 2
+        },
+        {
+          "pumpSize": "1X1.5-8",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8,
+          "defaultMotorHp": 3
+        },
+        {
+          "pumpSize": "1.5X3-8",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8,
+          "defaultMotorHp": 5
+        },
+        {
+          "pumpSize": "2X3-8",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8.375,
+          "defaultMotorHp": 7.5
+        },
+        {
+          "pumpSize": "3X4-7",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 7,
+          "defaultMotorHp": 10
+        },
+        {
+          "pumpSize": "3X4-8",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8.375,
+          "defaultMotorHp": 10
+        },
+        {
+          "pumpSize": "3X4-8G",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8.375,
+          "defaultMotorHp": 15
+        },
+        {
+          "pumpSize": "1X2-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 20
+        },
+        {
+          "pumpSize": "1.5X3-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 25
+        },
+        {
+          "pumpSize": "2X3-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 30
+        },
+        {
+          "pumpSize": "3X4-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 40
+        },
+        {
+          "pumpSize": "3X4-10H",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 50
+        },
+        {
+          "pumpSize": "4X6-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultMotorHp": 60
+        },
+        {
+          "pumpSize": "4X6-10G",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10.25,
+          "defaultMotorHp": 75
+        },
+        {
+          "pumpSize": "4X6-10H",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10.25,
+          "defaultMotorHp": 100
+        },
+        {
+          "pumpSize": "1.5X3-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 13,
+          "defaultMotorHp": 125
+        },
+        {
+          "pumpSize": "2X3-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 13,
+          "defaultMotorHp": 150
+        },
+        {
+          "pumpSize": "3X4-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 13,
+          "defaultMotorHp": 200
+        },
+        {
+          "pumpSize": "4X6-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13,
+          "defaultMotorHp": 250
+        },
+        {
+          "pumpSize": "6X8-13",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13
+        },
+        {
+          "pumpSize": "8X10-13",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13.25
+        },
+        {
+          "pumpSize": "6X8-15",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 15
+        },
+        {
+          "pumpSize": "8X10-15",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 15
+        },
+        {
+          "pumpSize": "8X10-15G",
+          "defaultFrame": "XLR",
+          "frameOptions": [
+            "XLR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 15
+        }
+      ],
+      "shaftTypes": [
+        "316SS Stub Shaft"
+      ],
+      "frameSpacing": {
+        "MTR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 1.125
+        },
+        "STR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 0.875
+        },
+        "XLR": {
+          "dbse": 5.25,
+          "pumpShaftDiameter": 2.375
+        }
+      },
+      "partNumberCodes": {
+        "seriesCode": "C",
+        "modelCode": "532",
+        "frameCode": {
+          "STR": "S",
+          "MTR": "M",
+          "LTR": "L",
+          "XLR": "X",
+          "XLR-17": "X",
+          "G1": "G1",
+          "G2": "G2",
+          "G3": "G3",
+          "SXT": "SXT",
+          "SXU": "SXU",
+          "SCP": "SCP",
+          "SFP": "SFP",
+          "RE500": "RE500",
+          "RE500CC": "RE500CC"
+        },
+        "flangeCode": {
+          "150#FF": "1F",
+          "150#RF": "1R",
+          "300#FF": "3F",
+          "300#RF": "3R"
+        },
+        "sbcCode": {
+          "STD BORE": "SB",
+          "LARGE BORE": "LB",
+          "TAPER BORE": "TB",
+          "CBS": "CBS",
+          "CBL": "CBL",
+          "FML": "FML",
+          "FMS": "FMS"
+        },
+        "shaftDesignCode": {
+          "4140/316SS SLEEVED SHAFT": "B",
+          "316SS/316SS SLEEVED SHAFT": "C",
+          "316SS SOLID SHAFT": "D",
+          "316SS Stub Shaft": "S"
+        },
+        "materialCode": {
+          "DI/316SS": "42",
+          "316SS/316SS": "22",
+          "CS/316SS": "42",
+          "CD4MCU/CD4MCU": "33",
+          "STANDARD CI/DI": "STD",
+          "CI": "CI",
+          "316SS": "S6"
+        },
+        "pumpSizeCode": {
+          "1X1.5-6": "AA",
+          "1.5X3-6": "AB",
+          "2X3-6": "AC",
+          "1X1.5-8": "AD",
+          "1.5X3-8": "AE",
+          "2X3-8": "AG",
+          "3X4-7": "BE",
+          "3X4-8": "AH",
+          "3X4-8G": "AI",
+          "1X2-10": "AJ",
+          "1.5X3-10": "AK",
+          "2X3-10": "AL",
+          "3X4-10": "AM",
+          "3X4-10H": "AN",
+          "4X6-10": "AO",
+          "4X6-10G": "AQ",
+          "4X6-10H": "AP",
+          "1.5X3-13": "AR",
+          "2X3-13": "AS",
+          "3X4-13": "AT",
+          "4X6-13": "AU",
+          "6X8-13": "AV",
+          "8X10-13": "AW",
+          "6X8-15": "AX",
+          "8X10-15": "AY",
+          "8X10-15G": "AZ"
+        },
+        "componentSizeCodeSource": {
+          "default": "1196"
+        },
+        "componentDesignCode": {
+          "casing": "A",
+          "impeller": "C",
+          "default": "C"
+        },
+        "componentPrefixes": {
+          "casing": "100",
+          "impeller": "101",
+          "stuffingBoxCover": "184"
+        },
+        "casingMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "impellerMaterialCode": {
+          "DI/316SS": "S6",
+          "316SS/316SS": "S6",
+          "CS/316SS": "S6",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCodeByFamily": {},
+        "closeCoupled": true
+      },
+      "sealDefaults": {
+        "sealOption": "ROTECH CHOICE",
+        "sealArrangement": "SINGLE CART",
+        "sealManufacturer": "ROTECH CHOICE",
+        "sealMoc": "SSV",
+        "sealGlandMoc": "",
+        "sealPlanOption": "NO PLAN"
+      },
+      "sourceStatus": "approved"
+    },
+    {
+      "familyCode": "1296LF",
+      "displayName": "1296LF Low Flow Close Coupled ANSI Pump",
+      "buildType": "close-coupled",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": true,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "DI/316SS",
+        "316SS/316SS",
+        "CD4MCU/CD4MCU"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "1X1.5-8LF",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 8,
+          "defaultFlange": "150#RF",
+          "flangeOptions": [
+            "150#RF",
+            "150#FF",
+            "300#RF",
+            "300#FF"
+          ]
+        },
+        {
+          "pumpSize": "1X2-10LF",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#RF",
+          "flangeOptions": [
+            "150#RF",
+            "150#FF",
+            "300#RF",
+            "300#FF"
+          ]
+        },
+        {
+          "pumpSize": "1.5X3-13LF",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "DI/316SS",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "300#RF",
+          "flangeOptions": [
+            "300#RF"
+          ]
+        }
+      ],
+      "shaftTypes": [
+        "316SS Stub Shaft"
+      ],
+      "frameSpacing": {
+        "MTR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 1.125
+        },
+        "STR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 0.875
+        }
+      },
+      "partNumberCodes": {
+        "seriesCode": "D",
+        "modelCode": "532",
+        "frameCode": {
+          "STR": "S",
+          "MTR": "M",
+          "LTR": "L",
+          "XLR": "X",
+          "XLR-17": "X",
+          "G1": "G1",
+          "G2": "G2",
+          "G3": "G3",
+          "SXT": "SXT",
+          "SXU": "SXU",
+          "SCP": "SCP",
+          "SFP": "SFP",
+          "RE500": "RE500",
+          "RE500CC": "RE500CC"
+        },
+        "flangeCode": {
+          "150#FF": "1F",
+          "150#RF": "1R",
+          "300#FF": "3F",
+          "300#RF": "3R"
+        },
+        "sbcCode": {
+          "STD BORE": "SB",
+          "LARGE BORE": "LB",
+          "TAPER BORE": "TB",
+          "CBS": "CBS",
+          "CBL": "CBL",
+          "FML": "FML",
+          "FMS": "FMS"
+        },
+        "shaftDesignCode": {
+          "4140/316SS SLEEVED SHAFT": "B",
+          "316SS/316SS SLEEVED SHAFT": "C",
+          "316SS SOLID SHAFT": "D",
+          "316SS Stub Shaft": "S"
+        },
+        "materialCode": {
+          "DI/316SS": "42",
+          "316SS/316SS": "22",
+          "CS/316SS": "42",
+          "CD4MCU/CD4MCU": "33",
+          "STANDARD CI/DI": "STD",
+          "CI": "CI",
+          "316SS": "S6"
+        },
+        "pumpSizeCode": {
+          "1X1.5-8LF": "AD",
+          "1X2-10LF": "AJ",
+          "1.5X3-13LF": "AR"
+        },
+        "componentSizeCodeSource": {
+          "casing": "1196LF",
+          "impeller": "1196LF",
+          "default": "1196"
+        },
+        "componentDesignCode": {
+          "casing": "B",
+          "impeller": "C",
+          "default": "C"
+        },
+        "componentPrefixes": {
+          "casing": "100",
+          "impeller": "101",
+          "stuffingBoxCover": "184"
+        },
+        "casingMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "impellerMaterialCode": {
+          "DI/316SS": "S6",
+          "316SS/316SS": "S6",
+          "CS/316SS": "S6",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCodeByFamily": {},
+        "closeCoupled": true
+      },
+      "sealDefaults": {
+        "sealOption": "ROTECH CHOICE",
+        "sealArrangement": "SINGLE CART",
+        "sealManufacturer": "ROTECH CHOICE",
+        "sealMoc": "SSV",
+        "sealGlandMoc": "",
+        "sealPlanOption": "NO PLAN"
+      },
+      "sourceStatus": "approved"
+    },
+    {
+      "familyCode": "1796CC",
+      "displayName": "1796CC Close Coupled Self-Primer ANSI Pump",
+      "buildType": "close-coupled",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": true,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "CS/316SS",
+        "316SS/316SS",
+        "CD4MCU/CD4MCU"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "1.5X1.5-8",
+          "defaultFrame": "STR",
+          "frameOptions": [
+            "STR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 8,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "2X2-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X3-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "4X4-10",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 10,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "3X3-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "4X4-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        },
+        {
+          "pumpSize": "6X6-13",
+          "defaultFrame": "MTR",
+          "frameOptions": [
+            "MTR"
+          ],
+          "defaultMoc": "CS/316SS",
+          "fullImpellerTrim": 13,
+          "defaultFlange": "150#FF"
+        }
+      ],
+      "shaftTypes": [
+        "316SS Stub Shaft"
+      ],
+      "frameSpacing": {
+        "MTR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 1.125
+        },
+        "STR": {
+          "dbse": 3.75,
+          "pumpShaftDiameter": 0.875
+        }
+      },
+      "partNumberCodes": {
+        "seriesCode": "F",
+        "modelCode": "532",
+        "frameCode": {
+          "STR": "S",
+          "MTR": "M",
+          "LTR": "L",
+          "XLR": "X",
+          "XLR-17": "X",
+          "G1": "G1",
+          "G2": "G2",
+          "G3": "G3",
+          "SXT": "SXT",
+          "SXU": "SXU",
+          "SCP": "SCP",
+          "SFP": "SFP",
+          "RE500": "RE500",
+          "RE500CC": "RE500CC"
+        },
+        "flangeCode": {
+          "150#FF": "1F",
+          "150#RF": "1R",
+          "300#FF": "3F",
+          "300#RF": "3R"
+        },
+        "sbcCode": {
+          "STD BORE": "SB",
+          "LARGE BORE": "LB",
+          "TAPER BORE": "TB",
+          "CBS": "CBS",
+          "CBL": "CBL",
+          "FML": "FML",
+          "FMS": "FMS"
+        },
+        "shaftDesignCode": {
+          "4140/316SS SLEEVED SHAFT": "B",
+          "316SS/316SS SLEEVED SHAFT": "C",
+          "316SS SOLID SHAFT": "D",
+          "316SS Stub Shaft": "S"
+        },
+        "materialCode": {
+          "DI/316SS": "42",
+          "316SS/316SS": "22",
+          "CS/316SS": "42",
+          "CD4MCU/CD4MCU": "33",
+          "STANDARD CI/DI": "STD",
+          "CI": "CI",
+          "316SS": "S6"
+        },
+        "pumpSizeCode": {
+          "1.5X1.5-8": "BF",
+          "2X2-10": "BG",
+          "3X3-10": "BH",
+          "4X4-10": "BI",
+          "3X3-13": "BJ",
+          "4X4-13": "BK",
+          "6X6-13": "BL"
+        },
+        "componentSizeCodeSource": {
+          "casing": "1796",
+          "impeller": "1196",
+          "default": "1196"
+        },
+        "componentDesignCode": {
+          "casing": "E",
+          "impeller": "C",
+          "default": "C"
+        },
+        "componentPrefixes": {
+          "casing": "100",
+          "impeller": "101",
+          "stuffingBoxCover": "184"
+        },
+        "casingMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "impellerMaterialCode": {
+          "DI/316SS": "S6",
+          "316SS/316SS": "S6",
+          "CS/316SS": "S6",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCode": {
+          "DI/316SS": "DI",
+          "316SS/316SS": "S6",
+          "CS/316SS": "CS",
+          "CD4MCU/CD4MCU": "C4"
+        },
+        "sbcMaterialCodeByFamily": {},
+        "closeCoupled": true
+      },
+      "sealDefaults": {
+        "sealOption": "ROTECH CHOICE",
+        "sealArrangement": "SINGLE CART",
+        "sealManufacturer": "ROTECH CHOICE",
+        "sealMoc": "SSV",
+        "sealGlandMoc": "",
+        "sealPlanOption": "NO PLAN"
+      },
+      "sourceStatus": "approved"
+    },
+    {
+      "familyCode": "SXT",
+      "displayName": "SXT Solids Handling Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": false,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "STANDARD CI/DI"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "SXT-2",
+          "defaultFrame": "SXT",
+          "frameOptions": [
+            "SXT"
+          ],
+          "defaultMoc": "STANDARD CI/DI",
+          "fullImpellerTrim": 6.25,
+          "defaultFlange": "125#RF",
+          "flangeOptions": [
+            "125#RF",
+            "NPT THREADED"
+          ]
+        },
+        {
+          "pumpSize": "SXT-3",
+          "defaultFrame": "SXT",
+          "frameOptions": [
+            "SXT"
+          ],
+          "defaultMoc": "STANDARD CI/DI",
+          "fullImpellerTrim": 8.75,
+          "defaultFlange": "125#RF",
+          "flangeOptions": [
+            "125#RF",
+            "NPT THREADED"
+          ]
+        },
+        {
+          "pumpSize": "SXT-4",
+          "defaultFrame": "SXT",
+          "frameOptions": [
+            "SXT"
+          ],
+          "defaultMoc": "STANDARD CI/DI",
+          "fullImpellerTrim": 9.75,
+          "defaultFlange": "125#RF",
+          "flangeOptions": [
+            "125#RF",
+            "NPT THREADED"
+          ]
+        },
+        {
+          "pumpSize": "SXT-6",
+          "defaultFrame": "SXT",
+          "frameOptions": [
+            "SXT"
+          ],
+          "defaultMoc": "STANDARD CI/DI",
+          "fullImpellerTrim": 12.375,
+          "defaultFlange": "125#RF",
+          "flangeOptions": [
+            "125#RF",
+            "NPT THREADED"
+          ]
+        },
+        {
+          "pumpSize": "SXT-8",
+          "defaultFrame": "SXT",
+          "frameOptions": [
+            "SXT"
+          ],
+          "defaultMoc": "STANDARD CI/DI",
+          "fullImpellerTrim": 14.75,
+          "defaultFlange": "125#RF",
+          "flangeOptions": [
+            "125#RF",
+            "NPT THREADED"
+          ]
+        },
+        {
+          "pumpSize": "SXT-10",
+          "defaultFrame": "SXT",
+          "frameOptions": [
+            "SXT"
+          ],
+          "defaultMoc": "STANDARD CI/DI",
+          "fullImpellerTrim": 14.75,
+          "defaultFlange": "125#RF",
+          "flangeOptions": [
+            "125#RF",
+            "NPT THREADED"
+          ]
+        }
+      ],
+      "shaftTypes": [
+        "4140"
+      ],
+      "sealDefaults": null,
+      "sealMocOptions": [
+        "TC/TC/FKM",
+        "SIC/SIC/FKM",
+        "OTHER"
+      ],
+      "sourceStatus": "approved"
+    },
+    {
+      "familyCode": "SXU",
+      "displayName": "SXU Higher Head Solids Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": false,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "STANDARD CI/DI"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "SXU-3",
+          "defaultFrame": "SXU",
+          "frameOptions": [
+            "SXU"
+          ],
+          "defaultMoc": "STANDARD CI/DI",
+          "fullImpellerTrim": 11,
+          "defaultFlange": "125#RF",
+          "flangeOptions": [
+            "125#RF",
+            "NPT THREADED"
+          ]
+        },
+        {
+          "pumpSize": "SXU-4",
+          "defaultFrame": "SXU",
+          "frameOptions": [
+            "SXU"
+          ],
+          "defaultMoc": "STANDARD CI/DI",
+          "fullImpellerTrim": 11,
+          "defaultFlange": "125#RF",
+          "flangeOptions": [
+            "125#RF",
+            "NPT THREADED"
+          ]
+        },
+        {
+          "pumpSize": "SXU-6",
+          "defaultFrame": "SXU",
+          "frameOptions": [
+            "SXU"
+          ],
+          "defaultMoc": "STANDARD CI/DI",
+          "fullImpellerTrim": 12.5,
+          "defaultFlange": "125#RF",
+          "flangeOptions": [
+            "125#RF",
+            "NPT THREADED"
+          ]
+        }
+      ],
+      "shaftTypes": [
+        "4140"
+      ],
+      "sealDefaults": null,
+      "sealMocOptions": [
+        "TC/TC/FKM",
+        "SIC/SIC/FKM",
+        "OTHER"
+      ],
+      "sourceStatus": "approved"
+    },
+    {
+      "familyCode": "1600",
+      "displayName": "1600 Close Coupled Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": false,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "CI",
+        "316SS",
+        "CD4MCU"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "1X1.5-6",
+          "defaultFrame": "1600",
+          "frameOptions": [
+            "1600"
+          ],
+          "defaultMoc": "CI",
+          "fullImpellerTrim": 6,
+          "defaultMotorHp": 1
+        },
+        {
+          "pumpSize": "1.5X2-6",
+          "defaultFrame": "1600",
+          "frameOptions": [
+            "1600"
+          ],
+          "defaultMoc": "CI",
+          "fullImpellerTrim": 6,
+          "defaultMotorHp": 1.5
+        }
+      ],
+      "shaftTypes": [
+        "316SS Stub Shaft"
+      ],
+      "sealDefaults": null,
+      "sourceStatus": "approved"
+    },
+    {
+      "familyCode": "RE500",
+      "displayName": "RE500 Pedestal Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": true,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "316SS"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "RE500",
+          "defaultFrame": "RE500",
+          "frameOptions": [
+            "RE500"
+          ],
+          "defaultMoc": "316SS",
+          "fullImpellerTrim": 6,
+          "defaultMotorHp": 1
+        },
+        {
+          "pumpSize": "RE530",
+          "defaultFrame": "RE500",
+          "frameOptions": [
+            "RE500"
+          ],
+          "defaultMoc": "316SS",
+          "fullImpellerTrim": 6,
+          "defaultMotorHp": 1.5
+        }
+      ],
+      "shaftTypes": [
+        "4140"
+      ],
+      "sealDefaults": null,
+      "sourceStatus": "approved"
+    },
+    {
+      "familyCode": "RE500CC",
+      "displayName": "RE500CC Close Coupled Pump",
+      "buildType": "close-coupled",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": false,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "316SS"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "RE500",
+          "defaultFrame": "RE500CC",
+          "frameOptions": [
+            "RE500CC"
+          ],
+          "defaultMoc": "316SS",
+          "fullImpellerTrim": 6,
+          "defaultMotorHp": 1
+        },
+        {
+          "pumpSize": "RE530",
+          "defaultFrame": "RE500CC",
+          "frameOptions": [
+            "RE500CC"
+          ],
+          "defaultMoc": "316SS",
+          "fullImpellerTrim": 6,
+          "defaultMotorHp": 1.5
+        }
+      ],
+      "shaftTypes": [
+        "316SS Stub Shaft"
+      ],
+      "sealDefaults": null,
+      "sourceStatus": "approved"
+    },
+    {
+      "familyCode": "SCP",
+      "displayName": "SCP Close Coupled Self-Primer Pump",
+      "buildType": "close-coupled",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": false,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "CI",
+        "316SS"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "150",
+          "defaultFrame": "SCP",
+          "frameOptions": [
+            "SCP"
+          ],
+          "defaultMoc": "CI",
+          "fullImpellerTrim": 0,
+          "defaultMotorHp": 1
+        },
+        {
+          "pumpSize": "200",
+          "defaultFrame": "SCP",
+          "frameOptions": [
+            "SCP"
+          ],
+          "defaultMoc": "CI",
+          "fullImpellerTrim": 0,
+          "defaultMotorHp": 1.5
+        },
+        {
+          "pumpSize": "300",
+          "defaultFrame": "SCP",
+          "frameOptions": [
+            "SCP"
+          ],
+          "defaultMoc": "CI",
+          "fullImpellerTrim": 0,
+          "defaultMotorHp": 5
+        }
+      ],
+      "shaftTypes": [
+        "4140"
+      ],
+      "sealDefaults": null,
+      "sourceStatus": "approved"
+    },
+    {
+      "familyCode": "SFP",
+      "displayName": "SFP Frame Mounted Self-Primer Pump",
+      "buildType": "pump-end",
+      "capabilities": {
+        "supportsCompletePackage": true,
+        "supportsBaseframe": true,
+        "supportsMotor": true
+      },
+      "materialOptions": [
+        "CI",
+        "316SS"
+      ],
+      "pumpSizes": [
+        {
+          "pumpSize": "150",
+          "defaultFrame": "SFP",
+          "frameOptions": [
+            "SFP"
+          ],
+          "defaultMoc": "CI",
+          "fullImpellerTrim": 0,
+          "defaultMotorHp": 1
+        },
+        {
+          "pumpSize": "200",
+          "defaultFrame": "SFP",
+          "frameOptions": [
+            "SFP"
+          ],
+          "defaultMoc": "CI",
+          "fullImpellerTrim": 0,
+          "defaultMotorHp": 1.5
+        },
+        {
+          "pumpSize": "300",
+          "defaultFrame": "SFP",
+          "frameOptions": [
+            "SFP"
+          ],
+          "defaultMoc": "CI",
+          "fullImpellerTrim": 0,
+          "defaultMotorHp": 5
+        }
+      ],
+      "shaftTypes": [
+        "4140"
+      ],
+      "sealDefaults": null,
+      "sourceStatus": "approved"
+    }
+  ],
+  "pumpSizeCodeByFamily": {
+    "1196": {
+      "1X1.5-6": "AA",
+      "1.5X3-6": "AB",
+      "2X3-6": "AC",
+      "1X1.5-8": "AD",
+      "1.5X3-8": "AE",
+      "2X3-8": "AG",
+      "3X4-8": "AH",
+      "3X4-8G": "AI",
+      "1X2-10": "AJ",
+      "1.5X3-10": "AK",
+      "2X3-10": "AL",
+      "3X4-10": "AM",
+      "3X4-10H": "AN",
+      "4X6-10": "AO",
+      "4X6-10G": "AQ",
+      "4X6-10H": "AP",
+      "1.5X3-13": "AR",
+      "2X3-13": "AS",
+      "3X4-13": "AT",
+      "4X6-13": "AU",
+      "6X8-13": "AV",
+      "8X10-13": "AW",
+      "6X8-15": "AX",
+      "8X10-15": "AY",
+      "8X10-15G": "AZ",
+      "8X10-16H": "BA",
+      "3X4-17": "EB",
+      "4X6-17": "BB",
+      "6X8-17": "BC",
+      "8X10-17": "BD"
+    },
+    "1296": {
+      "1X1.5-6": "AA",
+      "1.5X3-6": "AB",
+      "2X3-6": "AC",
+      "1X1.5-8": "AD",
+      "1.5X3-8": "AE",
+      "2X3-8": "AG",
+      "3X4-7": "BE",
+      "3X4-8": "AH",
+      "3X4-8G": "AI",
+      "1X2-10": "AJ",
+      "1.5X3-10": "AK",
+      "2X3-10": "AL",
+      "3X4-10": "AM",
+      "3X4-10H": "AN",
+      "4X6-10": "AO",
+      "4X6-10G": "AQ",
+      "4X6-10H": "AP",
+      "1.5X3-13": "AR",
+      "2X3-13": "AS",
+      "3X4-13": "AT",
+      "4X6-13": "AU",
+      "6X8-13": "AV",
+      "8X10-13": "AW",
+      "6X8-15": "AX",
+      "8X10-15": "AY",
+      "8X10-15G": "AZ"
+    },
+    "1796": {
+      "1.5X1.5-8": "BF",
+      "2X2-10": "BG",
+      "3X3-10": "BH",
+      "4X4-10": "BI",
+      "3X3-13": "BJ",
+      "4X4-13": "BK",
+      "6X6-13": "BL"
+    },
+    "1196LF": {
+      "1X1.5-8LF": "AD",
+      "1X2-10LF": "AJ",
+      "1.5X3-13LF": "AR"
+    },
+    "1296LF": {
+      "1X1.5-8LF": "AD",
+      "1X2-10LF": "AJ",
+      "1.5X3-13LF": "AR"
+    },
+    "1796CC": {
+      "1.5X1.5-8": "BF",
+      "2X2-10": "BG",
+      "3X3-10": "BH",
+      "4X4-10": "BI",
+      "3X3-13": "BJ",
+      "4X4-13": "BK",
+      "6X6-13": "BL"
+    },
+    "R3": {
+      "1.5X1-6": "AA",
+      "3X1.5-6": "AB",
+      "3X2-6": "AC",
+      "1.5X1-8": "AD",
+      "3X1.5-8": "AE",
+      "3X2-82": "AG",
+      "4X3-82": "AH",
+      "2X1-10A": "AJ",
+      "3X1.5-10A": "AK",
+      "3X2-10": "AL",
+      "3X2-10A": "AL",
+      "4X3-10": "AM",
+      "4X3-10H": "AN",
+      "6X4-10": "AO",
+      "6X4-10H": "AP",
+      "3X1.5-13": "AR",
+      "3X2-13": "AS",
+      "4X3-13": "AT",
+      "6X4-13A": "AU",
+      "8X6-14": "AV",
+      "10X8-14": "AW",
+      "6X4-16": "BB",
+      "8X6-16": "BC",
+      "8X6-16A": "BCA",
+      "10X8-16": "AY",
+      "10X8-16H": "BA",
+      "10X8-17": "BD"
+    }
+  },
+  "hydraulicEquivalentByFamily": {
+    "1796": {
+      "1.5X1.5-8": "1X1.5-8",
+      "2X2-10": "1X2-10",
+      "3X3-10": "2X3-10",
+      "4X4-10": "3X4-10",
+      "3X3-13": "2X3-13",
+      "4X4-13": "3X4-13",
+      "6X6-13": "4X6-13"
+    },
+    "1196LF": {
+      "1X1.5-8LF": "1X1.5-8",
+      "1X2-10LF": "1X2-10",
+      "1.5X3-13LF": "1.5X3-13"
+    },
+    "1296LF": {
+      "1X1.5-8LF": "1X1.5-8",
+      "1X2-10LF": "1X2-10",
+      "1.5X3-13LF": "1.5X3-13"
+    },
+    "1796CC": {
+      "1.5X1.5-8": "1X1.5-8",
+      "2X2-10": "1X2-10",
+      "3X3-10": "2X3-10",
+      "4X4-10": "3X4-10",
+      "3X3-13": "2X3-13",
+      "4X4-13": "3X4-13",
+      "6X6-13": "4X6-13"
+    }
+  },
+  "sourceRepository": "New project (CPQ)",
+  "sourceBranch": "codex/rhs-split-case-staging",
+  "sourceCommit": "6b62b0bc800b58a44de6ebf8fe6da3dbd28c743e",
+  "sourceFileChecksums": {
+    "data/ansi-family.seed.json": "a391d6ccc31b29286277c7777f16c3dc43866cff27785af44bb56fe338c2dbdf",
+    "data/pump-records.json": "8df491168dbd33505fd6cdbdf02bedbfad3ba20b96d6e9c86d148495366c7991",
+    "data/ansi-quote-line.schema.json": "44155d6f8ab9b542cfd1d9eb24f192f55e38a0e032aa7e9c48029f45f5ee650b",
+    "data/cpq-catalog.json": "a1a027ee1ec606ef8afeef77a3948371ce8dda74288667590d721866c6b112ef"
+  },
+  "sourceNote": "Derived from committed HEAD only. app.js was uncommitted at generation time, so runtime defaults were read from `git show HEAD:app.js`. RHS/RHST/RHSV staging data is excluded: staged/unpriced, not approved production configuration.",
+  "commonOptionSets": {
+    "materialBuilds": [
+      "DI/316SS",
+      "316SS/316SS",
+      "CD4MCU/CD4MCU",
+      "CS/316SS",
+      "STANDARD CI/DI",
+      "CI",
+      "316SS",
+      "CD4MCU"
+    ],
+    "flangeTypes": [
+      "150#FF",
+      "150#RF",
+      "300#FF",
+      "300#RF",
+      "125#RF",
+      "NPT THREADED"
+    ],
+    "shaftTypes": [
+      "4140/316SS SLEEVED SHAFT",
+      "316SS/316SS SLEEVED SHAFT",
+      "316SS SOLID SHAFT",
+      "316SS Stub Shaft",
+      "4140 Shaft/316SS Stub Shaft",
+      "4140 Shaft/CD4 Stub Shaft"
+    ],
+    "sbcTypes": [
+      "STD BORE",
+      "LARGE BORE",
+      "TAPER BORE"
+    ],
+    "sealAdderTypes": [
+      "TYPE 1 SEAL KIT",
+      "SINGLE CARTRIDGE",
+      "DOUBLE CARTRIDGE"
+    ],
+    "sealMoc": [
+      "CCV",
+      "CSV",
+      "SSV",
+      "CSSSSV",
+      "CSSTV",
+      "CAR/SIC/FKM",
+      "SIC/SIC/FKM",
+      "TC/TC/FKM",
+      "CUSTOM"
+    ],
+    "sealGlandMoc": [
+      "CS",
+      "316SS",
+      "CD4MCU"
+    ],
+    "sealPlans": [
+      "NO PLAN",
+      "PLAN 11",
+      "PLAN 52",
+      "OTHER"
+    ],
+    "motorStandards": [
+      "C1D2 PREMIUM EFFICIENCY TEFC",
+      "C1D1 EXPLOSION PROOF",
+      "C1D2 IEEE841 SEVERE DUTY",
+      "IEC / RFQ",
+      "CUSTOM"
+    ],
+    "testingAdders": [
+      "NON-WITNESSED HYDROSTATIC TEST",
+      "FOUNDRY MATERIAL TEST",
+      "NON-WITNESSED PERFORMANCE TEST",
+      "POSITIVE MATERIAL INDICATION REPORT",
+      "NPSH TEST",
+      "VIBRATION AND SOUND TEST"
+    ]
+  },
+  "scopeOptions": {
+    "responsibility": [
+      "in-scope",
+      "by-others"
+    ],
+    "selectionMode": [
+      "not-included",
+      "standard",
+      "customer-supplied",
+      "custom",
+      "special"
+    ],
+    "packageType": [
+      "pump-only",
+      "skid-package"
+    ]
+  },
+  "statusEnums": {
+    "configurationStatus": [
+      "draft",
+      "standard",
+      "custom",
+      "rfq-required"
+    ],
+    "sealBy": [
+      "rotech",
+      "customer",
+      "drop-ship"
+    ],
+    "sealPlanBy": [
+      "rotech",
+      "customer"
+    ],
+    "stockStatus": [
+      "unknown",
+      "in-stock",
+      "limited",
+      "out-of-stock",
+      "rfq"
+    ]
+  }
+}

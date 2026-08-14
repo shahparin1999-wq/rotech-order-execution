@@ -5,21 +5,30 @@
 
 import { generateUnits, mockPublicRef, unitIdFor } from "./ids";
 import { recomputeUnitProjection } from "./projections";
+import { seedInventory } from "./inventorySeed";
+import { RULES_VERSION_1196 } from "./model1196";
 import type {
   AppState,
   ChecklistItemDef,
+  ComponentRequirement1196,
+  ConfirmationRecord1196,
   Contact,
   Customer,
   Employee,
   Order,
+  OrderLine,
+  Pump1196LineConfig,
   QrIdentity,
   RouteOperation,
+  ServiceRequirement1196,
   Task,
   Unit
 } from "./types";
+import type { ComponentUsage } from "./ledger/componentUsage";
 
 export const ORDER_NO = "SAMPLE1001";
 export const HOUSTON_ORDER_NO = "SAMPLE1002";
+export const ORDER_NO_1196_DEMO = "DEMO1196STD-1";
 
 // A few Planner-only task due dates are computed relative to "now" (not a
 // fixed fictional date) so the My Work overdue/due-soon sections stay
@@ -204,6 +213,291 @@ const houstonUnits: Unit[] = generateUnits(
     2: { status: "NotStarted", currentOperation: "Receive material" }
   }
 );
+
+// ---------------------------------------------------------------------------
+// DEMO1196STD-1: a second, independent 1196 order demonstrating the
+// rules-driven configuration/execution slice (model1196.ts) — a controlled
+// manual configuration, not a CPQ import. Quantity 2: Unit 1 shows the
+// power-end-available branch: Unit 2 shows the power-end-build-required
+// branch, so both sides of R-1196-013 are visible without touching the
+// unrelated SAMPLE1001/Houston fixtures above.
+// ---------------------------------------------------------------------------
+
+const DEMO1196_LINE_ID = `${ORDER_NO_1196_DEMO}-L1`;
+
+const demo1196Line: OrderLine = {
+  id: DEMO1196_LINE_ID,
+  lineNumber: 1,
+  sourceSystem: "Manual",
+  product: "1196 3X4-13",
+  description: "ANSI 1196 complete pump package, 3X4-13, MTR frame",
+  family: "1196",
+  model: "1196",
+  quantity: 2,
+  orderedMaterial: "316SS/316SS",
+  templateName: `1196 controlled manual configuration (${RULES_VERSION_1196})`
+};
+
+const demo1196Order: Order = {
+  orderNumber: ORDER_NO_1196_DEMO,
+  customerId: CUSTOMER_ACME,
+  customerPo: "DEMO-1196-01",
+  dueDate: "2026-08-20",
+  productFamily: "1196",
+  orderType: "Pump package",
+  facility: "Mississauga",
+  coordinatorId: "e-sarah",
+  status: "Open",
+  priority: "Medium",
+  updatedAt: "2026-07-20T14:00:00Z",
+  teamsLinkPlaceholder: "Teams thread link (placeholder - no real Teams integration)",
+  publicRef: mockPublicRef(`order:${ORDER_NO_1196_DEMO}`),
+  lines: [demo1196Line],
+  risks: [
+    "Release blocked - confirmation gate incomplete (package scope, services, open questions, coordinator sign-off not yet confirmed)"
+  ]
+};
+
+const demo1196Units: Unit[] = generateUnits(
+  ORDER_NO_1196_DEMO,
+  1,
+  2,
+  {
+    model: "1196",
+    size: "3X4-13",
+    orderedMaterial: "316SS/316SS",
+    location: "Mississauga - Assembly floor"
+  },
+  {
+    1: { status: "InAssembly", currentOperation: "Power-end allocation and leak/free-rotation check" },
+    2: { status: "NotStarted", currentOperation: "Intake review" }
+  }
+);
+const D1 = unitIdFor(ORDER_NO_1196_DEMO, 1, 1);
+const D2 = unitIdFor(ORDER_NO_1196_DEMO, 1, 2);
+
+const demo1196Config: Pump1196LineConfig = {
+  id: "cfg1196-demo1",
+  lineId: DEMO1196_LINE_ID,
+  orderNumber: ORDER_NO_1196_DEMO,
+  lineNumber: 1,
+  rulesVersion: RULES_VERSION_1196,
+  size: "3X4-13",
+  frame: "MTR",
+  materialBuild: "316SS/316SS",
+  shaftType: "316SS/316SS SLEEVED SHAFT",
+  fullImpellerTrim: 13.0,
+  hydraulicCondition: { kind: "MaxDiameter" },
+  stuffingBoxCover: {
+    kind: "Override",
+    description: "Large-bore stuffing-box cover",
+    reason: "Customer-specified solids handling; commercially supported per PO DEMO-1196-01."
+  },
+  buildType: "CompletePackage",
+  powerEndAvailability: "Required",
+  packageScope: {
+    motor: "RotechSupplied",
+    baseplate: "RotechSupplied",
+    coupling: "RotechSupplied",
+    couplingGuard: "RotechSupplied",
+    seal: "RotechSupplied",
+    accessories: "NotInScope"
+  },
+  packageDrawing: {
+    kind: "CustomBaseplate",
+    reference: "BP-DEMO-1196-01",
+    note: "Customer-specified extended baseplate with drip rim; supersedes the MTR standard baseplate drawing.",
+    attachmentId: null
+  },
+  dbse: { value: 3.75, isDefault: true },
+  selectedServiceKeys: ["hydrostaticTest", "materialReports"],
+  createdAt: "2026-07-20T14:00:00Z",
+  createdBy: "e-sarah"
+};
+
+function baselineReq(
+  id: string,
+  unitId: string,
+  key: string,
+  label: string,
+  availabilityState: ComponentRequirement1196["availabilityState"],
+  ruleId: string,
+  catalogPartNumber: string | null = null
+): ComponentRequirement1196 {
+  return {
+    id,
+    scopeType: "Unit",
+    scopeId: unitId,
+    orderNumber: ORDER_NO_1196_DEMO,
+    lineNumber: 1,
+    key,
+    label,
+    catalogPartNumber,
+    parentRequirementId: null,
+    availabilityState,
+    ruleId,
+    createdAt: "2026-07-20T14:00:00Z"
+  };
+}
+
+const demo1196Requirements: ComponentRequirement1196[] = [
+  // Unit 1 (D1): power end available - allocated, no child build requirements.
+  baselineReq("req-d1-casing", D1, "casing", "150# FF casing — 316SS/316SS", "Complete", "R-1196-003"),
+  baselineReq("req-d1-impeller", D1, "impeller", "Impeller — maximum diameter 13 in", "Complete", "R-1196-004"),
+  baselineReq("req-d1-sbc", D1, "stuffingBoxCover", "Large-bore stuffing-box cover (explicit override)", "Allocated", "R-1196-009"),
+  baselineReq("req-d1-powerend", D1, "powerEndAssembly", "Power end with adapter - allocated", "Allocated", "R-1196-012"),
+  baselineReq("req-d1-motor", D1, "motor", "Motor (Rotech supplied)", "Required", "R-1196-021"),
+  baselineReq("req-d1-baseplate", D1, "baseplate", "Baseplate (Rotech supplied)", "Required", "R-1196-017"),
+  baselineReq("req-d1-coupling", D1, "coupling", "Coupling (Rotech supplied)", "Required", "R-1196-023"),
+  baselineReq("req-d1-guard", D1, "couplingGuard", "Coupling guard (Rotech supplied)", "Required", "R-1196-023"),
+
+  // Unit 2 (D2): power end unavailable - build required, full child expansion
+  // (R-1196-013/014). The shaft kit and bearing frame carry their CPQ-mapped
+  // part numbers; the remaining children have no controlled mapping in either
+  // source (D-1196-005 partially open) and stay placeholders.
+  baselineReq("req-d2-casing", D2, "casing", "150# FF casing — 316SS/316SS", "Required", "R-1196-003"),
+  baselineReq("req-d2-impeller", D2, "impeller", "Impeller — maximum diameter 13 in", "Required", "R-1196-004"),
+  baselineReq("req-d2-sbc", D2, "stuffingBoxCover", "Large-bore stuffing-box cover (explicit override)", "Required", "R-1196-009"),
+  { ...baselineReq("req-d2-powerend", D2, "powerEndAssembly", "Power end with adapter - build required", "NeedsAssembly", "R-1196-013") },
+  { ...baselineReq("req-d2-shaftkit", D2, "shaftKit", "Shaft kit — 316SS/316SS SLEEVED SHAFT", "NeedsPurchase", "R-1196-014", "A529L-S22"), parentRequirementId: "req-d2-powerend" },
+  { ...baselineReq("req-d2-bearingframe", D2, "bearingFrame", "Bearing frame (MTR) — 316SS/316SS SLEEVED SHAFT", "NeedsPurchase", "R-1196-014", "A530L-P422"), parentRequirementId: "req-d2-powerend" },
+  { ...baselineReq("req-d2-framefoot", D2, "frameFoot", "Frame foot (pilot placeholder - owner approval required)", "NeedsPurchase", "R-1196-014"), parentRequirementId: "req-d2-powerend" },
+  { ...baselineReq("req-d2-adapter", D2, "adapter", "Adapter (pilot placeholder - owner approval required)", "NeedsPurchase", "R-1196-014"), parentRequirementId: "req-d2-powerend" },
+  { ...baselineReq("req-d2-bearings", D2, "bearings", "Bearings (pilot placeholder - owner approval required)", "NeedsPurchase", "R-1196-007"), parentRequirementId: "req-d2-powerend" },
+  { ...baselineReq("req-d2-labyrinth", D2, "labyrinthSeals", "Labyrinth seals (pilot placeholder - owner approval required)", "NeedsPurchase", "R-1196-007"), parentRequirementId: "req-d2-powerend" },
+  { ...baselineReq("req-d2-sightglass", D2, "sightGlassFittings", "Sight glass and fittings (pilot placeholder - owner approval required)", "NeedsPurchase", "R-1196-007"), parentRequirementId: "req-d2-powerend" },
+  baselineReq("req-d2-motor", D2, "motor", "Motor (Rotech supplied)", "Required", "R-1196-021"),
+  baselineReq("req-d2-baseplate", D2, "baseplate", "Baseplate (Rotech supplied)", "Required", "R-1196-017"),
+  baselineReq("req-d2-coupling", D2, "coupling", "Coupling (Rotech supplied)", "Required", "R-1196-023"),
+  baselineReq("req-d2-guard", D2, "couplingGuard", "Coupling guard (Rotech supplied)", "Required", "R-1196-023")
+];
+
+// The 1196 demo Unit's casing, captured in the generic as-built layer.
+const demo1196Usages: ComponentUsage[] = [
+  {
+    id: "usage-d1-casing",
+    requirementId: "req-d1-casing",
+    unitId: D1,
+    componentRole: "casing",
+    quantity: 1,
+    trackingType: "HeatTracked",
+    source: "Inventory",
+    partNumber: "CAS-3X4-13-316",
+    material: "316SS",
+    heatLot: "HL-2231",
+    usageStatus: "Installed",
+    matchStatus: "Matched",
+    matchNote: "Matches the ordered specification.",
+    recordedAt: "2026-07-21T13:00:00Z",
+    recordedBy: "e-dave"
+  }
+];
+
+const demo1196Services: ServiceRequirement1196[] = [
+  {
+    id: "svc-d1196-hydro",
+    orderNumber: ORDER_NO_1196_DEMO,
+    lineNumber: 1,
+    lineId: DEMO1196_LINE_ID,
+    serviceKey: "hydrostaticTest",
+    label: "Hydrostatic test",
+    resultFields: { testPressure: null, duration: null, result: null },
+    evidenceNote: null,
+    blocksRelease: true,
+    status: "Open",
+    createdAt: "2026-07-20T14:00:00Z"
+  },
+  {
+    id: "svc-d1196-matreports",
+    orderNumber: ORDER_NO_1196_DEMO,
+    lineNumber: 1,
+    lineId: DEMO1196_LINE_ID,
+    serviceKey: "materialReports",
+    label: "Material reports",
+    resultFields: { documentRef: null },
+    evidenceNote: null,
+    blocksRelease: true,
+    status: "Open",
+    createdAt: "2026-07-20T14:00:00Z"
+  }
+  // "performanceTest" was NOT selected - it creates no ServiceRequirement and
+  // no task (R-1196-024): unselected services are not "missing" work.
+];
+
+// Confirmation gate (docs §3.3) partially confirmed: 4 of 8 items confirmed,
+// so releaseBlockers1196 reports the remaining 4 as unresolved.
+const demo1196Confirmations: ConfirmationRecord1196[] = [
+  { id: "confirm-d1196-identity", scopeType: "WorkOrderLine", scopeId: DEMO1196_LINE_ID, orderNumber: ORDER_NO_1196_DEMO, lineNumber: 1, gateKey: "identityMatchesSource", confirmedBy: "e-sarah", confirmedAt: "2026-07-20T14:10:00Z", note: "Matches approved manual configuration MTR 3X4-13.", supersedesId: null },
+  { id: "confirm-d1196-baseline", scopeType: "WorkOrderLine", scopeId: DEMO1196_LINE_ID, orderNumber: ORDER_NO_1196_DEMO, lineNumber: 1, gateKey: "baselineComplete", confirmedBy: "e-sarah", confirmedAt: "2026-07-20T14:11:00Z", note: null, supersedesId: null },
+  { id: "confirm-d1196-nonstandard", scopeType: "WorkOrderLine", scopeId: DEMO1196_LINE_ID, orderNumber: ORDER_NO_1196_DEMO, lineNumber: 1, gateKey: "nonstandardExplicit", confirmedBy: "e-sarah", confirmedAt: "2026-07-20T14:12:00Z", note: "Large-bore SBC explicitly selected and commercially supported.", supersedesId: null },
+  { id: "confirm-d1196-qty", scopeType: "WorkOrderLine", scopeId: DEMO1196_LINE_ID, orderNumber: ORDER_NO_1196_DEMO, lineNumber: 1, gateKey: "quantityCorrect", confirmedBy: "e-sarah", confirmedAt: "2026-07-20T14:13:00Z", note: "Quantity 2 confirmed against the approved manual configuration.", supersedesId: null }
+];
+
+const demo1196Tasks: Task[] = [
+  {
+    id: "t-d1196-1-powerend",
+    unitId: D1,
+    orderNumber: ORDER_NO_1196_DEMO,
+    customerId: null,
+    name: "Power-end allocation and leak/free-rotation check",
+    description: null,
+    operationId: null,
+    bucket: "AssemblyTesting",
+    department: "Assembly",
+    status: "InProgress",
+    ownerId: "e-alex",
+    assigneeIds: ["e-alex"],
+    startDate: null,
+    dueDate: null,
+    priority: "Medium",
+    labels: [],
+    checklist: [],
+    attachmentIds: [],
+    comments: [],
+    status_beforeBlock: null,
+    blockReason: null,
+    handoffs: [],
+    history: [{ action: "Started", actorId: "e-alex", at: "2026-07-21T13:00:00Z", note: null }],
+    sourcePostId: null
+  },
+  {
+    id: "t-d1196-2-intake",
+    unitId: D2,
+    orderNumber: ORDER_NO_1196_DEMO,
+    customerId: null,
+    name: "Intake review",
+    description: null,
+    operationId: null,
+    bucket: "TBC",
+    department: "Coordination",
+    status: "Ready",
+    ownerId: null,
+    assigneeIds: [],
+    startDate: null,
+    dueDate: null,
+    priority: "Medium",
+    labels: [],
+    checklist: [],
+    attachmentIds: [],
+    comments: [],
+    status_beforeBlock: null,
+    blockReason: null,
+    handoffs: [],
+    history: [],
+    sourcePostId: null
+  }
+];
+
+const demo1196QrIdentities: QrIdentity[] = [
+  { publicRef: demo1196Order.publicRef, recordType: "Order", targetId: ORDER_NO_1196_DEMO, label: `Master order ${ORDER_NO_1196_DEMO}`, printEvents: [] },
+  ...demo1196Units.map((u) => ({
+    publicRef: u.publicRef,
+    recordType: "Unit" as const,
+    targetId: u.unitId,
+    label: `Unit ${u.unitId}`,
+    printEvents: [] as QrIdentity["printEvents"]
+  }))
+];
 
 const ROUTE_1196: Array<{ name: string; department: RouteOperation["department"] }> = [
   { name: "Intake review", department: "Coordination" },
@@ -442,6 +736,18 @@ const checklistDefs: ChecklistItemDef[] = [
   { key: "nameplate", label: "Nameplate installed and stamped", responseType: "checkbox", unit: null, nominal: null, min: null, max: null, requiresPhoto: true, requiresNote: false, placeholderTolerance: false },
   { key: "final-quality", label: "Final quality inspection", responseType: "passfail", unit: null, nominal: null, min: null, max: null, requiresPhoto: false, requiresNote: true, placeholderTolerance: false },
   { key: "packaging-photo", label: "Packaging complete with photo", responseType: "checkbox", unit: null, nominal: null, min: null, max: null, requiresPhoto: true, requiresNote: false, placeholderTolerance: false }
+];
+
+// Shop storage locations. Fictional but shaped the way a real rack/bin scheme
+// is, so the put-away and label flows have somewhere to point at.
+const DEMO_LOCATIONS = [
+  { id: "LOC-MIS-RECV", facility: "Mississauga", area: "Receiving dock", description: "Inbound staging" },
+  { id: "LOC-MIS-QUAR", facility: "Mississauga", area: "Quarantine cage", description: "Awaiting incoming inspection" },
+  { id: "LOC-MIS-B04-03", facility: "Mississauga", area: "Rack B04", bin: "Bin 03" },
+  { id: "LOC-MIS-B04-04", facility: "Mississauga", area: "Rack B04", bin: "Bin 04" },
+  { id: "LOC-MIS-C02", facility: "Mississauga", area: "Rack C02", bin: "Bin 01" },
+  { id: "LOC-HOU-RECV", facility: "Houston", area: "Receiving dock", description: "Inbound staging" },
+  { id: "LOC-HOU-A1", facility: "Houston", area: "Rack A1", bin: "Bin 01" }
 ];
 
 export function buildInitialState(): AppState {
@@ -736,10 +1042,10 @@ export function buildInitialState(): AppState {
     employees,
     customers,
     contacts,
-    orders: [mainOrder, houstonOrder],
-    units,
+    orders: [mainOrder, houstonOrder, demo1196Order],
+    units: [...units, ...demo1196Units],
     routeOps,
-    tasks,
+    tasks: [...tasks, ...demo1196Tasks],
     checklistDefs,
     responses: [
       // Unit 1.1 - complete history, including one superseded correction.
@@ -939,7 +1245,7 @@ export function buildInitialState(): AppState {
       { id: "ae-11", at: "2026-07-16T13:20:00Z", actorId: "e-dave", action: "task.blocked", targetType: "Task", targetId: "t-13-verify", unitId: U(3), detail: "Blocked: impeller casting not received (ETA Jul 22).", supersedesEventId: null },
       { id: "ae-12", at: "2026-07-17T21:58:00Z", actorId: "e-miguel", action: "task.paused", targetType: "Task", targetId: "t-12-trim", unitId: U(2), detail: "Paused with full handoff (end of shift).", supersedesEventId: null }
     ],
-    qrIdentities,
+    qrIdentities: [...qrIdentities, ...demo1196QrIdentities],
     components: [
       {
         id: "CMP-IMP-0412",
@@ -1000,6 +1306,22 @@ export function buildInitialState(): AppState {
     configurationSnapshots: [],
     manufacturingNotes: [],
     configurationAdjustments: [],
+    workingBomRows: [],
+    attentionItems: [],
+    pump1196Configs: [demo1196Config],
+    componentRequirements1196: demo1196Requirements,
+    serviceRequirements1196: demo1196Services,
+    confirmationRecords1196: demo1196Confirmations,
+    configuredLines: [],
+    requirements: [],
+    fulfillments: [],
+    componentUsages: demo1196Usages,
+    inventoryIdentities: [],
+    inventoryMovements: [],
+    inventoryReceipts: [],
+    inventoryReceiptLines: [],
+    inventoryLocations: DEMO_LOCATIONS,
+    internalJobs: [],
     favourites: ["view:orders", "view:quality"],
     followedOrders: [ORDER_NO],
     nextId: 1000
@@ -1007,8 +1329,12 @@ export function buildInitialState(): AppState {
 
   // Seed the calculated Unit/Operation statuses the same way live mutations
   // do, so the demo narrative and the projection can never silently disagree.
-  return units.reduce(
+  const projected = units.reduce(
     (s, u) => recomputeUnitProjection(s, u.unitId),
     initial
   );
+
+  // Stock last: it replays real receive/inspect/put-away/reserve actions, and
+  // reserving needs the Units to already exist.
+  return seedInventory(projected);
 }

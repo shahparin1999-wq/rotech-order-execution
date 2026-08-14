@@ -19,13 +19,28 @@ import React, {
 } from "react";
 import { buildInitialState } from "@/domain/fixtures";
 import { recomputeUnitProjection } from "@/domain/projections";
-import type { AppState, PlannerBucket, Priority } from "@/domain/types";
+import type { AppState, PackageDrawing1196, PlannerBucket, Priority } from "@/domain/types";
+import type { ConfiguratorDraft } from "@/domain/configurator";
+import {
+  adjustInventory,
+  createPutAwayJob,
+  inspectInventory,
+  installInventory,
+  issueInventoryToUnit,
+  putAwayInventory,
+  receiveInventory,
+  reserveInventory,
+  returnInventoryToStock,
+  type ReceiveInput
+} from "@/domain/inventoryActions";
 import { parseStoredEnvelope, serializeEnvelope, STORAGE_KEY } from "./persistence";
 import {
   addAttachment,
   addChecklistResponse,
   addConfigurationAdjustment,
   addManufacturingNote,
+  addUnitsToLine,
+  addWorkingBomRow,
   addPost,
   addReply,
   addTaskChecklistItem,
@@ -37,13 +52,24 @@ import {
   changeTaskPriority,
   completeTask,
   completeTaskDirect,
+  confirmGateItem1196,
   convertPost,
   createContact,
   createCustomer,
+  create1196PumpEnd,
   createTask,
+  createConfiguredOrder,
   createWorkOrder,
+  decidePowerEndAvailability,
   editOrder,
   importExecutionPackage,
+  approveUsageSubstitution,
+  recordComponentUsage,
+  recordComponentUsage1196,
+  removeWorkingBomRow,
+  seedWorkingBom,
+  setPackageDrawing1196,
+  updateWorkingBomRow,
   markPostRead,
   moveTaskBucket,
   pauseTask,
@@ -58,14 +84,20 @@ import {
   type AttachmentInput,
   type ContactInput,
   type ConvertInput,
+  type AddUnitsInput,
   type ConfigurationAdjustmentInput,
+  type Create1196PumpEndInput,
   type CustomerInput,
   type ImportPackageInput,
   type ManufacturingNoteInput,
   type OrderEditInput,
   type PauseInput,
+  type RecordComponentUsageInput,
+  type RecordUsageInput,
   type ResponseInput,
   type TaskInput,
+  type WorkingBomPatch,
+  type WorkingBomRowInput,
   type WorkOrderInput
 } from "@/domain/actions";
 
@@ -91,8 +123,30 @@ export type Action =
   | { type: "createContact"; customerId: string; input: ContactInput }
   | { type: "createWorkOrder"; input: WorkOrderInput }
   | { type: "importExecutionPackage"; input: ImportPackageInput }
+  | { type: "create1196PumpEnd"; input: Create1196PumpEndInput }
+  | { type: "createConfiguredOrder"; draft: ConfiguratorDraft }
+  | { type: "receiveInventory"; input: ReceiveInput }
+  | { type: "inspectInventory"; identityId: string; decision: "Accept" | "Reject"; note: string }
+  | { type: "putAwayInventory"; identityId: string; locationId: string }
+  | { type: "reserveInventory"; identityId: string; unitId: string; quantity: number; requirementId?: string }
+  | { type: "issueInventoryToUnit"; identityId: string; unitId: string; quantity: number }
+  | { type: "installInventory"; identityId: string; unitId: string; quantity: number }
+  | { type: "returnInventoryToStock"; identityId: string; unitId: string; quantity: number; reason: string; locationId: string }
+  | { type: "adjustInventory"; identityId: string; delta: number; reason: string; authorizedBy: string }
+  | { type: "createPutAwayJob"; identityIds: string[]; facility: string }
+  | { type: "decidePowerEndAvailability"; unitId: string; decision: "Available" | "BuildRequired" }
+  | { type: "recordComponentUsage1196"; requirementId: string; input: RecordComponentUsageInput }
+  | { type: "recordComponentUsage"; input: RecordUsageInput }
+  | { type: "approveUsageSubstitution"; usageId: string; reason: string }
+  | { type: "confirmGateItem1196"; lineId: string; gateKey: string; note: string | null }
+  | { type: "setPackageDrawing1196"; lineId: string; drawing: PackageDrawing1196 }
   | { type: "addManufacturingNote"; input: ManufacturingNoteInput }
   | { type: "addConfigurationAdjustment"; input: ConfigurationAdjustmentInput }
+  | { type: "addUnitsToLine"; input: AddUnitsInput }
+  | { type: "seedWorkingBom"; orderNumber: string; lineId: string }
+  | { type: "addWorkingBomRow"; input: WorkingBomRowInput }
+  | { type: "updateWorkingBomRow"; rowId: string; patch: WorkingBomPatch }
+  | { type: "removeWorkingBomRow"; rowId: string }
   | { type: "changeOrderDueDate"; orderNumber: string; dueDate: string }
   | { type: "editOrder"; orderNumber: string; input: OrderEditInput }
   | { type: "createTask"; input: TaskInput }
@@ -167,10 +221,54 @@ function buildReducer(onError: (message: string) => void) {
           return createWorkOrder(state, actor, action.input);
         case "importExecutionPackage":
           return importExecutionPackage(state, actor, action.input);
+        case "create1196PumpEnd":
+          return create1196PumpEnd(state, actor, action.input);
+        case "createConfiguredOrder":
+          return createConfiguredOrder(state, actor, action.draft);
+        case "receiveInventory":
+          return receiveInventory(state, actor, action.input);
+        case "inspectInventory":
+          return inspectInventory(state, actor, action.identityId, action.decision, action.note);
+        case "putAwayInventory":
+          return putAwayInventory(state, actor, action.identityId, action.locationId);
+        case "reserveInventory":
+          return reserveInventory(state, actor, action.identityId, action.unitId, action.quantity, action.requirementId);
+        case "issueInventoryToUnit":
+          return issueInventoryToUnit(state, actor, action.identityId, action.unitId, action.quantity);
+        case "installInventory":
+          return installInventory(state, actor, action.identityId, action.unitId, action.quantity);
+        case "returnInventoryToStock":
+          return returnInventoryToStock(state, actor, action.identityId, action.unitId, action.quantity, action.reason, action.locationId);
+        case "adjustInventory":
+          return adjustInventory(state, actor, action.identityId, action.delta, action.reason, action.authorizedBy);
+        case "createPutAwayJob":
+          return createPutAwayJob(state, actor, action.identityIds, action.facility);
+        case "decidePowerEndAvailability":
+          return decidePowerEndAvailability(state, actor, action.unitId, action.decision);
+        case "recordComponentUsage":
+          return recordComponentUsage(state, actor, action.input);
+        case "approveUsageSubstitution":
+          return approveUsageSubstitution(state, actor, action.usageId, action.reason);
+        case "recordComponentUsage1196":
+          return recordComponentUsage1196(state, actor, action.requirementId, action.input);
+        case "confirmGateItem1196":
+          return confirmGateItem1196(state, actor, action.lineId, action.gateKey, action.note);
+        case "setPackageDrawing1196":
+          return setPackageDrawing1196(state, actor, action.lineId, action.drawing);
         case "addManufacturingNote":
           return addManufacturingNote(state, actor, action.input);
         case "addConfigurationAdjustment":
           return addConfigurationAdjustment(state, actor, action.input);
+        case "addUnitsToLine":
+          return addUnitsToLine(state, actor, action.input);
+        case "seedWorkingBom":
+          return seedWorkingBom(state, actor, action.orderNumber, action.lineId);
+        case "addWorkingBomRow":
+          return addWorkingBomRow(state, actor, action.input);
+        case "updateWorkingBomRow":
+          return updateWorkingBomRow(state, actor, action.rowId, action.patch);
+        case "removeWorkingBomRow":
+          return removeWorkingBomRow(state, actor, action.rowId);
         case "changeOrderDueDate":
           return changeOrderDueDate(state, action.orderNumber, actor, action.dueDate);
         case "editOrder":

@@ -82,6 +82,15 @@ describe("parseStoredEnvelope - graceful fallback on anything untrustworthy", ()
     ).toBeNull();
   });
 
+  it("returns null for a v3-shaped envelope missing workingBomRows (schema v4 requirement)", () => {
+    const state = buildInitialState();
+    const { workingBomRows, ...v3Shape } = state;
+    void workingBomRows;
+    expect(
+      parseStoredEnvelope(JSON.stringify({ schemaVersion: SCHEMA_VERSION, state: v3Shape }))
+    ).toBeNull();
+  });
+
   it("a restored envelope preserves the CPQ import arrays", () => {
     const state = buildInitialState();
     const parsed = parseStoredEnvelope(serializeEnvelope(state));

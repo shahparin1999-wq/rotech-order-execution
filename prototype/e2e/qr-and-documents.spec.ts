@@ -25,7 +25,7 @@ test.describe("QR scan simulation", () => {
     }
 
     await page.getByTestId("scan-open-unit").click();
-    await expect(page).toHaveURL(new RegExp(`/tablet/${ORDER}_1\\.2`));
+    await expect(page).toHaveURL(new RegExp(`/units/${ORDER}_1\\.2`));
   });
 
   test("an unknown reference fails safely without disclosing details", async ({ page }) => {
@@ -59,11 +59,12 @@ test.describe("Label previews", () => {
     const before = Number(await countCell.textContent());
     await page.getByTestId("reprint-label-unit").click();
     await expect(countCell).toHaveText(String(before + 1));
-    await expect(page.getByText(`Unit count remains 7`)).toBeVisible();
+    // Total Units across all fixture orders (SAMPLE1001 5 + SAMPLE1002 2 + DEMO1196STD-1 2).
+    await expect(page.getByText(`Unit count remains 9`)).toBeVisible();
 
     // The Unit list still has exactly five Units for this order.
-    await page.goto(`/orders/${ORDER}?tab=units`);
-    await expect(page.locator("tbody tr")).toHaveCount(5);
+    await page.goto(`/orders/${ORDER}`);
+    await expect(page.getByTestId("line-group-1").locator(".unit-row")).toHaveCount(5);
   });
 });
 

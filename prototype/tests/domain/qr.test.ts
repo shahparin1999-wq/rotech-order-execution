@@ -19,7 +19,9 @@ describe("QR identity (criteria 8-9)", () => {
     const state = buildInitialState();
     const types = new Set(state.qrIdentities.map((q) => q.recordType));
     expect(types).toEqual(
-      new Set(["Order", "Unit", "Component", "MaterialLot", "Transfer", "Pallet"])
+      // InventoryItem joins the set once stock is seeded: every accepted item
+      // is labelled and scannable, same as a Unit or a pallet.
+      new Set(["Order", "Unit", "Component", "MaterialLot", "Transfer", "Pallet", "InventoryItem"])
     );
     const refs = state.qrIdentities.map((q) => q.publicRef);
     expect(new Set(refs).size).toBe(refs.length);
