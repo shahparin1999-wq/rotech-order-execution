@@ -18,6 +18,8 @@ import {
 import { historyFor } from "@/domain/inventory/movement";
 import { locationLabel, TRACKING_POLICIES, type TrackingPolicy } from "@/domain/inventory/identity";
 import { RECEIPT_KINDS, type ReceiptKind } from "@/domain/inventory/receipt";
+import { openPoLines } from "@/domain/purchasing/poReference";
+import { trackingPolicyFor } from "@/domain/inventory/identity";
 import { Exact } from "@/components/bits";
 import { FieldGroup } from "@/components/Drawer";
 
@@ -104,6 +106,9 @@ function IntakeTab() {
   const [facility, setFacility] = useState("Mississauga");
   const [requirementId, setRequirementId] = useState("");
   const [note, setNote] = useState("");
+  const [vendorPoLineId, setVendorPoLineId] = useState("");
+  const [componentKey, setComponentKey] = useState("");
+  const poLines = openPoLines(state, new Date().toISOString());
 
   // Open demand a receipt could satisfy. The receiver picks one — nothing is
   // auto-allocated, because a wrong allocation looks correct (INV-005).
@@ -132,6 +137,8 @@ function IntakeTab() {
         lotNumber,
         heatNumber,
         matchedRequirementId: requirementId || undefined,
+        vendorPoLineId: vendorPoLineId || undefined,
+        componentKey: componentKey || undefined,
         notes: note
       }
     });
@@ -144,6 +151,8 @@ function IntakeTab() {
     setRequirementId("");
     setNote("");
     setQuantity(1);
+    setVendorPoLineId("");
+    setComponentKey("");
   };
 
   return (
@@ -154,6 +163,42 @@ function IntakeTab() {
           Everything lands in quarantine unless it is an untracked consumable. The dock is not
           acceptance — material becomes issuable only after incoming inspection passes.
         </p>
+
+        <FieldGroup label="Against a referenced vendor PO line">
+          <select
+            value={vendorPoLineId}
+            data-testid="intake-po-line"
+            onChange={(e) => {
+              const id = e.target.value;
+              setVendorPoLineId(id);
+              const row = poLines.find((r) => r.line.id === id);
+              if (!row) return;
+              setKind("AgainstPo");
+              setPoNumber(row.po.poNumber);
+              setPoLine(String(row.line.lineNumber));
+              setVendor(row.po.vendor);
+              setFacility(row.po.facility);
+              setPartNumber(row.line.partNumber || partNumber);
+              setDescription(row.line.description);
+              setMaterial(row.line.material ?? "");
+              setComponentKey(row.line.componentKey ?? "");
+              setPolicy(trackingPolicyFor(row.line.componentKey ?? ""));
+              const openReq = row.line.requirementIds.find((rid) => {
+                const r = state.requirements.find((x) => x.id === rid);
+                return r && r.status !== "Satisfied" && r.status !== "InProgress";
+              });
+              setRequirementId(openReq ?? "");
+            }}
+          >
+            <option value="">Not against a referenced PO</option>
+            {poLines.map((r) => (
+              <option key={r.line.id} value={r.line.id}>
+                PO {r.po.poNumber} line {r.line.lineNumber} — {r.line.description} ({r.pending} pending, expected {r.line.expectedDate})
+              </option>
+            ))}
+          </select>
+          <span className="from-default">Picking a PO line pre-fills the part; the demand below is still confirmed by you.</span>
+        </FieldGroup>
 
         <div className="field-grid">
           <FieldGroup label="Receipt type">

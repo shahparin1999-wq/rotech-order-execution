@@ -140,10 +140,20 @@ export function checkIssueToUnit(input: IssueCheckInput): IssueCheckResult {
     };
   }
 
-  // Prefer a requirement whose spec agrees; report the mismatch otherwise.
-  const agreeing = open.find((r) => specificationMatches(r, identity).matches);
+  // Match on component ROLE first (a casing must not satisfy the stuffing-box
+  // cover just because both are ductile iron), then on specification.
+  const byRole = identity.componentKey ? open.filter((r) => r.componentId?.endsWith(`-${identity.componentKey}`)) : [];
+  if (identity.componentKey && byRole.length === 0) {
+    return {
+      ok: false,
+      rejection: "NoMatchingRequirement",
+      message: `${unitId} has no open ${identity.componentKey} requirement; ${identity.description} cannot be issued to it.`
+    };
+  }
+  const candidates = byRole.length > 0 ? byRole : open;
+  const agreeing = candidates.find((r) => specificationMatches(r, identity).matches);
   if (!agreeing) {
-    const first = open[0];
+    const first = candidates[0];
     const spec = specificationMatches(first, identity);
     return {
       ok: false,

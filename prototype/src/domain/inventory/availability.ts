@@ -21,10 +21,12 @@
 import type { AppState, Order, Unit } from "../types";
 import { evaluateMatch, requiredSpecFromDescription, type RequiredSpec } from "../ledger/componentUsage";
 import { isOpen, isPhysicalCategory, type ExecutionRequirement } from "../ledger/requirement";
-import { activeUnitAllocation, available, qualityState } from "./movement";
+import { activeUnitAllocation, available, onHand, qualityState } from "./movement";
 import type { InventoryIdentity } from "./identity";
+import { pendingPoLinesForRequirement } from "../purchasing/poReference";
 
-export const MATERIAL_AVAILABILITY_STATES = ["InStock", "Expected", "NotAvailable", "NoRecipe"] as const;
+// OnOrder: nothing tracked yet, but a referenced vendor PO line is still pending for this requirement.
+export const MATERIAL_AVAILABILITY_STATES = ["InStock", "Expected", "OnOrder", "NotAvailable", "NoRecipe"] as const;
 export type MaterialAvailability = (typeof MATERIAL_AVAILABILITY_STATES)[number];
 
 export interface AvailabilityResult {
@@ -39,6 +41,9 @@ export interface AvailabilityResult {
   /** Set only for NotAvailable — the order currently holding or first in line for the matching stock. */
   heldByOrderNumber?: string;
   heldByRequirementId?: string;
+  /** Set only for OnOrder — the referenced vendor PO line's current expectation. */
+  expectedDate?: string;
+  poNumber?: string;
 }
 
 /** The component role a requirement names, derived from `${unitId}-${key}` (fromConfigurator.ts). Component keys never contain "-". */
@@ -58,15 +63,33 @@ function roleMatches(componentKey: string | undefined, identity: InventoryIdenti
   return identity.componentKey === componentKey;
 }
 
+/**
+ * The requirement a receipt was explicitly confirmed against (INV-005: a
+ * person picked the demand). An item booked to one Unit's requirement is not
+ * a candidate for a sibling's while that requirement is still open.
+ */
+function bookedToOtherOpenRequirement(state: AppState, identity: InventoryIdentity, requirementId: string): boolean {
+  const line = state.inventoryReceiptLines.find((rl) => rl.id === identity.receiptLineId);
+  const matched = line?.matchedRequirementId;
+  if (!matched || matched === requirementId) return false;
+  const other = state.requirements.find((r) => r.id === matched);
+  return !!other && other.status !== "Satisfied" && other.status !== "Superseded" && other.status !== "Cancelled";
+}
+
 function candidateIdentities(
   state: AppState,
   componentKey: string | undefined,
   required: RequiredSpec,
-  onlyAccepted: boolean
+  onlyAccepted: boolean,
+  requirementId: string
 ): InventoryIdentity[] {
   return state.inventoryIdentities.filter((i) => {
+    // An installed, scrapped or returned item has left the stockroom: it is
+    // neither free nor "held" — it is gone.
+    if (onHand(state.inventoryMovements, i.id) <= 0) return false;
     if (onlyAccepted && qualityState(state.inventoryMovements, i.id) !== "Accepted") return false;
     if (!onlyAccepted && qualityState(state.inventoryMovements, i.id) !== "Quarantine") return false;
+    if (bookedToOtherOpenRequirement(state, i, requirementId)) return false;
     return roleMatches(componentKey, i) && specMatches(required, i);
   });
 }
@@ -138,7 +161,22 @@ export function availabilityForRequirement(state: AppState, requirementId: strin
     };
   }
 
-  const accepted = candidateIdentities(state, componentKey, required, true);
+  const accepted = candidateIdentities(state, componentKey, required, true, requirement.id);
+
+  // Received and accepted against THIS requirement (a person confirmed the
+  // demand at the dock): it is this Unit's part until someone moves it.
+  const bookedHere = accepted.find((i) => {
+    const line = state.inventoryReceiptLines.find((rl) => rl.id === i.receiptLineId);
+    return line?.matchedRequirementId === requirement.id;
+  });
+  if (bookedHere) {
+    return {
+      state: "InStock",
+      reason: `Received against this requirement and accepted: ${bookedHere.partNumber}${bookedHere.heatNumber ? ` · heat ${bookedHere.heatNumber}` : ""}.`,
+      matchingIdentities: accepted,
+      poolAvailable: poolAvailable(state, accepted)
+    };
+  }
 
   // Already reserved to this exact Unit — the answer is settled, whatever
   // else is happening on the pool.
@@ -177,7 +215,7 @@ export function availabilityForRequirement(state: AppState, requirementId: strin
 
     // Nothing accepted at all — check for stock that has arrived but not yet
     // cleared quality, which is real and worth surfacing as "on its way".
-    const quarantined = candidateIdentities(state, componentKey, required, false);
+    const quarantined = candidateIdentities(state, componentKey, required, false, requirement.id);
     if (quarantined.length > 0) {
       const earliest = quarantined
         .map((i) => i.createdAt)
@@ -188,6 +226,19 @@ export function availabilityForRequirement(state: AppState, requirementId: strin
         matchingIdentities: quarantined,
         poolAvailable: 0,
         expectedSince: earliest
+      };
+    }
+
+    const onOrder = pendingPoLinesForRequirement(state, requirement.id);
+    if (onOrder.length > 0) {
+      const first = onOrder[0];
+      return {
+        state: "OnOrder",
+        reason: `On Rotech PO ${first.po.poNumber} (${first.po.vendor}), expected ${first.line.expectedDate}; ${first.pending} of ${first.line.orderedQuantity} still pending.`,
+        matchingIdentities: [],
+        poolAvailable: 0,
+        expectedDate: first.line.expectedDate,
+        poNumber: first.po.poNumber
       };
     }
 

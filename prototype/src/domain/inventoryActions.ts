@@ -5,7 +5,17 @@
 // appends movements rather than editing a quantity, so the history of how stock
 // got where it is can never be lost.
 
-import type { AppState, AuditEvent } from "./types";
+import type { AppState, AuditEvent, Task } from "./types";
+import { recomputeUnitProjection } from "./projections";
+import { evaluateMatch, requiredSpecFromDescription, type ComponentUsage } from "./ledger/componentUsage";
+import {
+  advanceRequirement,
+  appendFulfillment,
+  materialGateClear,
+  MATERIAL_GATE_REASON,
+  openReceiptFulfillmentsForRef,
+  requirementForInstall
+} from "./ledger/requirementFlow";
 import {
   locationLabel,
   missingTrackingFields,
@@ -85,6 +95,8 @@ export interface ReceiveInput {
   certificateRef?: string;
   /** The requirement a person explicitly confirmed this satisfies. */
   matchedRequirementId?: string;
+  /** The referenced vendor PO line this delivery is booked against. */
+  vendorPoLineId?: string;
   notes?: string;
 }
 
@@ -150,6 +162,7 @@ export function receiveInventory(
     certificateRef: input.certificateRef?.trim() || undefined,
     disposition: input.matchedRequirementId ? "ExactMatch" : "UnknownDemand",
     matchedRequirementId: input.matchedRequirementId,
+    vendorPoLineId: input.vendorPoLineId?.trim() || undefined,
     unmatchedReason: input.matchedRequirementId ? undefined : "No demand confirmed at receipt"
   };
 
@@ -222,6 +235,28 @@ export function receiveInventory(
     });
   }
 
+  // A receipt booked against confirmed demand is an OPEN receipt fulfilment:
+  // it becomes progress only when inspection accepts it (INV-003).
+  if (input.matchedRequirementId) {
+    const [fulId, s4] = takeId(s, "ful");
+    s = s4;
+    let ledger = appendFulfillment(
+      { requirements: s.requirements, fulfillments: s.fulfillments },
+      {
+        id: fulId,
+        requirementId: input.matchedRequirementId,
+        kind: "Receipt",
+        ref: lineId,
+        quantity: input.quantity,
+        status: "Open",
+        recordedBy: actorId,
+        recordedAt: ts
+      }
+    );
+    ledger = advanceRequirement(ledger, input.matchedRequirementId, "Planned");
+    s = { ...s, requirements: ledger.requirements, fulfillments: ledger.fulfillments };
+  }
+
   return audit(s, {
     at: ts,
     actorId,
@@ -256,7 +291,7 @@ export function inspectInventory(
   }
   const ts = nowIso(at);
 
-  const s = appendMovement(state, {
+  let s = appendMovement(state, {
     inventoryIdentityId: identityId,
     type: decision === "Accept" ? "InspectionAccepted" : "InspectionRejected",
     quantity: 0,
@@ -264,6 +299,21 @@ export function inspectInventory(
     recordedBy: actorId,
     recordedAt: ts
   });
+
+  // Inspection is what turns a booked receipt into progress on the demand it
+  // was received for; a rejection leaves the requirement open with the
+  // rejected receipt retained as history.
+  let ledger = { requirements: s.requirements, fulfillments: s.fulfillments };
+  for (const f of openReceiptFulfillmentsForRef(ledger, identity.receiptLineId)) {
+    ledger = {
+      ...ledger,
+      fulfillments: ledger.fulfillments.map((x) =>
+        x.id === f.id ? { ...x, status: decision === "Accept" ? ("Complete" as const) : ("Rejected" as const) } : x
+      )
+    };
+    if (decision === "Accept") ledger = advanceRequirement(ledger, f.requirementId, "InProgress");
+  }
+  s = { ...s, requirements: ledger.requirements, fulfillments: ledger.fulfillments };
 
   return audit(s, {
     at: ts,
@@ -427,7 +477,7 @@ export function installInventory(
   }
   const ts = nowIso(at);
 
-  const s = appendMovement(state, {
+  let s = appendMovement(state, {
     inventoryIdentityId: identityId,
     type: "Installed",
     quantity,
@@ -435,6 +485,65 @@ export function installInventory(
     recordedBy: actorId,
     recordedAt: ts
   });
+
+  // As-built: the tracked item enters this Unit's history with its heat /
+  // lot / serial, the matching requirement is satisfied, and any work held
+  // for material is released once nothing physical still blocks the Unit.
+  const issued = [...state.inventoryMovements]
+    .reverse()
+    .find((m) => m.inventoryIdentityId === identityId && m.unitId === unitId && (m.type === "IssuedToUnit" || m.type === "Reserved") && m.requirementId);
+  const requirement = requirementForInstall(
+    { requirements: s.requirements, fulfillments: s.fulfillments },
+    unitId,
+    identity.componentKey,
+    issued?.requirementId
+  );
+  if (requirement) {
+    const match = evaluateMatch(requiredSpecFromDescription(requirement.description), {
+      partNumber: identity.partNumber,
+      material: identity.material
+    });
+    const [usageId, s2] = takeId(s, "use");
+    s = s2;
+    const usage: ComponentUsage = {
+      id: usageId,
+      requirementId: requirement.id,
+      unitId,
+      componentRole: requirement.componentId?.split("-").pop() ?? identity.componentKey ?? "component",
+      quantity,
+      trackingType:
+        identity.trackingPolicy === "Serialized"
+          ? "Serialized"
+          : identity.trackingPolicy === "HeatTracked"
+            ? "HeatTracked"
+            : identity.trackingPolicy === "LotTracked"
+              ? "LotTracked"
+              : "QuantityTracked",
+      inventoryIdentityId: identityId,
+      source: "Inventory",
+      partNumber: identity.partNumber,
+      material: identity.material || undefined,
+      heatLot: identity.heatNumber ?? identity.lotNumber,
+      serial: identity.serialNumber,
+      usageStatus: "Installed",
+      matchStatus: match.status,
+      matchNote: match.note,
+      installedBy: actorId,
+      installedAt: ts,
+      recordedBy: actorId,
+      recordedAt: ts
+    };
+    s = { ...s, componentUsages: [...s.componentUsages, usage] };
+    const [fulId, s3] = takeId(s, "ful");
+    s = s3;
+    let ledger = appendFulfillment(
+      { requirements: s.requirements, fulfillments: s.fulfillments },
+      { id: fulId, requirementId: requirement.id, kind: "InventoryItem", ref: identityId, quantity, status: "Complete", recordedBy: actorId, recordedAt: ts }
+    );
+    if (match.status === "Matched") ledger = advanceRequirement(ledger, requirement.id, "Satisfied");
+    s = { ...s, requirements: ledger.requirements, fulfillments: ledger.fulfillments };
+    if (materialGateClear(ledger, unitId)) s = releaseMaterialGate(s, unitId, actorId, ts);
+  }
 
   const trace = [identity.serialNumber, identity.lotNumber, identity.heatNumber]
     .filter(Boolean)
@@ -531,6 +640,44 @@ export function adjustInventory(
     detail: `${identity.partNumber} adjusted by ${delta > 0 ? "+" : ""}${delta}: ${reason.trim()} (authorized by ${authorizedBy}).`,
     supersedesEventId: null
   });
+}
+
+/**
+ * Releases every task on the Unit that was held for material once nothing
+ * physical still blocks its work. The task returns to the state it held
+ * before the hold, exactly as a manual blocker resolution does.
+ */
+export function releaseMaterialGate(state: AppState, unitId: string, actorId: string, at: string): AppState {
+  let s = state;
+  const held = state.tasks.filter((t) => t.unitId === unitId && t.status === "Blocked" && t.blockReason === MATERIAL_GATE_REASON);
+  for (const t of held) {
+    const restored: Task["status"] = t.status_beforeBlock ?? "Ready";
+    s = {
+      ...s,
+      tasks: s.tasks.map((x) =>
+        x.id === t.id
+          ? {
+              ...x,
+              status: restored,
+              status_beforeBlock: null,
+              blockReason: null,
+              history: [...x.history, { action: "BlockerResolved", actorId, at, note: "All required material installed" }]
+            }
+          : x
+      )
+    };
+    s = audit(s, {
+      at,
+      actorId,
+      action: "task.blockerResolved",
+      targetType: "Task",
+      targetId: t.id,
+      unitId,
+      detail: `Material gate cleared; "${t.name}" returned to ${restored}.`,
+      supersedesEventId: null
+    });
+  }
+  return held.length > 0 ? recomputeUnitProjection(s, unitId) : s;
 }
 
 // ---------------------------------------------------------------------------

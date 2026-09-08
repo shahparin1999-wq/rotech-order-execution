@@ -69,6 +69,8 @@ export interface InventoryReceiptLine {
   lotNumber?: string;
   heatNumber?: string;
   certificateRef?: string;
+  /** Vendor PO line this receipt was booked against, when received against a referenced PO. */
+  vendorPoLineId?: string;
   condition?: string;
   disposition: ReceiptDisposition;
   /** The requirement a person explicitly confirmed this satisfies. */

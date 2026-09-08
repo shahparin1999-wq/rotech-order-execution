@@ -12,11 +12,17 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:server": "playwright test -c playwright.server.config.ts",
+    "db:up": "node scripts/disposable-postgres.mjs start",
+    "db:down": "node scripts/disposable-postgres.mjs stop",
+    "db:url": "node scripts/disposable-postgres.mjs url",
     "screenshots": "playwright test e2e/screenshots.spec.ts",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run test:e2e"
   },
   "dependencies": {
+    "@types/pg": "^8.11.10",
     "next": "15.1.6",
+    "pg": "^8.13.1",
     "react": "19.0.0",
     "react-dom": "19.0.0"
   },

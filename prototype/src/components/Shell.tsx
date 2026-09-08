@@ -14,7 +14,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { useAppDispatch, useAppState } from "@/store/StoreProvider";
+import { useAppDispatch, useAppState, usePersistence } from "@/store/StoreProvider";
 import { unreadCountForOrder } from "@/domain/selectors";
 import {
   GridIcon,
@@ -100,6 +100,25 @@ function ProfileMenu({ onClose }: { onClose: () => void }) {
   );
 }
 
+function PersistenceBanner() {
+  const p = usePersistence();
+  if (p.mode === "server") {
+    return (
+      <div className="mock-banner" data-testid="persistence-banner">
+        SHARED STATE · {p.repository ?? "server"} persistence · v{p.version}
+        {p.syncing ? " · saving…" : ""}
+        {p.error ? ` · ${p.error}` : ""} — mock identity only; no AIMCOR, Entra or Teams integration.
+      </div>
+    );
+  }
+  return (
+    <div className="mock-banner" data-testid="persistence-banner">
+      PROTOTYPE - mock data only. No AIMCOR, Azure, Entra, Teams, or database
+      integration.
+    </div>
+  );
+}
+
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const state = useAppState();
@@ -181,10 +200,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       )}
 
       <main className="main-col">
-        <div className="mock-banner">
-          PROTOTYPE - mock data only. No AIMCOR, Azure, Entra, Teams, or database
-          integration.
-        </div>
+        <PersistenceBanner />
         {children}
       </main>
     </div>

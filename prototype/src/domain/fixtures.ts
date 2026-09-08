@@ -88,6 +88,7 @@ const contacts: Contact[] = [
 ];
 
 const mainOrder: Order = {
+  id: "ord-sample1001",
   orderNumber: ORDER_NO,
   customerId: CUSTOMER_ACME,
   customerPo: "DEMO-0001",
@@ -123,6 +124,7 @@ const mainOrder: Order = {
 };
 
 const houstonOrder: Order = {
+  id: "ord-sample1002",
   orderNumber: HOUSTON_ORDER_NO,
   customerId: CUSTOMER_SAMPLE_PUMP,
   customerPo: "DEMO-0002",
@@ -239,6 +241,7 @@ const demo1196Line: OrderLine = {
 };
 
 const demo1196Order: Order = {
+  id: "ord-demo1196std-1",
   orderNumber: ORDER_NO_1196_DEMO,
   customerId: CUSTOMER_ACME,
   customerPo: "DEMO-1196-01",
@@ -1322,6 +1325,7 @@ export function buildInitialState(): AppState {
     inventoryReceiptLines: [],
     inventoryLocations: DEMO_LOCATIONS,
     internalJobs: [],
+    vendorPoReferences: [],
     favourites: ["view:orders", "view:quality"],
     followedOrders: [ORDER_NO],
     nextId: 1000

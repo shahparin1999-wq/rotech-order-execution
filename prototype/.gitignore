@@ -6,3 +6,6 @@ playwright-report/
 blob-report/
 *.tsbuildinfo
 next-env.d.ts
+# Gate A local persistence (file adapter state, disposable PostgreSQL cluster)
+.oeh-data/
+.oeh-pg/

@@ -16,6 +16,7 @@ import { Exact, TaskStatusBadge, UnitStatusBadge } from "@/components/bits";
 import { PlusIcon } from "@/components/icons";
 import { NewWorkOrderDrawer } from "@/components/NewWorkOrderDrawer";
 import { acceptedNotPutAway, awaitingInspection, inventoryPositions } from "@/domain/inventoryActions";
+import { openPoLines } from "@/domain/purchasing/poReference";
 
 export default function HomePage() {
   const state = useAppState();
@@ -27,6 +28,8 @@ export default function HomePage() {
   const quarantine = awaitingInspection(state);
   const notPutAway = acceptedNotPutAway(state);
   const issuable = positions.filter((p) => p.quality === "Accepted" && p.available > 0);
+  const poLines = openPoLines(state, new Date().toISOString());
+  const latePoLines = poLines.filter((l) => l.late);
   const [showNewOrder, setShowNewOrder] = useState(false);
 
   const myWorkPreview = [
@@ -96,6 +99,13 @@ export default function HomePage() {
             <tr>
               <td>Available to issue</td>
               <td data-testid="home-issuable-count"><b>{issuable.length}</b></td>
+            </tr>
+            <tr>
+              <td>On order (open vendor PO lines)</td>
+              <td data-testid="home-onorder-count">
+                <b>{poLines.length}</b>
+                {latePoLines.length > 0 && <span className="badge save-error" style={{ marginLeft: 6 }}>{latePoLines.length} late</span>}
+              </td>
             </tr>
             <tr>
               <td>Tracked items on hand</td>

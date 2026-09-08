@@ -4,6 +4,7 @@ import type { InventoryIdentity, InventoryLocation } from "./inventory/identity"
 import type { InventoryMovement } from "./inventory/movement";
 import type { InventoryReceipt, InventoryReceiptLine } from "./inventory/receipt";
 import type { InternalJob } from "./inventory/internalJobs";
+import type { VendorPoReference } from "./purchasing/poReference";
 
 // Domain types for the mock vertical slice. All data is fixture/mock data;
 // nothing here talks to AIMCOR, Azure, Entra, Teams, or a database.
@@ -151,6 +152,9 @@ export interface OrderScopeItem {
 }
 
 export interface Order {
+  /** Immutable internal identity. Never displayed as the order number and never recomputed. */
+  id: string;
+  /** Visible business number: the Rotech sales order issued in AIMCOR (or a coordinator-entered number). */
   orderNumber: string;
   customerId: string;
   customerPo: string;
@@ -169,6 +173,8 @@ export interface Order {
   // v2 CPQ handoff: order-level inclusions/exclusions/customer-supplied scope.
   // undefined for v1/manual orders.
   scopeItems?: OrderScopeItem[];
+  /** CPQ provenance shown beside the order number, e.g. "26CPQ0005 rev 3". */
+  cpqReference?: string;
 }
 
 export interface Unit {
@@ -815,6 +821,8 @@ export interface AppState {
   inventoryReceiptLines: InventoryReceiptLine[];
   inventoryLocations: InventoryLocation[];
   internalJobs: InternalJob[];
+  // Vendor PO REFERENCES (AIMCOR issues the PO): purchasing visibility only.
+  vendorPoReferences: VendorPoReference[];
   favourites: string[]; // view ids or order numbers
   followedOrders: string[];
   nextId: number;

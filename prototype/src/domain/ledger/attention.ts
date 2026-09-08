@@ -26,7 +26,8 @@ export const ATTENTION_KINDS = [
   "SubstitutionReview",
   "QualityProblem",
   "OverdueAction",
-  "CommercialReview"
+  "CommercialReview",
+  "LatePurchase"
 ] as const;
 export type AttentionKind = (typeof ATTENTION_KINDS)[number];
 
@@ -98,6 +99,22 @@ export function orderAttention(
         lineNumber: unitLineNumber(state, requirement.unitId),
         ownerLabel: requirement.accountableOwnerId,
         since: result.expectedSince
+      });
+      continue;
+    }
+
+    if (result.state === "OnOrder") {
+      const late = !!result.expectedDate && result.expectedDate < asOf.slice(0, 10);
+      items.push({
+        id: `att-${late ? "late" : "onorder"}-${requirement.id}`,
+        kind: late ? "LatePurchase" : "Incoming",
+        severity: late ? "Blocker" : "Warning",
+        title: `${late ? "Late PO" : "On order"} · ${requirement.description}`,
+        detail: result.reason,
+        unitId: requirement.unitId,
+        lineNumber: unitLineNumber(state, requirement.unitId),
+        ownerLabel: "Purchasing",
+        since: result.expectedDate
       });
       continue;
     }

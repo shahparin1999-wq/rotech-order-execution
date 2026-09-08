@@ -64,6 +64,8 @@ import {
 } from "./orderHandoffV2";
 import { getModelTemplate, type ModelRouteStep } from "./modelTemplates";
 import { requirementsFromConfiguredLine } from "./ledger/fromConfigurator";
+import { requirementsFromHandoffLine } from "./ledger/fromHandoff";
+import { MATERIAL_GATE_REASON } from "./ledger/requirementFlow";
 import {
   evaluateMatch,
   requiredSpecFromDescription,
@@ -773,6 +775,7 @@ export function createWorkOrder(state: AppState, actorId: string, input: WorkOrd
     templateName: useTemplateRoute ? `${template!.displayName} (pilot placeholder)` : "Generic work order (mock)"
   };
   const order: Order = {
+    id: `ord-${mockPublicRef(`order-id:${input.orderNumber}`)}`,
     orderNumber: input.orderNumber,
     customerId: input.customerId,
     customerPo: input.customerPo,
@@ -1036,6 +1039,7 @@ export function importExecutionPackage(
   }
 
   const order: Order = {
+    id: `ord-${mockPublicRef(`order-id:${orderNumber}`)}`,
     orderNumber,
     customerId,
     customerPo,
@@ -1200,10 +1204,15 @@ export function importExecutionPackage(
 
 export interface ImportHandoffInput {
   package: unknown; // untrusted, already-JSON-parsed upload
-  orderNumber?: string; // defaults to `${quoteNumber}-R${revisionNumber}`
+  /** The Rotech sales order number (AIMCOR). Defaults to `${quoteNumber}-R${revisionNumber}` only as a suggestion. */
+  orderNumber?: string;
   facility: Facility;
   coordinatorId: string;
   customerPo?: string;
+  /** Committed date (ISO). Overrides the package's requested delivery. */
+  dueDate?: string;
+  /** Accepted customer PO from the transfer envelope (metadata + hash only). */
+  po?: ImportedPoInput;
 }
 
 // Imports one CPQ internal order-handoff (v2) package as a Work Order. Unlike v1,
@@ -1457,12 +1466,14 @@ export function importOrderHandoffV2(
   }));
 
   const order: Order = {
+    id: `ord-${mockPublicRef(`order-id:${orderNumber}`)}`,
     orderNumber,
     customerId,
     customerPo,
-    dueDate: asStr(pkg.orderContext?.requestedDelivery) ?? "",
+    dueDate: input.dueDate?.trim() || asStr(pkg.orderContext?.expectedDelivery) || asStr(pkg.orderContext?.requestedDelivery) || "",
     productFamily: asStr(pkg.lines[0]?.product?.family) ?? "(n/a)",
     orderType: "CPQ handoff (v2)",
+    cpqReference: `${pkg.source.quoteNumber} rev ${pkg.source.revisionNumber}`,
     facility: input.facility,
     coordinatorId: input.coordinatorId,
     status: "Open",
@@ -1536,6 +1547,69 @@ export function importOrderHandoffV2(
     s = { ...s1, tasks: [...s1.tasks, task] };
   }
 
+  // Material demand is derived from the frozen CONFIGURATION of each
+  // unit-bearing line — never from the reference BOM rows, which are labelled
+  // non-authoritative by the CPQ side. This is what makes the order show a
+  // real shortage, accept a PO reference, match a receipt and release work.
+  const generatedRequirements: ExecutionRequirement[] = [];
+  const generatedFulfillments: FulfillmentRecord[] = [];
+  for (const pl of pkg.lines) {
+    const line = lines.find((l) => l.cpqLineId === pl.id);
+    const snapshot = snapshots.find((sn) => sn.sourceLineId === pl.id);
+    if (!line || !snapshot) continue;
+    const generated = requirementsFromHandoffLine({
+      executionOrderId: orderNumber,
+      lineId: line.id,
+      lineNumber: pl.lineNumber,
+      line: pl,
+      unitIds: allUnits.filter((u) => u.lineNumber === pl.lineNumber).map((u) => u.unitId),
+      snapshotId: snapshot.id,
+      createdAt: ts,
+      needBy: order.dueDate || undefined
+    });
+    generatedRequirements.push(...generated.requirements);
+    generatedFulfillments.push(...generated.fulfillments);
+  }
+  s = {
+    ...s,
+    requirements: [...s.requirements, ...generatedRequirements],
+    fulfillments: [...s.fulfillments, ...generatedFulfillments]
+  };
+
+  // Assembly is held for material per Unit until every required component is
+  // installed into THAT Unit; the release is computed, never clicked.
+  for (const u of allUnits) {
+    const gated = generatedRequirements.some((r) => r.unitId === u.unitId && r.category === "Component" && r.blocksWork === true);
+    const [taskId, s1] = takeId(s, "t");
+    const task: Task = {
+      id: taskId,
+      unitId: u.unitId,
+      orderNumber,
+      customerId: null,
+      name: "Pull parts and assemble",
+      description: "Issue and install every required component into this Unit before assembly starts.",
+      operationId: `op-${u.unitId}-2`,
+      bucket: "AssemblyTesting",
+      department: "Assembly",
+      status: gated ? "Blocked" : "NotStarted",
+      ownerId: null,
+      assigneeIds: [],
+      startDate: null,
+      dueDate: null,
+      priority: "Medium",
+      labels: [],
+      checklist: [],
+      attachmentIds: [],
+      comments: [],
+      status_beforeBlock: gated ? "Ready" : null,
+      blockReason: gated ? MATERIAL_GATE_REASON : null,
+      handoffs: [],
+      history: gated ? [{ action: "Blocked", actorId, at: ts, note: MATERIAL_GATE_REASON }] : [],
+      sourcePostId: null
+    };
+    s = { ...s1, tasks: [...s1.tasks, task] };
+  }
+
   const unitLineCount = lines.filter((l) => l.executionDisposition === "unit-bearing").length;
   const scopeLineCount = lines.length - unitLineCount;
   const blockingCount = attentionItems.filter((a) => a.blocksRelease).length;
@@ -1558,6 +1632,33 @@ export function importOrderHandoffV2(
       unitId: u.unitId, detail: "Unit created with stable QR identity (pre-serial).", supersedesEventId: null
     });
     s = recomputeUnitProjection(s, u.unitId);
+  }
+
+  // Accepted customer PO from the transfer envelope (metadata + hash only).
+  if (input.po) {
+    const [attId, s1] = takeId(s, "att");
+    const attachment: Attachment = {
+      id: attId,
+      kind: "file",
+      category: "General reference",
+      orderNumber,
+      unitId: null,
+      targetRef: input.po.acceptedPoSubmissionId ?? null,
+      fileName: input.po.fileName,
+      employeeId: actorId,
+      at: ts,
+      placeholderArt: "cpq-po-document",
+      sha256: input.po.sha256,
+      sizeBytes: input.po.sizeBytes,
+      source: "CPQ"
+    };
+    s = { ...s1, attachments: [...s1.attachments, attachment] };
+    s = appendAudit(s, {
+      at: ts, actorId, action: "po.attached", targetType: "Order", targetId: orderNumber,
+      unitId: null,
+      detail: `Accepted customer PO "${input.po.fileName}" attached (sha256 ${input.po.sha256}).`,
+      supersedesEventId: null
+    });
   }
 
   return s;
@@ -2328,6 +2429,7 @@ export function create1196PumpEnd(state: AppState, actorId: string, input: Creat
     templateName: `1196 controlled manual configuration (${RULES_VERSION_1196})`
   };
   const order: Order = {
+    id: `ord-${mockPublicRef(`order-id:${orderNumber}`)}`,
     orderNumber,
     customerId: input.customerId,
     customerPo: input.customerPo,
@@ -2780,6 +2882,7 @@ export function createConfiguredOrder(
   });
 
   const order: Order = {
+    id: `ord-${mockPublicRef(`order-id:${orderNumber}`)}`,
     orderNumber,
     customerId: draft.customerId,
     customerPo: draft.customerPo.trim(),

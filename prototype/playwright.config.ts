@@ -15,7 +15,9 @@ export default defineConfig({
     command: "npm run start",
     url: "http://localhost:3100",
     reuseExistingServer: true,
-    timeout: 120_000
+    timeout: 120_000,
+    // The isolated suite relies on a fresh per-test state; it runs browser-only.
+    env: { ...process.env, OEH_PERSISTENCE: "local" }
   },
   projects: [
     {

@@ -1,0 +1,186 @@
+{
+  "schema": "rotech-cpq-order-handoff/2.0",
+  "packageId": "PKG-0AB8F12F18E0BB7FCF4A4BDA",
+  "idempotencyKey": "cpq:26CPQ0005-QTY5:QVER-DDED3D31B886:POSUB-5143FB3A3B2A0EC0956A9F54",
+  "createdAt": "2026-09-08T13:34:18Z",
+  "createdBy": {
+    "userId": "quoteadmin@rotechpumps.com",
+    "email": "quoteadmin@rotechpumps.com"
+  },
+  "source": {
+    "system": "RotechCPQ",
+    "quoteId": "26CPQ0005-QTY5",
+    "quoteNumber": "26CPQ0005",
+    "revisionId": "QVER-DDED3D31B886",
+    "revisionNumber": 0,
+    "revisionToken": "d67a0cdc2eada15c8d5088fec9ece5259ffe122a3c0d271aeda5aac514be5a9c",
+    "quoteStatus": "Won",
+    "frozenRevisionStatus": "Published",
+    "orderProcessingState": "PUBLISHED",
+    "acceptedPoSubmissionId": "POSUB-5143FB3A3B2A0EC0956A9F54"
+  },
+  "customer": {
+    "customerName": "SANITIZED CUSTOMER",
+    "customerPo": "PO-QTY5-1196",
+    "customerId": "company-sanitized-customer-example",
+    "customerReference": "Plant 4 clarifier feed pumps"
+  },
+  "orderContext": {
+    "customerReference": "Plant 4 clarifier feed pumps",
+    "projectName": "Sanitized Plant 4 upgrade",
+    "deliveryTimeline": "8-10 weeks"
+  },
+  "lines": [
+    {
+      "id": "LIN-E298BCDD849B",
+      "lineNumber": 1,
+      "lineType": "pump",
+      "executionDisposition": "unit-bearing",
+      "commercialState": "included",
+      "executionState": "ready",
+      "product": {
+        "family": "1196",
+        "model": "1196",
+        "description": "1196 pump",
+        "pumpSize": "3X4-13"
+      },
+      "quantity": 5,
+      "cpqLineRecordId": "LINE-1",
+      "award": {
+        "outcome": "won",
+        "awardedQuantity": 5,
+        "quotedQuantity": 5
+      },
+      "selection": {
+        "fluid": "Process water",
+        "flow": 450,
+        "flowUnit": "USGPM",
+        "head": 120,
+        "headUnit": "ft",
+        "temperature": 60,
+        "temperatureUnit": "F",
+        "curveReference": "Pump-FLO 1196 3X4-13"
+      },
+      "pumpBuild": {
+        "pumpSize": "3X4-13",
+        "frameSize": "MTR",
+        "materialBuild": "DI/316SS",
+        "buildMode": "standard",
+        "fullImpellerTrim": 13,
+        "impellerTrim": 12.25,
+        "flangeType": "150#FF",
+        "shaftType": "4140/316SS SLEEVED SHAFT",
+        "sbcType": "STD BORE"
+      },
+      "packageBuild": {
+        "packageType": "pump-only",
+        "completePackage": false,
+        "motor": {
+          "selectionMode": "not-included",
+          "responsibility": "by-others"
+        },
+        "baseplate": {
+          "selectionMode": "not-included",
+          "responsibility": "by-others"
+        },
+        "coupling": {
+          "selectionMode": "not-included",
+          "responsibility": "by-others"
+        },
+        "couplingGuard": {
+          "selectionMode": "not-included",
+          "responsibility": "by-others"
+        },
+        "mounting": {
+          "selectionMode": "not-included"
+        }
+      },
+      "seal": {
+        "sealOption": "ROTECH SHOP MOUNT ROTECH SEAL",
+        "sealArrangement": "Single cartridge",
+        "sealManufacturer": "Rotech",
+        "sealMoc": "CAR/SIC/FKM",
+        "sealGlandMoc": "316SS",
+        "sealPlanOption": "PLAN 11"
+      },
+      "scope": {
+        "responsibilities": {
+          "pump": "in-scope",
+          "baseplate": "by-others",
+          "motor": "by-others",
+          "steelFabrication": "by-others"
+        },
+        "serviceAdders": [
+          "NON-WITNESSED HYDROSTATIC TEST"
+        ],
+        "specialRequests": "Nameplate text in English and French."
+      },
+      "testingRequirements": [
+        "NON-WITNESSED HYDROSTATIC TEST"
+      ],
+      "customerSuppliedItems": [],
+      "selectedOptions": [
+        {
+          "description": "NON-WITNESSED HYDROSTATIC TEST"
+        }
+      ],
+      "componentBreakdown": [
+        {
+          "sourceRowId": "LINE-1:parent",
+          "rowNumber": "1",
+          "isParent": true,
+          "type": "G",
+          "productName": "1196 3X4-13 DI/316SS PUMP",
+          "description": "SCOPE BY ROTECH:\nQuoted scope: pump\nPump: Included\nMotor: Not included in Rotech scope\nPackage: Not included / TBD\n\nPUMP DETAILS:\nSeries / model: 1196\nSize: 3X4-13\nFrame / group: MTR\nPart #: TBD\nRequested trim: 12.25\nRotation: TBD\n\nHYDRAULIC / FLUID DATA:\nFlow: 450 USGPM\nHead: 120 ft\nFluid: Process water\nTemperature: 60 F\n\nMATERIAL DETAILS:\nMaterial build: DI/316SS | Shaft: 4140/316SS SLEEVED SHAFT | SBC: STD BORE\n\nSEAL DETAILS:\nSeal: ROTECH SHOP MOUNT ROTECH SEAL Single cartridge CAR/SIC/FKM\nSeal plan / flush: PLAN 11\n\nTESTING / SERVICES / CUSTOMIZATION:\nNON-WITNESSED HYDROSTATIC TEST; Notes: Nameplate text in English and French.",
+          "uom": "NOS",
+          "source": "generated-parent",
+          "quantity": 1
+        }
+      ],
+      "documents": [
+        {
+          "type": "Curve",
+          "documentId": "Pump-FLO 1196 3X4-13",
+          "title": "Pump-FLO 1196 3X4-13",
+          "sourceField": "curveReference"
+        },
+        {
+          "type": "Drawing",
+          "documentId": "GA-1196-3X4-13",
+          "title": "GA-1196-3X4-13",
+          "sourceField": "gaReference"
+        }
+      ],
+      "internalContext": [
+        {
+          "classification": "customer-request",
+          "text": "Nameplate text in English and French.",
+          "source": "lines[LIN-E298BCDD849B].specialRequests.salesNotes",
+          "requiresCoordinatorReview": true
+        }
+      ]
+    }
+  ],
+  "orderLevelScope": [],
+  "attentionItems": [],
+  "documents": [],
+  "provenance": {
+    "adapterRevision": "cpq-order-handoff-v2",
+    "sourceSnapshotSha256": "d67a0cdc2eada15c8d5088fec9ece5259ffe122a3c0d271aeda5aac514be5a9c",
+    "bomAuthority": "cpq-browser-technical-bom (reference only; not server-owned; not versioned)",
+    "unitBearingLineCount": 1,
+    "expectedUnitCount": 5,
+    "lineLevelScopeCount": 0,
+    "reviewRequiredCount": 0,
+    "referenceOnlyCount": 0,
+    "attentionItemCount": 0,
+    "excludedFieldClasses": [
+      "pricing",
+      "internalCosting money columns",
+      "authoritativePricing",
+      "resale",
+      "aimcor exports"
+    ]
+  },
+  "checksum": "8401ca4423cdac57fc20308c15dae0e3f24ef05e9ce915f4643b8f5c3258d5e6"
+}

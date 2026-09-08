@@ -1,5 +1,14 @@
 # CPQ ↔ Work Order Integration — Status
 
+> **2026-09-08 — Gate A vertical slice.** The v2 order handoff is now produced by
+> CPQ (`order_handoff_v2.py`, frozen baseline `8812b0e`) and imported here with
+> shared server persistence (PostgreSQL / file), per-Unit demand derived from the
+> frozen configuration, vendor PO references, receipt → inspection → issue →
+> install with as-built capture and automatic release of material-gated work.
+> Fixture: `prototype/sample-data/cpq-order-handoff-v2-qty5.zip` (real lifecycle).
+> Details: [`docs/GATE_A_VERTICAL_SLICE.md`](../GATE_A_VERTICAL_SLICE.md); decisions D-029 – D-033.
+> The sections below describe the earlier v1 milestone and remain accurate for v1.
+
 As of 2026-07-21. Two repos, manual file handoff (no live API yet).
 
 > **End-to-end handshake proven.** CPQ's Publication-gate ZIP bundle for

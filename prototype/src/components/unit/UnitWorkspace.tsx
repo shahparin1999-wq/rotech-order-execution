@@ -20,7 +20,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useAppState } from "@/store/StoreProvider";
+import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import {
   checklistProgress,
   currentResponses,
@@ -47,6 +47,32 @@ import { ActivityFeed } from "@/components/ActivityFeed";
 import { Modal } from "@/components/Drawer";
 
 type Sheet = "checklist" | "parts" | "photo" | "measure" | "drawings" | null;
+
+// The serial is assigned once the physical pump exists; the Unit ID and QR
+// identity were there before it and do not change (D-026).
+function SerialAssignment({ unitId, serial }: { unitId: string; serial: string | null }) {
+  const dispatch = useAppDispatch();
+  const [value, setValue] = useState("");
+  if (serial) return null;
+  return (
+    <div className="card" data-testid="unit-serial-form" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+      <b>Serial pending</b>
+      <input value={value} onChange={(e) => setValue(e.target.value)} placeholder="Nameplate serial" data-testid="unit-serial-input" style={{ width: 200 }} />
+      <button
+        type="button"
+        className="btn btn-primary"
+        disabled={!value.trim()}
+        data-testid="unit-serial-save"
+        onClick={() => {
+          dispatch({ type: "assignUnitSerial", unitId, serial: value });
+          setValue("");
+        }}
+      >
+        Assign serial
+      </button>
+    </div>
+  );
+}
 
 // A task a person can pick up right now, versus one that is held behind
 // something else. Derived — never a stored "ready" flag.
@@ -132,6 +158,7 @@ export function UnitWorkspace({ unitId, asOf }: { unitId: string; asOf: string }
     <>
       <IdentityBanner unit={unit} />
       <div className="page">
+        <SerialAssignment unitId={unitId} serial={unit.serial} />
         {/* The hold reason is the single most important fact about a blocked
             Unit, so it leads — above even what you could otherwise start. */}
         {unit.holdReason && (

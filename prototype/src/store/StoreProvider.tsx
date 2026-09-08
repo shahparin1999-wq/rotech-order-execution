@@ -1,368 +1,299 @@
 "use client";
 
-// Client-side in-memory store. The provider lives in the root layout so state
-// persists across client navigations. This is the prototype's mock repository
-// layer - no server, database, or external system.
+// Application store.
 //
-// State also survives a browser refresh via localStorage, but that is
-// per-browser, per-device only (see src/store/persistence.ts) - it is not
-// shared team state and nobody's edits are visible to anyone else.
+// Two modes, one reducer:
+//
+//   server  (Gate A)  Shared state lives in the server repository (PostgreSQL
+//                     or a JSON file). Every dispatch applies the pure reducer
+//                     optimistically for instant feedback, then sends the same
+//                     action to POST /api/commands with an idempotency key and
+//                     the version it was computed against. The server replays
+//                     the reducer, persists the diff, and returns the
+//                     authoritative state, which replaces the optimistic one.
+//                     A stale base (someone else changed shared state) comes
+//                     back as 409: the current state is adopted and the person
+//                     is asked to repeat the action against what they now see.
+//
+//   local             The original per-browser localStorage demo mode (kept
+//                     for the isolated e2e suite and for running without any
+//                     server persistence).
+//
+// The viewer's mock identity (`currentUserId`) is session state in both modes
+// and is never sent to shared storage except as the actor of a command.
 
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useReducer,
-  useState
-} from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { buildInitialState } from "@/domain/fixtures";
-import { recomputeUnitProjection } from "@/domain/projections";
-import type { AppState, PackageDrawing1196, PlannerBucket, Priority } from "@/domain/types";
-import type { ConfiguratorDraft } from "@/domain/configurator";
-import {
-  adjustInventory,
-  createPutAwayJob,
-  inspectInventory,
-  installInventory,
-  issueInventoryToUnit,
-  putAwayInventory,
-  receiveInventory,
-  reserveInventory,
-  returnInventoryToStock,
-  type ReceiveInput
-} from "@/domain/inventoryActions";
+import { applyAction, LOCAL_ONLY_ACTIONS, recomputeAllProjections, type Action } from "@/domain/reducer";
+import type { AppState } from "@/domain/types";
 import { parseStoredEnvelope, serializeEnvelope, STORAGE_KEY } from "./persistence";
-import {
-  addAttachment,
-  addChecklistResponse,
-  addConfigurationAdjustment,
-  addManufacturingNote,
-  addUnitsToLine,
-  addWorkingBomRow,
-  addPost,
-  addReply,
-  addTaskChecklistItem,
-  addTaskComment,
-  assignTask,
-  blockTask,
-  changeOrderDueDate,
-  changeTaskDueDate,
-  changeTaskPriority,
-  completeTask,
-  completeTaskDirect,
-  confirmGateItem1196,
-  convertPost,
-  createContact,
-  createCustomer,
-  create1196PumpEnd,
-  createTask,
-  createConfiguredOrder,
-  createWorkOrder,
-  decidePowerEndAvailability,
-  editOrder,
-  importExecutionPackage,
-  approveUsageSubstitution,
-  recordComponentUsage,
-  recordComponentUsage1196,
-  removeWorkingBomRow,
-  seedWorkingBom,
-  setPackageDrawing1196,
-  updateWorkingBomRow,
-  markPostRead,
-  moveTaskBucket,
-  pauseTask,
-  reopenTaskDirect,
-  reprintLabel,
-  resolveBlocker,
-  resumeTask,
-  startTask,
-  toggleFollowOrder,
-  toggleTaskChecklistItem,
-  unassignTask,
-  type AttachmentInput,
-  type ContactInput,
-  type ConvertInput,
-  type AddUnitsInput,
-  type ConfigurationAdjustmentInput,
-  type Create1196PumpEndInput,
-  type CustomerInput,
-  type ImportPackageInput,
-  type ManufacturingNoteInput,
-  type OrderEditInput,
-  type PauseInput,
-  type RecordComponentUsageInput,
-  type RecordUsageInput,
-  type ResponseInput,
-  type TaskInput,
-  type WorkingBomPatch,
-  type WorkingBomRowInput,
-  type WorkOrderInput
-} from "@/domain/actions";
 
-export type Action =
-  | { type: "startTask"; taskId: string }
-  | { type: "pauseTask"; taskId: string; input: PauseInput }
-  | { type: "resumeTask"; taskId: string }
-  | { type: "completeTask"; taskId: string }
-  | { type: "blockTask"; taskId: string; reason: string }
-  | { type: "resolveBlocker"; taskId: string; note: string }
-  | { type: "addResponse"; unitId: string; input: ResponseInput }
-  | { type: "addAttachment"; input: AttachmentInput }
-  | { type: "addPost"; orderNumber: string; unitId: string | null; body: string; mentions?: string[] }
-  | { type: "addReply"; postId: string; body: string }
-  | { type: "markPostRead"; postId: string }
-  | { type: "toggleFollowOrder"; orderNumber: string }
-  | { type: "convertPost"; postId: string; input: ConvertInput }
-  | { type: "reprintLabel"; publicRef: string; reason: string }
-  | { type: "switchUser"; employeeId: string }
-  | { type: "hydrateState"; state: AppState }
-  | { type: "resetToFixtures" }
-  | { type: "createCustomer"; input: CustomerInput }
-  | { type: "createContact"; customerId: string; input: ContactInput }
-  | { type: "createWorkOrder"; input: WorkOrderInput }
-  | { type: "importExecutionPackage"; input: ImportPackageInput }
-  | { type: "create1196PumpEnd"; input: Create1196PumpEndInput }
-  | { type: "createConfiguredOrder"; draft: ConfiguratorDraft }
-  | { type: "receiveInventory"; input: ReceiveInput }
-  | { type: "inspectInventory"; identityId: string; decision: "Accept" | "Reject"; note: string }
-  | { type: "putAwayInventory"; identityId: string; locationId: string }
-  | { type: "reserveInventory"; identityId: string; unitId: string; quantity: number; requirementId?: string }
-  | { type: "issueInventoryToUnit"; identityId: string; unitId: string; quantity: number }
-  | { type: "installInventory"; identityId: string; unitId: string; quantity: number }
-  | { type: "returnInventoryToStock"; identityId: string; unitId: string; quantity: number; reason: string; locationId: string }
-  | { type: "adjustInventory"; identityId: string; delta: number; reason: string; authorizedBy: string }
-  | { type: "createPutAwayJob"; identityIds: string[]; facility: string }
-  | { type: "decidePowerEndAvailability"; unitId: string; decision: "Available" | "BuildRequired" }
-  | { type: "recordComponentUsage1196"; requirementId: string; input: RecordComponentUsageInput }
-  | { type: "recordComponentUsage"; input: RecordUsageInput }
-  | { type: "approveUsageSubstitution"; usageId: string; reason: string }
-  | { type: "confirmGateItem1196"; lineId: string; gateKey: string; note: string | null }
-  | { type: "setPackageDrawing1196"; lineId: string; drawing: PackageDrawing1196 }
-  | { type: "addManufacturingNote"; input: ManufacturingNoteInput }
-  | { type: "addConfigurationAdjustment"; input: ConfigurationAdjustmentInput }
-  | { type: "addUnitsToLine"; input: AddUnitsInput }
-  | { type: "seedWorkingBom"; orderNumber: string; lineId: string }
-  | { type: "addWorkingBomRow"; input: WorkingBomRowInput }
-  | { type: "updateWorkingBomRow"; rowId: string; patch: WorkingBomPatch }
-  | { type: "removeWorkingBomRow"; rowId: string }
-  | { type: "changeOrderDueDate"; orderNumber: string; dueDate: string }
-  | { type: "editOrder"; orderNumber: string; input: OrderEditInput }
-  | { type: "createTask"; input: TaskInput }
-  | { type: "assignTask"; taskId: string; employeeId: string }
-  | { type: "unassignTask"; taskId: string; employeeId: string }
-  | { type: "changeTaskDueDate"; taskId: string; dueDate: string | null }
-  | { type: "changeTaskPriority"; taskId: string; priority: Priority }
-  | { type: "moveTaskBucket"; taskId: string; bucket: PlannerBucket }
-  | { type: "completeTaskDirect"; taskId: string }
-  | { type: "reopenTaskDirect"; taskId: string }
-  | { type: "addTaskChecklistItem"; taskId: string; text: string }
-  | { type: "toggleTaskChecklistItem"; taskId: string; itemId: string }
-  | { type: "addTaskComment"; taskId: string; body: string };
+export type { Action };
+export type StoreMode = "local" | "server";
 
-// A saved/hydrated state's cached Unit/Operation statuses are never trusted
-// as-is - always recomputed fresh before use, so a stale save (from before a
-// projection-logic change) or a tampered one can never display an incorrect
-// cached status. The projection is always the source of truth.
-function recomputeAllProjections(state: AppState): AppState {
-  return state.units.reduce((s, u) => recomputeUnitProjection(s, u.unitId), state);
+export interface PersistenceInfo {
+  mode: StoreMode;
+  /** "postgres" | "file" once the server has answered; undefined in local mode. */
+  repository?: string;
+  version: number;
+  ready: boolean;
+  syncing: boolean;
+  error: string | null;
 }
 
-function buildReducer(onError: (message: string) => void) {
-  return function reducer(state: AppState, action: Action): AppState {
-    const actor = state.currentUserId;
-    try {
-      switch (action.type) {
-        case "startTask":
-          return startTask(state, action.taskId, actor);
-        case "pauseTask":
-          return pauseTask(state, action.taskId, actor, action.input);
-        case "resumeTask":
-          return resumeTask(state, action.taskId, actor);
-        case "completeTask":
-          return completeTask(state, action.taskId, actor);
-        case "blockTask":
-          return blockTask(state, action.taskId, actor, action.reason);
-        case "resolveBlocker":
-          return resolveBlocker(state, action.taskId, actor, action.note);
-        case "addResponse":
-          return addChecklistResponse(state, action.unitId, actor, action.input);
-        case "addAttachment":
-          return addAttachment(state, actor, action.input);
-        case "addPost":
-          return addPost(state, actor, {
-            orderNumber: action.orderNumber,
-            unitId: action.unitId,
-            body: action.body,
-            mentions: action.mentions
-          });
-        case "addReply":
-          return addReply(state, action.postId, actor, action.body);
-        case "markPostRead":
-          return markPostRead(state, action.postId);
-        case "toggleFollowOrder":
-          return toggleFollowOrder(state, action.orderNumber);
-        case "convertPost":
-          return convertPost(state, action.postId, actor, action.input);
-        case "reprintLabel":
-          return reprintLabel(state, action.publicRef, actor, action.reason);
-        case "switchUser":
-          return { ...state, currentUserId: action.employeeId };
-        case "hydrateState":
-          return recomputeAllProjections(action.state);
-        case "resetToFixtures":
-          return buildInitialState();
-        case "createCustomer":
-          return createCustomer(state, actor, action.input);
-        case "createContact":
-          return createContact(state, actor, action.customerId, action.input);
-        case "createWorkOrder":
-          return createWorkOrder(state, actor, action.input);
-        case "importExecutionPackage":
-          return importExecutionPackage(state, actor, action.input);
-        case "create1196PumpEnd":
-          return create1196PumpEnd(state, actor, action.input);
-        case "createConfiguredOrder":
-          return createConfiguredOrder(state, actor, action.draft);
-        case "receiveInventory":
-          return receiveInventory(state, actor, action.input);
-        case "inspectInventory":
-          return inspectInventory(state, actor, action.identityId, action.decision, action.note);
-        case "putAwayInventory":
-          return putAwayInventory(state, actor, action.identityId, action.locationId);
-        case "reserveInventory":
-          return reserveInventory(state, actor, action.identityId, action.unitId, action.quantity, action.requirementId);
-        case "issueInventoryToUnit":
-          return issueInventoryToUnit(state, actor, action.identityId, action.unitId, action.quantity);
-        case "installInventory":
-          return installInventory(state, actor, action.identityId, action.unitId, action.quantity);
-        case "returnInventoryToStock":
-          return returnInventoryToStock(state, actor, action.identityId, action.unitId, action.quantity, action.reason, action.locationId);
-        case "adjustInventory":
-          return adjustInventory(state, actor, action.identityId, action.delta, action.reason, action.authorizedBy);
-        case "createPutAwayJob":
-          return createPutAwayJob(state, actor, action.identityIds, action.facility);
-        case "decidePowerEndAvailability":
-          return decidePowerEndAvailability(state, actor, action.unitId, action.decision);
-        case "recordComponentUsage":
-          return recordComponentUsage(state, actor, action.input);
-        case "approveUsageSubstitution":
-          return approveUsageSubstitution(state, actor, action.usageId, action.reason);
-        case "recordComponentUsage1196":
-          return recordComponentUsage1196(state, actor, action.requirementId, action.input);
-        case "confirmGateItem1196":
-          return confirmGateItem1196(state, actor, action.lineId, action.gateKey, action.note);
-        case "setPackageDrawing1196":
-          return setPackageDrawing1196(state, actor, action.lineId, action.drawing);
-        case "addManufacturingNote":
-          return addManufacturingNote(state, actor, action.input);
-        case "addConfigurationAdjustment":
-          return addConfigurationAdjustment(state, actor, action.input);
-        case "addUnitsToLine":
-          return addUnitsToLine(state, actor, action.input);
-        case "seedWorkingBom":
-          return seedWorkingBom(state, actor, action.orderNumber, action.lineId);
-        case "addWorkingBomRow":
-          return addWorkingBomRow(state, actor, action.input);
-        case "updateWorkingBomRow":
-          return updateWorkingBomRow(state, actor, action.rowId, action.patch);
-        case "removeWorkingBomRow":
-          return removeWorkingBomRow(state, actor, action.rowId);
-        case "changeOrderDueDate":
-          return changeOrderDueDate(state, action.orderNumber, actor, action.dueDate);
-        case "editOrder":
-          return editOrder(state, action.orderNumber, actor, action.input);
-        case "createTask":
-          return createTask(state, actor, action.input);
-        case "assignTask":
-          return assignTask(state, action.taskId, actor, action.employeeId);
-        case "unassignTask":
-          return unassignTask(state, action.taskId, actor, action.employeeId);
-        case "changeTaskDueDate":
-          return changeTaskDueDate(state, action.taskId, actor, action.dueDate);
-        case "changeTaskPriority":
-          return changeTaskPriority(state, action.taskId, actor, action.priority);
-        case "moveTaskBucket":
-          return moveTaskBucket(state, action.taskId, actor, action.bucket);
-        case "completeTaskDirect":
-          return completeTaskDirect(state, action.taskId, actor);
-        case "reopenTaskDirect":
-          return reopenTaskDirect(state, action.taskId, actor);
-        case "addTaskChecklistItem":
-          return addTaskChecklistItem(state, action.taskId, actor, action.text);
-        case "toggleTaskChecklistItem":
-          return toggleTaskChecklistItem(state, action.taskId, action.itemId);
-        case "addTaskComment":
-          return addTaskComment(state, action.taskId, actor, action.body);
-        default:
-          return state;
-      }
-    } catch (err) {
-      // Surface domain violations loudly in the prototype rather than hiding
-      // them (no silent fallback) - shown as an inline banner, not a native
-      // alert dialog.
-      console.error("Domain action rejected:", err);
-      onError((err as Error).message);
-      return state;
-    }
-  };
-}
+const USER_KEY = "rotech-proto-user";
 
 const StateCtx = createContext<AppState | null>(null);
 const DispatchCtx = createContext<React.Dispatch<Action> | null>(null);
+const PersistenceCtx = createContext<PersistenceInfo | null>(null);
 
-export function StoreProvider({ children }: { children: React.ReactNode }) {
+function ErrorToast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div className="error-toast" role="alert" data-testid="error-toast">
+      <span>Action rejected: {message}</span>
+      <button type="button" aria-label="Dismiss" onClick={onDismiss}>
+        ×
+      </button>
+    </div>
+  );
+}
+
+function readStoredUser(): string | null {
+  try {
+    return window.localStorage.getItem(USER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredUser(id: string): void {
+  try {
+    window.localStorage.setItem(USER_KEY, id);
+  } catch {
+    // not fatal
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Local (per-browser) mode
+// ---------------------------------------------------------------------------
+
+function LocalStoreProvider({ children }: { children: React.ReactNode }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const reducer = useCallback(buildReducer(setErrorMessage), []);
-  const [state, dispatch] = useReducer(reducer, undefined, buildInitialState);
+  const [state, setState] = useState<AppState>(buildInitialState);
   const [hydrated, setHydrated] = useState(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const dispatch = useCallback<React.Dispatch<Action>>((action) => {
+    try {
+      const next = applyAction(stateRef.current, action);
+      stateRef.current = next;
+      setState(next);
+    } catch (err) {
+      // Surface domain violations loudly rather than hiding them (no silent
+      // fallback) - shown as an inline banner, not a native alert dialog.
+      console.error("Domain action rejected:", err);
+      setErrorMessage((err as Error).message);
+    }
+  }, []);
 
   // Server render and the client's first render both call buildInitialState()
-  // directly, so markup matches and there is no hydration warning. Only
-  // after mount do we look at localStorage and, if a save exists, adopt it -
+  // directly, so markup matches and there is no hydration warning. Only after
+  // mount do we look at localStorage and, if a save exists, adopt it -
   // recomputing every projection rather than trusting the saved values.
   useEffect(() => {
     let saved: AppState | null = null;
     try {
       saved = parseStoredEnvelope(window.localStorage.getItem(STORAGE_KEY));
     } catch {
-      saved = null; // localStorage disabled/unavailable - just start fresh
+      saved = null;
     }
     if (saved) dispatch({ type: "hydrateState", state: saved });
     setHydrated(true);
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     if (!hydrated) return; // don't persist the pre-hydration fixture render
     try {
       window.localStorage.setItem(STORAGE_KEY, serializeEnvelope(state));
     } catch {
-      // Quota exceeded, serialization failure, or storage disabled: not
-      // fatal for a demo tool - this write just doesn't persist.
+      // quota / disabled storage: this write just doesn't persist
     }
   }, [state, hydrated]);
 
-  const memoState = useMemo(() => state, [state]);
+  const info = useMemo<PersistenceInfo>(
+    () => ({ mode: "local", version: 0, ready: hydrated, syncing: false, error: null }),
+    [hydrated]
+  );
+
   return (
-    <StateCtx.Provider value={memoState}>
+    <StateCtx.Provider value={state}>
       <DispatchCtx.Provider value={dispatch}>
-        {children}
-        {errorMessage && (
-          <div className="error-toast" role="alert" data-testid="error-toast">
-            <span>Action rejected: {errorMessage}</span>
-            <button
-              type="button"
-              aria-label="Dismiss"
-              onClick={() => setErrorMessage(null)}
-            >
-              ×
-            </button>
-          </div>
-        )}
+        <PersistenceCtx.Provider value={info}>
+          {children}
+          {errorMessage && <ErrorToast message={errorMessage} onDismiss={() => setErrorMessage(null)} />}
+        </PersistenceCtx.Provider>
       </DispatchCtx.Provider>
     </StateCtx.Provider>
   );
+}
+
+// ---------------------------------------------------------------------------
+// Server (Gate A) mode
+// ---------------------------------------------------------------------------
+
+interface ServerSnapshot {
+  mode?: string;
+  version: number;
+  state: AppState;
+}
+
+function newIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `cmd-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function ServerStoreProvider({ children }: { children: React.ReactNode }) {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [state, setState] = useState<AppState>(buildInitialState);
+  const [info, setInfo] = useState<PersistenceInfo>({ mode: "server", version: 0, ready: false, syncing: false, error: null });
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const versionRef = useRef(0);
+  const queueRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingRef = useRef(0);
+
+  const adopt = useCallback((snapshot: ServerSnapshot, userOverride?: string) => {
+    const user = userOverride ?? stateRef.current.currentUserId;
+    const next = recomputeAllProjections({ ...snapshot.state, currentUserId: user });
+    stateRef.current = next;
+    versionRef.current = snapshot.version;
+    setState(next);
+    setInfo((i) => ({ ...i, version: snapshot.version, repository: snapshot.mode ?? i.repository, ready: true, error: null }));
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const response = await fetch("/api/state", { cache: "no-store" });
+    if (!response.ok) throw new Error(`State fetch failed (${response.status})`);
+    adopt((await response.json()) as ServerSnapshot);
+  }, [adopt]);
+
+  useEffect(() => {
+    const storedUser = readStoredUser();
+    (async () => {
+      try {
+        const response = await fetch("/api/state", { cache: "no-store" });
+        if (!response.ok) throw new Error(`State fetch failed (${response.status})`);
+        const snapshot = (await response.json()) as ServerSnapshot;
+        const user =
+          storedUser && snapshot.state.employees.some((e) => e.id === storedUser) ? storedUser : snapshot.state.currentUserId;
+        adopt(snapshot, user);
+      } catch (err) {
+        setInfo((i) => ({ ...i, ready: true, error: (err as Error).message }));
+        setErrorMessage(`Could not load shared state: ${(err as Error).message}`);
+      }
+    })();
+  }, [adopt]);
+
+  const send = useCallback(
+    async (action: Action) => {
+      pendingRef.current += 1;
+      setInfo((i) => ({ ...i, syncing: true }));
+      try {
+        const response = await fetch("/api/commands", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            idempotencyKey: newIdempotencyKey(),
+            actorId: stateRef.current.currentUserId,
+            expectedVersion: versionRef.current,
+            action
+          })
+        });
+        const body = (await response.json()) as ServerSnapshot & { error?: string; code?: string };
+        if (response.ok) {
+          adopt(body);
+          return;
+        }
+        if (response.status === 409 && body.state) {
+          adopt(body);
+          setErrorMessage("Shared state changed while you were working — it has been refreshed; please repeat your last action.");
+          return;
+        }
+        await refresh();
+        setErrorMessage(body.error ?? `Command failed (${response.status})`);
+      } catch (err) {
+        setErrorMessage(`Could not save: ${(err as Error).message}`);
+        try {
+          await refresh();
+        } catch {
+          // keep whatever we have; the banner shows the error
+        }
+      } finally {
+        pendingRef.current -= 1;
+        if (pendingRef.current === 0) setInfo((i) => ({ ...i, syncing: false }));
+      }
+    },
+    [adopt, refresh]
+  );
+
+  const dispatch = useCallback<React.Dispatch<Action>>(
+    (action) => {
+      if (action.type === "switchUser") {
+        writeStoredUser(action.employeeId);
+        const next = { ...stateRef.current, currentUserId: action.employeeId };
+        stateRef.current = next;
+        setState(next);
+        return;
+      }
+      if (action.type === "hydrateState") {
+        const next = recomputeAllProjections(action.state);
+        stateRef.current = next;
+        setState(next);
+        return;
+      }
+      if (action.type === "resetToFixtures") {
+        queueRef.current = queueRef.current.then(async () => {
+          const response = await fetch("/api/admin/reset", { method: "POST" });
+          if (!response.ok) {
+            setErrorMessage("Reset is not allowed on this server");
+            return;
+          }
+          adopt((await response.json()) as ServerSnapshot);
+        });
+        return;
+      }
+      if (LOCAL_ONLY_ACTIONS.has(action.type)) return;
+      // Optimistic: the same reducer the server will run.
+      try {
+        const next = applyAction(stateRef.current, action);
+        stateRef.current = next;
+        setState(next);
+      } catch (err) {
+        console.error("Domain action rejected:", err);
+        setErrorMessage((err as Error).message);
+        return;
+      }
+      queueRef.current = queueRef.current.then(() => send(action));
+    },
+    [adopt, send]
+  );
+
+  return (
+    <StateCtx.Provider value={state}>
+      <DispatchCtx.Provider value={dispatch}>
+        <PersistenceCtx.Provider value={info}>
+          {children}
+          {errorMessage && <ErrorToast message={errorMessage} onDismiss={() => setErrorMessage(null)} />}
+        </PersistenceCtx.Provider>
+      </DispatchCtx.Provider>
+    </StateCtx.Provider>
+  );
+}
+
+export function StoreProvider({ mode = "local", children }: { mode?: StoreMode; children: React.ReactNode }) {
+  return mode === "server" ? <ServerStoreProvider>{children}</ServerStoreProvider> : <LocalStoreProvider>{children}</LocalStoreProvider>;
 }
 
 export function useAppState(): AppState {
@@ -375,4 +306,10 @@ export function useAppDispatch(): React.Dispatch<Action> {
   const d = useContext(DispatchCtx);
   if (!d) throw new Error("useAppDispatch must be used inside StoreProvider");
   return d;
+}
+
+export function usePersistence(): PersistenceInfo {
+  const p = useContext(PersistenceCtx);
+  if (!p) throw new Error("usePersistence must be used inside StoreProvider");
+  return p;
 }

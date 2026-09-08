@@ -36,6 +36,7 @@ import {
   lineContextFor,
   type LineSectionKey
 } from "@/components/order/LineSections";
+import { PurchasingPanel } from "@/components/order/PurchasingPanel";
 
 const KIND_LABEL: Record<AttentionKind, string> = {
   Shortage: "Shortage",
@@ -43,7 +44,8 @@ const KIND_LABEL: Record<AttentionKind, string> = {
   SubstitutionReview: "Review",
   QualityProblem: "Quality",
   OverdueAction: "Overdue",
-  CommercialReview: "Commercial"
+  CommercialReview: "Commercial",
+  LatePurchase: "Late PO"
 };
 
 function AttentionRow({ item }: { item: OrderAttentionItem }) {
@@ -228,6 +230,7 @@ export function OrderWorkspace({ orderNo, asOf }: { orderNo: string; asOf: strin
         <h1>{order.orderNumber}</h1>
         <div className="order-head-line">
           {customerNameWithCity(state, order.customerId)} · PO {order.customerPo}
+          {order.cpqReference && <span data-testid="order-cpq-reference"> · CPQ {order.cpqReference}</span>}
         </div>
         <div className="order-head-line">
           Due {order.dueDate} · {order.facility} · {order.productFamily}
@@ -264,6 +267,9 @@ export function OrderWorkspace({ orderNo, asOf }: { orderNo: string; asOf: strin
           <LineGroup key={line.nodeId} line={line} onOpenDetails={setDetailsLineId} />
         ))}
       </section>
+
+      {/* --- Material and purchasing: derived, order-scoped ------------- */}
+      <PurchasingPanel orderNo={orderNo} asOf={asOf} />
 
       {/* --- Counts, not expanded lists ------------------------------- */}
       <section className="order-counts" data-testid="order-counts">
