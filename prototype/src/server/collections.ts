@@ -55,6 +55,12 @@ export const COLLECTION_KEYS: Record<CollectionName, string> = {
   inventoryReceiptLines: "id",
   inventoryLocations: "id",
   internalJobs: "id",
+  shipmentFiles: "id",
+  parseRuns: "id",
+  parsedFields: "id",
+  expectedShipments: "id",
+  openingImports: "id",
+  reconciliationExceptions: "id",
   vendorPoReferences: "id",
   // string arrays: the value is its own key
   favourites: "",

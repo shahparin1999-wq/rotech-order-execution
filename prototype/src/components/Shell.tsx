@@ -45,7 +45,7 @@ function ProfileMenu({ onClose }: { onClose: () => void }) {
       </div>
 
       <label className="profile-field">
-        Acting as (mock identity)
+        Acting as (UAT employee context)
         <select
           value={state.currentUserId}
           onChange={(e) => {
@@ -64,8 +64,8 @@ function ProfileMenu({ onClose }: { onClose: () => void }) {
           ))}
         </select>
         <span className="profile-note">
-          Demo switcher only. Real sign-in uses Entra; this prototype has no
-          authentication or authorization.
+          UAT only. Hosted Sites identity must resolve server-side to an OEH
+          user, Rotech employee, facility scope, role, and capabilities.
         </span>
       </label>
 
@@ -83,7 +83,7 @@ function ProfileMenu({ onClose }: { onClose: () => void }) {
         style={{ width: "100%" }}
         data-testid="reset-to-fixtures"
         onClick={() => {
-          if (window.confirm("Reset to sample data? This clears everything you've clicked through on this device.")) {
+          if (window.confirm("Reset the UAT fixture state? Do not use this with real inventory.")) {
             dispatch({ type: "resetToFixtures" });
             onClose();
           }
@@ -92,9 +92,8 @@ function ProfileMenu({ onClose }: { onClose: () => void }) {
         Reset to sample data
       </button>
       <span className="profile-note">
-        Clears what you&apos;ve clicked through <b>on this device</b> and reloads
-        the sample data. Progress is saved only in this browser — it is never
-        shared with anyone else.
+        Resets the UAT fixture state in the current persistence mode. Do not use
+        this control with real inventory.
       </span>
     </div>
   );
@@ -104,17 +103,17 @@ function PersistenceBanner() {
   const p = usePersistence();
   if (p.mode === "server") {
     return (
-      <div className="mock-banner" data-testid="persistence-banner">
-        SHARED STATE · {p.repository ?? "server"} persistence · v{p.version}
+      <div className="mock-banner" data-testid="persistence-banner" data-version={p.version} data-syncing={p.syncing ? "true" : "false"}>
+        SHARED OEH STATE · {p.repository ?? "server"} persistence · v{p.version}
         {p.syncing ? " · saving…" : ""}
-        {p.error ? ` · ${p.error}` : ""} — mock identity only; no AIMCOR, Entra or Teams integration.
+        {p.error ? ` · ${p.error}` : ""} — server capability checks are authoritative; UAT data only.
       </div>
     );
   }
   return (
     <div className="mock-banner" data-testid="persistence-banner">
-      PROTOTYPE - mock data only. No AIMCOR, Azure, Entra, Teams, or database
-      integration.
+      UAT fixture data only. Local mode is device-local; shared inventory uses
+      the OEH server command path.
     </div>
   );
 }

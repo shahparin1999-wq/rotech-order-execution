@@ -71,6 +71,8 @@ export interface InventoryReceiptLine {
   certificateRef?: string;
   /** Vendor PO line this receipt was booked against, when received against a referenced PO. */
   vendorPoLineId?: string;
+  /** Expected-shipment line this receipt is explicitly matched to. */
+  expectedShipmentLineId?: string;
   condition?: string;
   disposition: ReceiptDisposition;
   /** The requirement a person explicitly confirmed this satisfies. */

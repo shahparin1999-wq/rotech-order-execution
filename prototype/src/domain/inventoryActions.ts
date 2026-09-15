@@ -30,6 +30,7 @@ import {
   activeUnitAllocation,
   available,
   currentLocation,
+  isInstalled,
   onHand,
   qualityState,
   validateMovement,
@@ -40,6 +41,7 @@ import type { InventoryReceipt, InventoryReceiptLine, ReceiptKind } from "./inve
 import { checkIssueToUnit } from "./inventory/issue";
 import { buildPutAwayJob } from "./inventory/internalJobs";
 import { mockPublicRef } from "./ids";
+import type { ConfirmOpeningImportInput } from "./inventory/contracts";
 
 function nowIso(at?: string): string {
   return at ?? new Date().toISOString();
@@ -48,6 +50,18 @@ function nowIso(at?: string): string {
 function takeId(state: AppState, prefix: string): [string, AppState] {
   const id = `${prefix}-${state.nextId}`;
   return [id, { ...state, nextId: state.nextId + 1 }];
+}
+
+function requirePositiveQuantity(quantity: number, label: string): void {
+  if (!Number.isFinite(quantity) || quantity <= 0) throw new Error(`${label} must be greater than zero`);
+}
+
+function requireUnitAtFacility(state: AppState, unitId: string, facility: string): void {
+  const unit = state.units.find((x) => x.unitId === unitId);
+  if (!unit) throw new Error(`Unknown Unit ${unitId}`);
+  const order = state.orders.find((x) => x.orderNumber === unit.orderNumber);
+  if (!order) throw new Error(`Unit ${unitId} has no owning Order`);
+  if (order.facility !== facility) throw new Error(`Unit ${unitId} is at ${order.facility}, not ${facility}`);
 }
 
 function audit(state: AppState, ev: Omit<AuditEvent, "id">): AppState {
@@ -97,6 +111,7 @@ export interface ReceiveInput {
   matchedRequirementId?: string;
   /** The referenced vendor PO line this delivery is booked against. */
   vendorPoLineId?: string;
+  expectedShipmentLineId?: string;
   notes?: string;
 }
 
@@ -112,11 +127,32 @@ export function receiveInventory(
   at?: string
 ): AppState {
   const ts = nowIso(at);
-  const policy = input.trackingPolicy ?? trackingPolicyFor(input.componentKey ?? "");
+  const inferredPolicy = trackingPolicyFor(input.componentKey ?? "");
+  const policy = input.trackingPolicy ?? inferredPolicy;
 
   if (!input.partNumber.trim()) throw new Error("A part number is required to receive");
   if (!Number.isFinite(input.quantity) || input.quantity <= 0) {
     throw new Error("Received quantity must be greater than zero");
+  }
+  if (input.componentKey && input.trackingPolicy && policy !== inferredPolicy) {
+    throw new Error(`${input.componentKey} must use its configured ${inferredPolicy} tracking policy`);
+  }
+  if (policy === "Serialized" && input.quantity !== 1) {
+    throw new Error("Serialized inventory requires quantity 1 per serial identity");
+  }
+  if (input.expectedShipmentLineId) {
+    const expected = state.expectedShipments
+      .map((shipment) => ({ shipment, line: shipment.lines.find((line) => line.id === input.expectedShipmentLineId) }))
+      .find((candidate) => candidate.line);
+    if (!expected?.line || expected.shipment.status !== "Confirmed") {
+      throw new Error("Receipt must reference a confirmed expected-shipment line");
+    }
+    if (expected.shipment.facility !== input.facility || expected.line.facility !== input.facility) {
+      throw new Error("Receipt facility must match the confirmed expected-shipment line");
+    }
+    if (expected.line.partNumber !== input.partNumber.trim()) {
+      throw new Error("Receipt part number must match the confirmed expected-shipment line");
+    }
   }
 
   // The policy's traceability field is not optional — a heat-tracked casting
@@ -124,6 +160,10 @@ export function receiveInventory(
   const missing = missingTrackingFields(policy, input);
   if (missing.length) {
     throw new Error(`${policy} parts require a ${missing.join(", ")} number before they can be received`);
+  }
+  const serial = input.serialNumber?.trim();
+  if (serial && state.inventoryIdentities.some((item) => item.serialNumber?.trim().toUpperCase() === serial.toUpperCase())) {
+    throw new Error(`Serial ${serial} already exists in inventory history`);
   }
 
   let s = state;
@@ -163,6 +203,7 @@ export function receiveInventory(
     disposition: input.matchedRequirementId ? "ExactMatch" : "UnknownDemand",
     matchedRequirementId: input.matchedRequirementId,
     vendorPoLineId: input.vendorPoLineId?.trim() || undefined,
+    expectedShipmentLineId: input.expectedShipmentLineId?.trim() || undefined,
     unmatchedReason: input.matchedRequirementId ? undefined : "No demand confirmed at receipt"
   };
 
@@ -286,6 +327,9 @@ export function inspectInventory(
 ): AppState {
   const identity = state.inventoryIdentities.find((i) => i.id === identityId);
   if (!identity) throw new Error(`Unknown inventory item ${identityId}`);
+  if (qualityState(state.inventoryMovements, identityId) !== "Quarantine") {
+    throw new Error("Only quarantined material can receive an inspection decision; corrections must be explicit");
+  }
   if (decision === "Reject" && !note.trim()) {
     throw new Error("Rejecting incoming material requires a reason");
   }
@@ -341,6 +385,8 @@ export function putAwayInventory(
   }
   const ts = nowIso(at);
   const location = state.inventoryLocations.find((l) => l.id === locationId);
+  if (!location) throw new Error(`Unknown inventory location ${locationId}`);
+  if (location.facility !== identity.facility) throw new Error(`Location ${locationId} is outside ${identity.facility}`);
 
   const s = appendMovement(state, {
     inventoryIdentityId: identityId,
@@ -375,6 +421,8 @@ export function reserveInventory(
 ): AppState {
   const identity = state.inventoryIdentities.find((i) => i.id === identityId);
   if (!identity) throw new Error(`Unknown inventory item ${identityId}`);
+  requirePositiveQuantity(quantity, "Reservation quantity");
+  requireUnitAtFacility(state, unitId, identity.facility);
   if (qualityState(state.inventoryMovements, identityId) !== "Accepted") {
     throw new Error("Only accepted material can be reserved");
   }
@@ -428,6 +476,8 @@ export function issueInventoryToUnit(
 ): AppState {
   const identity = state.inventoryIdentities.find((i) => i.id === identityId);
   if (!identity) throw new Error(`Unknown inventory item ${identityId}`);
+  requirePositiveQuantity(quantity, "Issue quantity");
+  requireUnitAtFacility(state, unitId, identity.facility);
 
   const check = checkIssueToUnit({
     identity,
@@ -472,6 +522,11 @@ export function installInventory(
 ): AppState {
   const identity = state.inventoryIdentities.find((i) => i.id === identityId);
   if (!identity) throw new Error(`Unknown inventory item ${identityId}`);
+  requirePositiveQuantity(quantity, "Install quantity");
+  requireUnitAtFacility(state, unitId, identity.facility);
+  if (isInstalled(state.inventoryMovements, identityId)) {
+    throw new Error(`${identity.partNumber} is already installed; remove it before installing it again`);
+  }
   if (activeUnitAllocation(state.inventoryMovements, identityId) !== unitId) {
     throw new Error(`${identity.partNumber} is not issued to ${unitId}`);
   }
@@ -574,6 +629,14 @@ export function returnInventoryToStock(
   const identity = state.inventoryIdentities.find((i) => i.id === identityId);
   if (!identity) throw new Error(`Unknown inventory item ${identityId}`);
   if (!reason.trim()) throw new Error("Returning a part to stock requires a reason");
+  requirePositiveQuantity(quantity, "Return quantity");
+  requireUnitAtFacility(state, unitId, identity.facility);
+  if (activeUnitAllocation(state.inventoryMovements, identityId) !== unitId || !isInstalled(state.inventoryMovements, identityId)) {
+    throw new Error(`${identity.partNumber} is not installed in ${unitId}`);
+  }
+  const location = state.inventoryLocations.find((x) => x.id === locationId);
+  if (!location) throw new Error(`Unknown inventory location ${locationId}`);
+  if (location.facility !== identity.facility) throw new Error(`Location ${locationId} is outside ${identity.facility}`);
   const ts = nowIso(at);
 
   let s = appendMovement(state, {
@@ -614,10 +677,12 @@ export function adjustInventory(
   delta: number,
   reason: string,
   authorizedBy: string,
-  at?: string
+  at?: string,
+  provenance?: Pick<InventoryMovement, "importBatchId" | "sourceFileId" | "sourceFileHash" | "sourceRow" | "approvedBy" | "approvedAt">
 ): AppState {
   const identity = state.inventoryIdentities.find((i) => i.id === identityId);
   if (!identity) throw new Error(`Unknown inventory item ${identityId}`);
+  if (!Number.isFinite(delta) || delta === 0) throw new Error("An inventory adjustment must be a non-zero finite quantity");
   const ts = nowIso(at);
 
   const s = appendMovement(state, {
@@ -626,6 +691,7 @@ export function adjustInventory(
     quantity: delta,
     reason: reason.trim(),
     authorizedBy,
+    ...provenance,
     recordedBy: actorId,
     recordedAt: ts
   });
@@ -640,6 +706,88 @@ export function adjustInventory(
     detail: `${identity.partNumber} adjusted by ${delta > 0 ? "+" : ""}${delta}: ${reason.trim()} (authorized by ${authorizedBy}).`,
     supersedesEventId: null
   });
+}
+
+/**
+ * Confirms a controlled opening-count import. It can only create audited
+ * adjustment movements; it never writes an on-hand quantity directly.
+ */
+export function confirmOpeningImport(
+  state: AppState,
+  actorId: string,
+  input: ConfirmOpeningImportInput,
+  at?: string
+): AppState {
+  if (!input.importBatchId.trim() || !input.sourceFileId.trim() || !input.sourceFileHash.trim()) {
+    throw new Error("An opening import requires a batch ID, source file ID, and source file hash");
+  }
+  if (!input.reason.trim()) throw new Error("An opening import requires an approval reason");
+  if (input.lines.length === 0) throw new Error("An opening import must contain at least one line");
+  if (state.openingImports.some((x) => x.importBatchId === input.importBatchId && x.status === "Confirmed")) {
+    throw new Error(`Opening import ${input.importBatchId} is already confirmed`);
+  }
+
+  const ts = nowIso(at);
+  let s = state;
+  for (const line of input.lines) {
+    if (!Number.isFinite(line.delta) || line.delta === 0) throw new Error(`Opening row ${line.sourceRow} must have a non-zero adjustment`);
+    if (!line.reason.trim()) throw new Error(`Opening row ${line.sourceRow} requires a reason`);
+    if (!s.inventoryIdentities.some((x) => x.id === line.identityId)) throw new Error(`Unknown inventory item ${line.identityId}`);
+    s = appendMovement(s, {
+      inventoryIdentityId: line.identityId,
+      type: "Adjusted",
+      quantity: line.delta,
+      reason: line.reason.trim(),
+      authorizedBy: actorId,
+      importBatchId: input.importBatchId.trim(),
+      sourceFileId: input.sourceFileId.trim(),
+      sourceFileHash: input.sourceFileHash.trim(),
+      sourceRow: line.sourceRow,
+      approvedBy: actorId,
+      approvedAt: ts,
+      recordedBy: actorId,
+      recordedAt: ts
+    });
+  }
+
+  const [id, afterId] = takeId(s, "open");
+  s = {
+    ...afterId,
+    openingImports: [
+      ...afterId.openingImports,
+      {
+        id,
+        importBatchId: input.importBatchId.trim(),
+        sourceFileId: input.sourceFileId.trim(),
+        sourceFileHash: input.sourceFileHash.trim(),
+        sourceRows: input.lines.map((x) => x.sourceRow),
+        status: "Confirmed",
+        reason: input.reason.trim(),
+        approvedBy: actorId,
+        approvedAt: ts,
+        lines: input.lines.map((x) => ({ ...x, reason: x.reason.trim() }))
+      }
+    ]
+  };
+
+  const [auditId, afterAuditId] = takeId(s, "ae");
+  return {
+    ...afterAuditId,
+    auditEvents: [
+      ...afterAuditId.auditEvents,
+      {
+        id: auditId,
+        at: ts,
+        actorId,
+        action: "inventory.openingBalanceConfirmed",
+        targetType: "InventoryImport",
+        targetId: id,
+        unitId: null,
+        detail: `Confirmed opening balance ${input.importBatchId} from ${input.lines.length} audited row(s).`,
+        supersedesEventId: null
+      }
+    ]
+  };
 }
 
 /**
@@ -692,6 +840,16 @@ export function createPutAwayJob(
   at?: string
 ): AppState {
   if (identityIds.length === 0) throw new Error("Nothing to put away");
+  const identities = identityIds.map((identityId) => {
+    const identity = state.inventoryIdentities.find((item) => item.id === identityId);
+    if (!identity) throw new Error(`Unknown inventory item ${identityId}`);
+    if (identity.facility !== facility) throw new Error(`Inventory item ${identityId} is at ${identity.facility}, not ${facility}`);
+    return identity;
+  });
+  if (new Set(identityIds).size !== identityIds.length) throw new Error("A put-away job cannot contain the same item twice");
+  if (identities.some((identity) => qualityState(state.inventoryMovements, identity.id) !== "Accepted")) {
+    throw new Error("Only accepted inventory can enter a put-away job");
+  }
   const ts = nowIso(at);
   const [jobNumber, s1] = takeId(state, "IJ");
   let s = s1;

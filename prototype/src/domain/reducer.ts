@@ -20,8 +20,17 @@ import {
   receiveInventory,
   reserveInventory,
   returnInventoryToStock,
+  confirmOpeningImport,
   type ReceiveInput
 } from "./inventoryActions";
+import {
+  confirmExpectedShipment,
+  editExpectedShipmentDraft,
+  recordShipmentParse,
+  supersedeExpectedShipment,
+  type RecordShipmentParseInput
+} from "./inventoryShipmentActions";
+import type { ConfirmOpeningImportInput, ExpectedShipmentDraftPatch } from "./inventory/contracts";
 import {
   addAttachment,
   addChecklistResponse,
@@ -126,6 +135,12 @@ export type Action =
   | { type: "installInventory"; identityId: string; unitId: string; quantity: number }
   | { type: "returnInventoryToStock"; identityId: string; unitId: string; quantity: number; reason: string; locationId: string }
   | { type: "adjustInventory"; identityId: string; delta: number; reason: string; authorizedBy: string }
+  | { type: "confirmOpeningImport"; input: ConfirmOpeningImportInput }
+  | { type: "recordShipmentParse"; input: RecordShipmentParseInput }
+  | { type: "editExpectedShipmentDraft"; input: ExpectedShipmentDraftPatch }
+  | { type: "confirmExpectedShipment"; shipmentId: string }
+  | { type: "supersedeExpectedShipment"; shipmentId: string }
+  | { type: "feasibilityProbe"; probeId: string }
   | { type: "createPutAwayJob"; identityIds: string[]; facility: string }
   | { type: "decidePowerEndAvailability"; unitId: string; decision: "Available" | "BuildRequired" }
   | { type: "recordComponentUsage1196"; requirementId: string; input: RecordComponentUsageInput }
@@ -246,6 +261,18 @@ export function applyAction(state: AppState, action: Action, at?: string): AppSt
       return returnInventoryToStock(state, actor, action.identityId, action.unitId, action.quantity, action.reason, action.locationId, at);
     case "adjustInventory":
       return adjustInventory(state, actor, action.identityId, action.delta, action.reason, action.authorizedBy, at);
+    case "confirmOpeningImport":
+      return confirmOpeningImport(state, actor, action.input, at);
+    case "recordShipmentParse":
+      return recordShipmentParse(state, actor, action.input, at);
+    case "editExpectedShipmentDraft":
+      return editExpectedShipmentDraft(state, actor, action.input, at);
+    case "confirmExpectedShipment":
+      return confirmExpectedShipment(state, actor, action.shipmentId, at);
+    case "supersedeExpectedShipment":
+      return supersedeExpectedShipment(state, actor, action.shipmentId, at);
+    case "feasibilityProbe":
+      return state;
     case "createPutAwayJob":
       return createPutAwayJob(state, actor, action.identityIds, action.facility, at);
     case "decidePowerEndAvailability":

@@ -40,14 +40,15 @@ function addDaysIso(base: Date, days: number): string {
 }
 
 const employees: Employee[] = [
-  { id: "e-alex", name: "Alex Nguyen", role: "Technician", department: "Assembly", facility: "Mississauga" },
-  { id: "e-sarah", name: "Sarah Kowalski", role: "Order Coordinator", department: "Coordination", facility: "Mississauga" },
-  { id: "e-miguel", name: "Miguel Torres", role: "Technician", department: "Assembly", facility: "Mississauga" },
-  { id: "e-priya", name: "Priya Sharma", role: "Quality Inspector", department: "Quality", facility: "Mississauga" },
-  { id: "e-dave", name: "Dave McAllister", role: "Production Manager", department: "Assembly", facility: "Mississauga" },
-  { id: "e-lena", name: "Lena Fischer", role: "Engineering", department: "Machining", facility: "Mississauga" },
-  { id: "e-tom", name: "Tom Reyes", role: "Shipping", department: "Shipping", facility: "Mississauga" },
-  { id: "e-omar", name: "Omar Haddad", role: "Machinist", department: "Machining", facility: "Houston" }
+  { id: "e-alex", name: "Alex Nguyen", role: "Technician", department: "Assembly", facility: "Mississauga", email: "alex.nguyen@uat.rotech.example", rotechEmployeeId: "UAT-001" },
+  { id: "e-sarah", name: "Sarah Kowalski", role: "Order Coordinator", department: "Coordination", facility: "Mississauga", email: "sarah.kowalski@uat.rotech.example", rotechEmployeeId: "UAT-002" },
+  { id: "e-miguel", name: "Miguel Torres", role: "Technician", department: "Assembly", facility: "Mississauga", email: "miguel.torres@uat.rotech.example", rotechEmployeeId: "UAT-003" },
+  { id: "e-priya", name: "Priya Sharma", role: "Quality Inspector", department: "Quality", facility: "Mississauga", email: "priya.sharma@uat.rotech.example", rotechEmployeeId: "UAT-004" },
+  { id: "e-dave", name: "Dave McAllister", role: "Production Manager", department: "Assembly", facility: "Mississauga", email: "dave.mcallister@uat.rotech.example", rotechEmployeeId: "UAT-005" },
+  { id: "e-lena", name: "Lena Fischer", role: "Engineering", department: "Machining", facility: "Mississauga", email: "lena.fischer@uat.rotech.example", rotechEmployeeId: "UAT-006" },
+  { id: "e-tom", name: "Tom Reyes", role: "Shipping", department: "Shipping", facility: "Mississauga", email: "tom.reyes@uat.rotech.example", rotechEmployeeId: "UAT-007" },
+  { id: "e-omar", name: "Omar Haddad", role: "Machinist", department: "Machining", facility: "Houston", email: "omar.haddad@uat.rotech.example", rotechEmployeeId: "UAT-008" },
+  { id: "e-jordan", name: "Jordan Bell", role: "Purchasing", department: "Coordination", facility: "Mississauga", email: "jordan.bell@uat.rotech.example", rotechEmployeeId: "UAT-009" }
 ];
 
 export const CUSTOMER_ACME = "cust-acme";
@@ -1325,6 +1326,12 @@ export function buildInitialState(): AppState {
     inventoryReceiptLines: [],
     inventoryLocations: DEMO_LOCATIONS,
     internalJobs: [],
+    shipmentFiles: [],
+    parseRuns: [],
+    parsedFields: [],
+    expectedShipments: [],
+    openingImports: [],
+    reconciliationExceptions: [],
     vendorPoReferences: [],
     favourites: ["view:orders", "view:quality"],
     followedOrders: [ORDER_NO],

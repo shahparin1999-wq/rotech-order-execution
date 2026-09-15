@@ -96,6 +96,10 @@ export function specificationMatches(
 export function checkIssueToUnit(input: IssueCheckInput): IssueCheckResult {
   const { identity, movements, ledger, unitId, quantity } = input;
 
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return { ok: false, rejection: "NoAvailableQuantity", message: "Issue quantity must be greater than zero." };
+  }
+
   // INV-003: quarantined or rejected material never reaches assembly.
   if (qualityState(movements, identity.id) !== "Accepted") {
     return {

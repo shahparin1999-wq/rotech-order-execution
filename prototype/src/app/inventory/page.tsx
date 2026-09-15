@@ -1,565 +1,239 @@
 "use client";
 
-// Inventory — intake, outtake and what is on hand.
-//
-// Quantity and location are never edited directly: every number here is derived
-// from the append-only movement log, and every button appends a movement. That
-// is why an item can be traced from the dock to the pump it ended up in.
-
 import Link from "next/link";
-import { useState } from "react";
-import { useAppDispatch, useAppState } from "@/store/StoreProvider";
-import {
-  acceptedNotPutAway,
-  awaitingInspection,
-  inventoryPositions,
-  MOVEMENT_LABELS
-} from "@/domain/inventoryActions";
+import { useMemo, useRef, useState } from "react";
+import { useAppDispatch, useAppState, usePersistence } from "@/store/StoreProvider";
+import { inventoryPositions, MOVEMENT_LABELS } from "@/domain/inventoryActions";
 import { historyFor } from "@/domain/inventory/movement";
-import { locationLabel, TRACKING_POLICIES, type TrackingPolicy } from "@/domain/inventory/identity";
-import { RECEIPT_KINDS, type ReceiptKind } from "@/domain/inventory/receipt";
+import { INVENTORY_CATEGORIES, TRACKING_POLICIES, trackingPolicyFor, type InventoryCategory, type TrackingPolicy } from "@/domain/inventory/identity";
 import { openPoLines } from "@/domain/purchasing/poReference";
-import { trackingPolicyFor } from "@/domain/inventory/identity";
 import { Exact } from "@/components/bits";
-import { FieldGroup } from "@/components/Drawer";
+import type { Facility } from "@/domain/types";
+import type { ExpectedShipment } from "@/domain/inventory/contracts";
 
-const RECEIPT_KIND_LABELS: Record<ReceiptKind, string> = {
-  AgainstPo: "Against PO",
-  CustomerSupplied: "Customer supplied",
-  Transfer: "Inter-facility transfer",
-  Stock: "For stock",
-  Return: "Return"
-};
-
-const TABS = ["intake", "outtake", "onhand", "movements"] as const;
+const TABS = ["stock", "incoming", "receiving", "history"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABELS: Record<Tab, string> = {
-  intake: "Intake",
-  outtake: "Outtake",
-  onhand: "On hand",
-  movements: "Movement log"
-};
+const TAB_LABELS: Record<Tab, string> = { stock: "Stock", incoming: "Incoming", receiving: "Receiving", history: "History" };
+const FACILITIES: Array<"All" | Facility> = ["All", "Mississauga", "Houston"];
+
+function receivedForLine(state: ReturnType<typeof useAppState>, lineId: string): number {
+  return state.inventoryReceiptLines.filter((line) => line.expectedShipmentLineId === lineId).reduce((sum, line) => sum + line.quantity, 0);
+}
+
+function incomingFor(state: ReturnType<typeof useAppState>, partNumber: string, facility: Facility): number {
+  return state.expectedShipments
+    .filter((shipment) => shipment.status === "Confirmed" && shipment.facility === facility)
+    .flatMap((shipment) => shipment.lines)
+    .filter((line) => line.partNumber === partNumber)
+    .reduce((sum, line) => sum + Math.max(0, line.expectedQuantity - receivedForLine(state, line.id)), 0);
+}
+
+function qualityClass(quality: string): string {
+  return quality === "Accepted" ? "save-saved" : quality === "Rejected" ? "save-error" : "save-pending";
+}
+
+function positionStatus(position: ReturnType<typeof inventoryPositions>[number], incoming: number, remote: number): string {
+  if (position.quality === "Quarantine") return "Awaiting inspection";
+  if (position.quality === "Rejected") return "Rejected";
+  if (position.available > 0) return "Available";
+  if (position.onHand > 0) return "Reserved";
+  if (incoming > 0) return "Incoming";
+  if (remote > 0) return "Available at another facility; transfer workflow not enabled";
+  return "No available stock";
+}
 
 export default function InventoryPage() {
   const state = useAppState();
-  const [tab, setTab] = useState<Tab>("intake");
-
+  const persistence = usePersistence();
+  const [tab, setTab] = useState<Tab>("stock");
+  const [facility, setFacility] = useState<"All" | Facility>("All");
   const positions = inventoryPositions(state);
-  const quarantine = awaitingInspection(state);
-  const notPutAway = acceptedNotPutAway(state);
+  const awaiting = positions.filter((x) => x.quality === "Quarantine").length;
+  const incoming = state.expectedShipments.filter((x) => x.status === "Confirmed").reduce((sum, shipment) => sum + shipment.lines.reduce((n, line) => n + Math.max(0, line.expectedQuantity - receivedForLine(state, line.id)), 0), 0);
 
   return (
     <div className="page">
       <div className="command-bar">
         <h1 className="command-bar-title">Inventory</h1>
-        <span style={{ color: "var(--text-subtle)", fontSize: 13 }}>
-          {positions.length} tracked item{positions.length === 1 ? "" : "s"} ·{" "}
-          {quarantine.length} awaiting inspection · {notPutAway.length} to put away
-        </span>
+        <span style={{ color: "var(--text-subtle)", fontSize: 13 }}>Shared stock pools · Mississauga and Houston · derived from the OEH ledger</span>
+      </div>
+
+      <div className="grid-2" style={{ marginBottom: 12 }}>
+        <div className="card" style={{ marginBottom: 0 }}><span className="from-default">Stock lines</span><h2 style={{ margin: "4px 0 0" }}>{positions.length}</h2></div>
+        <div className="card" style={{ marginBottom: 0 }}><span className="from-default">Awaiting inspection</span><h2 style={{ margin: "4px 0 0" }}>{awaiting}</h2></div>
+        <div className="card" style={{ marginBottom: 0 }}><span className="from-default">Confirmed incoming</span><h2 style={{ margin: "4px 0 0" }}>{incoming}</h2></div>
       </div>
 
       <nav className="tabs" aria-label="Inventory tabs">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            className={`tab ${tab === t ? "active" : ""}`}
-            data-testid={`inventory-tab-${t}`}
-            onClick={() => setTab(t)}
-          >
-            {TAB_LABELS[t]}
-          </button>
-        ))}
+        {TABS.map((item) => <button key={item} type="button" className={`tab ${tab === item ? "active" : ""}`} data-testid={`inventory-tab-${item}`} onClick={() => setTab(item)}>{TAB_LABELS[item]}</button>)}
       </nav>
 
-      {tab === "intake" && <IntakeTab />}
-      {tab === "outtake" && <OuttakeTab />}
-      {tab === "onhand" && <OnHandTab />}
-      {tab === "movements" && <MovementLogTab />}
+      {tab === "stock" && <StockTab facility={facility} setFacility={setFacility} />}
+      {tab === "incoming" && <IncomingTab />}
+      {tab === "receiving" && <ReceivingTab persistenceMode={persistence.mode} />}
+      {tab === "history" && <HistoryTab facility={facility} setFacility={setFacility} />}
     </div>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Intake
-// ---------------------------------------------------------------------------
-
-function IntakeTab() {
+function StockTab({ facility, setFacility }: { facility: "All" | Facility; setFacility: (value: "All" | Facility) => void }) {
   const state = useAppState();
-  const dispatch = useAppDispatch();
-  const quarantine = awaitingInspection(state);
-  const notPutAway = acceptedNotPutAway(state);
-
-  const [kind, setKind] = useState<ReceiptKind>("AgainstPo");
-  const [poNumber, setPoNumber] = useState("");
-  const [poLine, setPoLine] = useState("");
-  const [vendor, setVendor] = useState("");
-  const [packingSlip, setPackingSlip] = useState("");
-  const [partNumber, setPartNumber] = useState("");
-  const [description, setDescription] = useState("");
-  const [material, setMaterial] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [policy, setPolicy] = useState<TrackingPolicy>("HeatTracked");
-  const [serialNumber, setSerial] = useState("");
-  const [lotNumber, setLot] = useState("");
-  const [heatNumber, setHeat] = useState("");
-  const [facility, setFacility] = useState("Mississauga");
-  const [requirementId, setRequirementId] = useState("");
-  const [note, setNote] = useState("");
-  const [vendorPoLineId, setVendorPoLineId] = useState("");
-  const [componentKey, setComponentKey] = useState("");
-  const poLines = openPoLines(state, new Date().toISOString());
-
-  // Open demand a receipt could satisfy. The receiver picks one — nothing is
-  // auto-allocated, because a wrong allocation looks correct (INV-005).
-  const openDemand = state.requirements.filter(
-    (r) => (r.category === "Component" || r.category === "Material") && r.status !== "Satisfied"
-  );
-
-  const canReceive = partNumber.trim() && description.trim() && quantity > 0;
-
-  const submit = () => {
-    dispatch({
-      type: "receiveInventory",
-      input: {
-        kind,
-        poNumber,
-        poLine,
-        vendor,
-        packingSlip,
-        facility,
-        partNumber,
-        description,
-        material,
-        quantity,
-        trackingPolicy: policy,
-        serialNumber,
-        lotNumber,
-        heatNumber,
-        matchedRequirementId: requirementId || undefined,
-        vendorPoLineId: vendorPoLineId || undefined,
-        componentKey: componentKey || undefined,
-        notes: note
-      }
-    });
-    setPartNumber("");
-    setDescription("");
-    setMaterial("");
-    setSerial("");
-    setLot("");
-    setHeat("");
-    setRequirementId("");
-    setNote("");
-    setQuantity(1);
-    setVendorPoLineId("");
-    setComponentKey("");
-  };
-
-  return (
-    <>
-      <div className="card">
-        <h3 style={{ marginTop: 0 }}>Receive goods</h3>
-        <p className="from-default" style={{ marginTop: 0 }}>
-          Everything lands in quarantine unless it is an untracked consumable. The dock is not
-          acceptance — material becomes issuable only after incoming inspection passes.
-        </p>
-
-        <FieldGroup label="Against a referenced vendor PO line">
-          <select
-            value={vendorPoLineId}
-            data-testid="intake-po-line"
-            onChange={(e) => {
-              const id = e.target.value;
-              setVendorPoLineId(id);
-              const row = poLines.find((r) => r.line.id === id);
-              if (!row) return;
-              setKind("AgainstPo");
-              setPoNumber(row.po.poNumber);
-              setPoLine(String(row.line.lineNumber));
-              setVendor(row.po.vendor);
-              setFacility(row.po.facility);
-              setPartNumber(row.line.partNumber || partNumber);
-              setDescription(row.line.description);
-              setMaterial(row.line.material ?? "");
-              setComponentKey(row.line.componentKey ?? "");
-              setPolicy(trackingPolicyFor(row.line.componentKey ?? ""));
-              const openReq = row.line.requirementIds.find((rid) => {
-                const r = state.requirements.find((x) => x.id === rid);
-                return r && r.status !== "Satisfied" && r.status !== "InProgress";
-              });
-              setRequirementId(openReq ?? "");
-            }}
-          >
-            <option value="">Not against a referenced PO</option>
-            {poLines.map((r) => (
-              <option key={r.line.id} value={r.line.id}>
-                PO {r.po.poNumber} line {r.line.lineNumber} — {r.line.description} ({r.pending} pending, expected {r.line.expectedDate})
-              </option>
-            ))}
-          </select>
-          <span className="from-default">Picking a PO line pre-fills the part; the demand below is still confirmed by you.</span>
-        </FieldGroup>
-
-        <div className="field-grid">
-          <FieldGroup label="Receipt type">
-            <select value={kind} onChange={(e) => setKind(e.target.value as ReceiptKind)} data-testid="intake-kind">
-              {RECEIPT_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {RECEIPT_KIND_LABELS[k]}
-                </option>
-              ))}
-            </select>
-          </FieldGroup>
-          <FieldGroup label="Facility">
-            <select value={facility} onChange={(e) => setFacility(e.target.value)}>
-              <option>Mississauga</option>
-              <option>Houston</option>
-            </select>
-          </FieldGroup>
-          {kind === "AgainstPo" && (
-            <>
-              <FieldGroup label="AIMCOR PO">
-                <input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} data-testid="intake-po" placeholder="e.g. 4500187" />
-                <span className="from-default">AIMCOR stays the PO system of record.</span>
-              </FieldGroup>
-              <FieldGroup label="PO line">
-                <input value={poLine} onChange={(e) => setPoLine(e.target.value)} data-testid="intake-poline" />
-              </FieldGroup>
-              <FieldGroup label="Vendor">
-                <input value={vendor} onChange={(e) => setVendor(e.target.value)} />
-              </FieldGroup>
-            </>
-          )}
-          <FieldGroup label="Packing slip">
-            <input value={packingSlip} onChange={(e) => setPackingSlip(e.target.value)} />
-          </FieldGroup>
-        </div>
-
-        <div className="field-grid">
-          <FieldGroup label="Part number" required>
-            <input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} data-testid="intake-partnumber" placeholder="e.g. 101-AT-M-A-S6" />
-          </FieldGroup>
-          <FieldGroup label="Description" required>
-            <input value={description} onChange={(e) => setDescription(e.target.value)} data-testid="intake-description" placeholder="e.g. 1196 MTR 316SS Impeller" />
-          </FieldGroup>
-          <FieldGroup label="Material">
-            <input value={material} onChange={(e) => setMaterial(e.target.value)} data-testid="intake-material" />
-          </FieldGroup>
-          <FieldGroup label="Quantity" required>
-            <input type="number" min={1} value={quantity} data-testid="intake-quantity" onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))} />
-          </FieldGroup>
-          <FieldGroup label="Tracking">
-            <select value={policy} onChange={(e) => setPolicy(e.target.value as TrackingPolicy)} data-testid="intake-policy">
-              {TRACKING_POLICIES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </FieldGroup>
-          {policy === "Serialized" && (
-            <FieldGroup label="Serial number" required>
-              <input value={serialNumber} onChange={(e) => setSerial(e.target.value)} data-testid="intake-serial" />
-            </FieldGroup>
-          )}
-          {policy === "LotTracked" && (
-            <FieldGroup label="Lot number" required>
-              <input value={lotNumber} onChange={(e) => setLot(e.target.value)} data-testid="intake-lot" />
-            </FieldGroup>
-          )}
-          {policy === "HeatTracked" && (
-            <FieldGroup label="Heat number" required>
-              <input value={heatNumber} onChange={(e) => setHeat(e.target.value)} data-testid="intake-heat" />
-            </FieldGroup>
-          )}
-        </div>
-
-        <FieldGroup label="Satisfies which demand?">
-          <select value={requirementId} onChange={(e) => setRequirementId(e.target.value)} data-testid="intake-demand">
-            <option value="">No demand confirmed — receive to stock</option>
-            {openDemand.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.executionOrderId} {r.unitId ? `· ${r.unitId}` : ""} — {r.description}
-              </option>
-            ))}
-          </select>
-          <span className="from-default">
-            Pick the demand explicitly. Nothing is matched automatically — a wrong allocation looks
-            correct, which is worse than an unmatched receipt.
-          </span>
-        </FieldGroup>
-
-        <FieldGroup label="Notes">
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Condition, damage, missing paperwork…" />
-        </FieldGroup>
-
-        <button type="button" className="btn btn-primary" disabled={!canReceive} data-testid="intake-submit" onClick={submit}>
-          Receive
-        </button>
-      </div>
-
-      <div className="card">
-        <h3>Awaiting incoming inspection ({quarantine.length})</h3>
-        {quarantine.length === 0 && <p>Nothing in quarantine.</p>}
-        {quarantine.map((p) => (
-          <InspectRow key={p.identity.id} identityId={p.identity.id} label={`${p.identity.partNumber} — ${p.identity.description}`} />
-        ))}
-      </div>
-
-      {notPutAway.length > 0 && (
-        <div className="card">
-          <h3>Accepted, not yet put away ({notPutAway.length})</h3>
-          {notPutAway.map((p) => (
-            <PutAwayRow key={p.identity.id} identityId={p.identity.id} label={`${p.identity.partNumber} — ${p.identity.description}`} />
-          ))}
-        </div>
-      )}
-    </>
-  );
-}
-
-function InspectRow({ identityId, label }: { identityId: string; label: string }) {
-  const dispatch = useAppDispatch();
-  const [note, setNote] = useState("");
-  return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-      <b style={{ minWidth: 260 }}>{label}</b>
-      <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Inspection note (required to reject)" style={{ width: 260 }} data-testid={`inspect-note-${identityId}`} />
-      <button type="button" className="btn btn-ok" data-testid={`inspect-accept-${identityId}`} onClick={() => dispatch({ type: "inspectInventory", identityId, decision: "Accept", note })}>
-        Accept
-      </button>
-      <button type="button" className="btn btn-danger" data-testid={`inspect-reject-${identityId}`} onClick={() => dispatch({ type: "inspectInventory", identityId, decision: "Reject", note })}>
-        Reject
-      </button>
-    </div>
-  );
-}
-
-function PutAwayRow({ identityId, label }: { identityId: string; label: string }) {
-  const state = useAppState();
-  const dispatch = useAppDispatch();
-  const [locationId, setLocationId] = useState(state.inventoryLocations[2]?.id ?? "");
-  return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-      <b style={{ minWidth: 260 }}>{label}</b>
-      <select value={locationId} onChange={(e) => setLocationId(e.target.value)} data-testid={`putaway-location-${identityId}`}>
-        {state.inventoryLocations.map((l) => (
-          <option key={l.id} value={l.id}>
-            {locationLabel(l)}
-          </option>
-        ))}
-      </select>
-      <button type="button" className="btn" data-testid={`putaway-${identityId}`} onClick={() => dispatch({ type: "putAwayInventory", identityId, locationId })}>
-        Put away
-      </button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Outtake
-// ---------------------------------------------------------------------------
-
-function OuttakeTab() {
-  const state = useAppState();
-  const positions = inventoryPositions(state).filter((p) => p.quality === "Accepted" && p.onHand > 0);
-  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All");
+  const positions = useMemo(() => inventoryPositions(state).filter((position) => {
+    const text = `${position.identity.partNumber} ${position.identity.description} ${position.identity.material} ${Object.values(position.identity.attributes ?? {}).join(" ")}`.toLowerCase();
+    return (facility === "All" || position.identity.facility === facility) && (category === "All" || position.identity.category === category) && text.includes(query.trim().toLowerCase());
+  }), [state, facility, category, query]);
 
   return (
     <div className="card">
-      <h3 style={{ marginTop: 0 }}>Issue to a Unit</h3>
-      <p className="from-default" style={{ marginTop: 0 }}>
-        Every issue is checked against the Unit&apos;s requirement, its reservation, the material
-        spec and inspection state. A mismatch is blocked and reported — it never becomes the
-        as-built record silently.
-      </p>
-
-      {error && (
-        <div className="card" data-testid="outtake-error" style={{ background: "var(--danger-soft)" }}>
-          <b>Blocked</b>
-          <p style={{ margin: "4px 0 0", fontSize: 13 }}>{error}</p>
-        </div>
-      )}
-
-      {positions.length === 0 && <p>No accepted stock on hand. Receive and inspect something first.</p>}
-
-      <table className="data">
-        <thead>
-          <tr>
-            <th>Part</th>
-            <th>Trace</th>
-            <th>Location</th>
-            <th>On hand</th>
-            <th>Available</th>
-            <th>Reserved for</th>
-            <th>Issue to Unit</th>
-          </tr>
-        </thead>
-        <tbody>
-          {positions.map((p) => (
-            <IssueRow key={p.identity.id} position={p} onError={setError} />
-          ))}
-        </tbody>
-      </table>
+      <div style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap", marginBottom: 12 }}>
+        <label style={{ flex: "1 1 260px" }}>Search stock<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Part number, description, material, attribute…" aria-label="Search stock" /></label>
+        <label>Facility<select value={facility} onChange={(e) => setFacility(e.target.value as "All" | Facility)}>{FACILITIES.map((value) => <option key={value}>{value}</option>)}</select></label>
+        <label>Category<select value={category} onChange={(e) => setCategory(e.target.value)}><option>All</option>{INVENTORY_CATEGORIES.map((value) => <option key={value}>{value}</option>)}</select></label>
+      </div>
+      <p className="from-default">On hand, reserved, available, location, quality, and incoming are calculated values. They cannot be edited directly; use receiving, inspection, issue/return, or an authorized adjustment.</p>
+      <div className="data-grid-wrap">
+        <table className="data-grid" data-testid="inventory-stock-grid">
+          <thead><tr><th>Facility</th><th>Part number</th><th>Description</th><th>Category / attributes</th><th>Serial / lot / heat</th><th>Location</th><th>On hand</th><th>Reserved</th><th>Available</th><th>Quality</th><th>Incoming</th><th>Status</th><th /></tr></thead>
+          <tbody>
+            {positions.map((position) => {
+              const otherFacility: Facility = position.identity.facility === "Mississauga" ? "Houston" : "Mississauga";
+              const remote = inventoryPositions(state).filter((x) => x.identity.partNumber === position.identity.partNumber && x.identity.facility === otherFacility).reduce((n, x) => n + x.available, 0);
+              const incoming = incomingFor(state, position.identity.partNumber, position.identity.facility as Facility);
+              const attributes = Object.entries(position.identity.attributes ?? {}).map(([key, value]) => `${key}: ${value}`).join(" · ");
+              const trace = [position.identity.serialNumber, position.identity.lotNumber, position.identity.heatNumber].filter(Boolean).join(" / ");
+              return <tr key={position.identity.id} data-testid={`inventory-stock-row-${position.identity.id}`}>
+                <td>{position.identity.facility}</td>
+                <td><b>{position.identity.partNumber}</b></td>
+                <td>{position.identity.description}</td>
+                <td><span className="badge save-pending">{position.identity.category}</span><div style={{ fontSize: 12, color: "var(--text-subtle)", marginTop: 4 }}>{attributes || "No category-specific attributes"}</div></td>
+                <td>{trace || "—"}</td>
+                <td>{position.locationLabel}</td>
+                <td>{position.onHand}</td>
+                <td>{Math.max(0, position.onHand - position.available)}</td>
+                <td><b>{position.available}</b></td>
+                <td><span className={`badge ${qualityClass(position.quality)}`}>{position.quality}</span></td>
+                <td>{incoming || "—"}</td>
+                <td style={{ minWidth: 220 }}>{positionStatus(position, incoming, remote)}{position.available === 0 && remote > 0 && <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>{otherFacility}: {remote} available</div>}</td>
+                <td><Link href={`/r/${position.identity.publicRef}`}>View item</Link></td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      </div>
+      {positions.length === 0 && <p>No stock lines match the current filters.</p>}
     </div>
   );
 }
 
-function IssueRow({
-  position,
-  onError
-}: {
-  position: ReturnType<typeof inventoryPositions>[number];
-  onError: (m: string | null) => void;
-}) {
+function IncomingTab() {
   const state = useAppState();
-  const dispatch = useAppDispatch();
-  const [unitId, setUnitId] = useState("");
-  const id = position.identity.id;
-  const trace = [position.identity.serialNumber, position.identity.lotNumber, position.identity.heatNumber]
-    .filter(Boolean)
-    .join(" / ");
-
-  const act = (type: "reserveInventory" | "issueInventoryToUnit" | "installInventory") => {
-    onError(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadName, setUploadName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const upload = async () => {
+    const file = fileRef.current?.files?.[0];
+    if (!file) return;
+    setUploadName(file.name); setUploadError(null);
+    const form = new FormData(); form.append("file", file); form.append("idempotencyKey", `shipment-${Date.now()}-${file.name}`);
+    const headers: Record<string, string> = {};
+    if (process.env.NEXT_PUBLIC_OEH_UAT_MODE === "1") headers["x-oeh-uat-employee-id"] = state.currentUserId;
     try {
-      dispatch({ type, identityId: id, unitId, quantity: 1 } as never);
-    } catch (e) {
-      onError(e instanceof Error ? e.message : String(e));
-    }
+      const response = await fetch("/api/oeh/v1/shipment-files", { method: "POST", headers, body: form });
+      const body = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(body.error ?? `Upload failed (${response.status})`);
+      window.location.reload();
+    } catch (error) { setUploadError(error instanceof Error ? error.message : String(error)); }
   };
+  const drafts = state.expectedShipments.filter((x) => x.status === "Draft");
+  const confirmed = state.expectedShipments.filter((x) => x.status === "Confirmed");
 
-  return (
-    <tr data-testid={`outtake-row-${id}`}>
-      <td>
-        <b>{position.identity.partNumber}</b>
-        <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>{position.identity.description}</div>
-      </td>
-      <td style={{ fontSize: 12 }}>{trace || "—"}</td>
-      <td style={{ fontSize: 12 }}>{position.locationLabel}</td>
-      <td>{position.onHand}</td>
-      <td>{position.available}</td>
-      <td style={{ fontSize: 12 }}>{position.allocatedUnitId ?? "—"}</td>
-      <td>
-        <select value={unitId} onChange={(e) => setUnitId(e.target.value)} data-testid={`outtake-unit-${id}`} style={{ width: 160 }}>
-          <option value="">Select Unit…</option>
-          {state.units.map((u) => (
-            <option key={u.unitId} value={u.unitId}>
-              {u.unitId}
-            </option>
-          ))}
-        </select>
-        <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
-          <button type="button" className="btn btn-subtle" disabled={!unitId} data-testid={`outtake-reserve-${id}`} onClick={() => act("reserveInventory")}>
-            Reserve
-          </button>
-          <button type="button" className="btn" disabled={!unitId} data-testid={`outtake-issue-${id}`} onClick={() => act("issueInventoryToUnit")}>
-            Issue
-          </button>
-          <button type="button" className="btn btn-ok" disabled={!unitId} data-testid={`outtake-install-${id}`} onClick={() => act("installInventory")}>
-            Install
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
+  return <>
+    <div className="card">
+      <h3 style={{ marginTop: 0 }}>Incoming shipment list</h3>
+      <p className="from-default">Upload Excel, CSV, text PDF, or a scanned document. The OEH backend stores the original file immutably, parses it in a worker boundary, and returns field-level review results before anything is confirmed.</p>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}><input ref={fileRef} type="file" accept=".xlsx,.csv,.tsv,.txt,.pdf,.jpg,.jpeg,.png" /><button type="button" className="btn btn-primary" onClick={upload}>Upload and parse</button>{uploadName && <span className="from-default">{uploadName}</span>}</div>
+      {uploadError && <p role="alert" style={{ color: "var(--danger)" }}>{uploadError}</p>}
+    </div>
+    <div className="card"><h3 style={{ marginTop: 0 }}>Drafts awaiting review ({drafts.length})</h3>{drafts.length === 0 && <p>No shipment drafts yet.</p>}{drafts.map((shipment) => <ShipmentDraftRow key={shipment.id} shipment={shipment} />)}</div>
+    <div className="card"><h3 style={{ marginTop: 0 }}>Confirmed inbound ({confirmed.length})</h3>{confirmed.length === 0 && <p>No confirmed shipments.</p>}{confirmed.map((shipment) => <ConfirmedShipmentRow key={shipment.id} shipment={shipment} />)}</div>
+  </>;
 }
 
-// ---------------------------------------------------------------------------
-// On hand / movements
-// ---------------------------------------------------------------------------
-
-function OnHandTab() {
-  const state = useAppState();
-  const positions = inventoryPositions(state);
-  return (
-    <div className="card">
-      <h3 style={{ marginTop: 0 }}>On hand</h3>
-      <p className="from-default" style={{ marginTop: 0 }}>
-        Every quantity below is derived from the movement log. There is no editable stock figure.
-      </p>
-      {positions.length === 0 && <p>Nothing received yet.</p>}
-      <table className="data">
-        <thead>
-          <tr>
-            <th>Part</th>
-            <th>Trace</th>
-            <th>Quality</th>
-            <th>On hand</th>
-            <th>Available</th>
-            <th>Location</th>
-            <th>Allocated to</th>
-            <th>Label</th>
-          </tr>
-        </thead>
-        <tbody>
-          {positions.map((p) => (
-            <tr key={p.identity.id} data-testid={`onhand-${p.identity.id}`}>
-              <td>
-                <b>{p.identity.partNumber}</b>
-                <div style={{ fontSize: 12, color: "var(--text-subtle)" }}>{p.identity.description}</div>
-              </td>
-              <td style={{ fontSize: 12 }}>
-                {[p.identity.serialNumber, p.identity.lotNumber, p.identity.heatNumber].filter(Boolean).join(" / ") || "—"}
-              </td>
-              <td>
-                <span className={`badge ${p.quality === "Accepted" ? "save-saved" : p.quality === "Rejected" ? "save-error" : "save-pending"}`}>
-                  {p.quality}
-                </span>
-              </td>
-              <td>{p.onHand}</td>
-              <td>{p.available}</td>
-              <td style={{ fontSize: 12 }}>{p.locationLabel}</td>
-              <td style={{ fontSize: 12 }}>{p.allocatedUnitId ?? "—"}</td>
-              <td>
-                <Link href={`/r/${p.identity.publicRef}`} style={{ fontSize: 12 }}>
-                  {p.identity.publicRef.slice(0, 12)}…
-                </Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+function ShipmentDraftRow({ shipment }: { shipment: ExpectedShipment }) {
+  const dispatch = useAppDispatch();
+  const [supplier, setSupplier] = useState(shipment.supplier);
+  return <div className="record-list-item" data-testid={`shipment-draft-${shipment.id}`}>
+    <div style={{ display: "flex", gap: 8, alignItems: "end", flexWrap: "wrap" }}><label>Supplier<input value={supplier} onChange={(e) => setSupplier(e.target.value)} onBlur={() => dispatch({ type: "editExpectedShipmentDraft", input: { shipmentId: shipment.id, supplier } })} /></label><span>{shipment.facility}</span><span>Revision {shipment.revision}</span><button type="button" className="btn btn-primary" onClick={() => dispatch({ type: "confirmExpectedShipment", shipmentId: shipment.id })}>Confirm shipment</button></div>
+    <div style={{ overflowX: "auto", marginTop: 8 }}><table className="data"><thead><tr><th>Source row</th><th>Part number</th><th>Description</th><th>Expected quantity</th><th>UOM</th></tr></thead><tbody>{shipment.lines.map((item) => <DraftLine key={item.id} shipmentId={shipment.id} line={item} />)}</tbody></table></div>
+  </div>;
 }
 
-function MovementLogTab() {
+function DraftLine({ shipmentId, line }: { shipmentId: string; line: ExpectedShipment["lines"][number] }) {
+  const dispatch = useAppDispatch();
+  const [quantity, setQuantity] = useState(line.expectedQuantity);
+  return <tr><td>{line.sourceRow ?? "—"}</td><td>{line.partNumber || <input aria-label="Part number" defaultValue={line.partNumber} onBlur={(e) => dispatch({ type: "editExpectedShipmentDraft", input: { shipmentId, lineId: line.id, line: { partNumber: e.target.value } } })} />}</td><td>{line.description || <input aria-label="Description" defaultValue={line.description} onBlur={(e) => dispatch({ type: "editExpectedShipmentDraft", input: { shipmentId, lineId: line.id, line: { description: e.target.value } } })} />}</td><td><input type="number" min={0} value={quantity} onChange={(e) => setQuantity(Number(e.target.value))} onBlur={() => dispatch({ type: "editExpectedShipmentDraft", input: { shipmentId, lineId: line.id, line: { expectedQuantity: quantity } } })} /></td><td>{line.uom}</td></tr>;
+}
+
+function ConfirmedShipmentRow({ shipment }: { shipment: ExpectedShipment }) {
   const state = useAppState();
-  return (
-    <div className="card">
-      <h3 style={{ marginTop: 0 }}>Movement log</h3>
-      <p className="from-default" style={{ marginTop: 0 }}>
-        Append-only. Nothing here is ever edited or removed — this is how a part is traced from the
-        dock to the pump it ended up in.
-      </p>
-      {state.inventoryIdentities.map((identity) => {
-        const history = historyFor(state.inventoryMovements, identity.id);
-        return (
-          <div key={identity.id} style={{ marginBottom: 14 }} data-testid={`movements-${identity.id}`}>
-            <b>
-              {identity.partNumber} — {identity.description}
-            </b>
-            <table className="data" style={{ marginTop: 4 }}>
-              <tbody>
-                {history.map((m) => (
-                  <tr key={m.id}>
-                    <td style={{ width: 170 }}>{MOVEMENT_LABELS[m.type]}</td>
-                    <td style={{ width: 60 }}>{m.quantity !== 0 ? m.quantity : ""}</td>
-                    <td style={{ fontSize: 12 }}>
-                      {m.unitId ?? m.toLocationId ?? ""} {m.reason ? `· ${m.reason}` : ""}
-                    </td>
-                    <td style={{ width: 190, fontSize: 12 }}>
-                      <Exact at={m.recordedAt} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-      })}
-      {state.inventoryIdentities.length === 0 && <p>No movements yet.</p>}
-    </div>
-  );
+  const dispatch = useAppDispatch();
+  const outstanding = shipment.lines.reduce((sum, line) => sum + Math.max(0, line.expectedQuantity - receivedForLine(state, line.id)), 0);
+  return <div className="record-list-item"><b>{shipment.supplier}</b> · {shipment.facility} · PO {shipment.poNumber ?? "—"} · {outstanding} outstanding <span className="badge save-saved">Confirmed</span><button type="button" className="btn btn-subtle" style={{ marginLeft: 8 }} onClick={() => dispatch({ type: "supersedeExpectedShipment", shipmentId: shipment.id })}>Create correction revision</button></div>;
+}
+
+type ReceivingSource = {
+  value: string;
+  label: string;
+  partNumber: string;
+  description: string;
+  material?: string;
+  attributes?: Record<string, string>;
+  quantity: number;
+  uom: string;
+  category: InventoryCategory;
+  componentKey?: string;
+  expectedShipmentLineId?: string;
+  vendorPoLineId?: string;
+  serialNumber?: string;
+  lotNumber?: string;
+  heatNumber?: string;
+  vendor?: string;
+  poNumber?: string;
+  poLine?: string;
+};
+
+function ReceivingTab({ persistenceMode }: { persistenceMode: "local" | "server" }) {
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const [facility, setFacility] = useState<Facility>("Mississauga");
+  const [partNumber, setPartNumber] = useState(""); const [description, setDescription] = useState(""); const [material, setMaterial] = useState(""); const [attributes, setAttributes] = useState<Record<string, string>>({}); const [quantity, setQuantity] = useState(1); const [policy, setPolicy] = useState<TrackingPolicy>("QuantityTracked"); const [serial, setSerial] = useState(""); const [lot, setLot] = useState(""); const [heat, setHeat] = useState(""); const [category, setCategory] = useState<InventoryCategory>("Accessory"); const [sourceId, setSourceId] = useState("");
+  const quarantine = inventoryPositions(state).filter((x) => x.quality === "Quarantine");
+  const expectedLines = state.expectedShipments.filter((shipment) => shipment.status === "Confirmed" && shipment.facility === facility).flatMap((shipment) => shipment.lines.map((line) => ({ shipment, line })));
+  const poLines = openPoLines({ inventoryReceipts: state.inventoryReceipts, inventoryReceiptLines: state.inventoryReceiptLines, vendorPoReferences: state.vendorPoReferences }, new Date().toISOString()).filter(({ po }) => po.facility === facility);
+  const sources: ReceivingSource[] = [
+    ...expectedLines.map(({ shipment, line }) => ({ value: `shipment:${line.id}`, label: `${shipment.supplier} · PO ${shipment.poNumber ?? "—"} · row ${line.sourceRow ?? "—"} · ${line.partNumber} (${line.expectedQuantity} ${line.uom})`, partNumber: line.partNumber, description: line.description, material: line.material, attributes: line.attributes, quantity: line.expectedQuantity, uom: line.uom, category: line.category, componentKey: line.componentKey, expectedShipmentLineId: line.id, serialNumber: line.serialNumbers?.[0], lotNumber: line.lotNumber, heatNumber: line.heatNumber, vendor: shipment.supplier, poNumber: shipment.poNumber })),
+    ...poLines.map(({ po, line }) => ({ value: `po:${line.id}`, label: `${po.vendor} · PO ${po.poNumber} · line ${line.lineNumber} · ${line.partNumber} (${line.orderedQuantity} ${line.uom})`, partNumber: line.partNumber, description: line.description, quantity: line.orderedQuantity, uom: line.uom, category: "Accessory" as InventoryCategory, componentKey: line.componentKey, vendorPoLineId: line.id, vendor: po.vendor, poNumber: po.poNumber, poLine: String(line.lineNumber) }))
+  ];
+  const selectedSource = sources.find((item) => item.value === sourceId);
+  const trackingIsDerived = Boolean(selectedSource?.componentKey);
+  const chooseSource = (value: string) => { setSourceId(value); const source = sources.find((item) => item.value === value); if (source) { setPartNumber(source.partNumber); setDescription(source.description); setMaterial(source.material ?? ""); setAttributes(source.attributes ?? {}); setQuantity(source.quantity); setCategory(source.category); setPolicy(source.componentKey ? trackingPolicyFor(source.componentKey) : "QuantityTracked"); setSerial(source.serialNumber ?? ""); setLot(source.lotNumber ?? ""); setHeat(source.heatNumber ?? ""); } };
+  const receive = () => { const source = sources.find((item) => item.value === sourceId); dispatch({ type: "receiveInventory", input: { kind: source?.vendorPoLineId || source?.expectedShipmentLineId ? "AgainstPo" : "Stock", poNumber: source?.poNumber, poLine: source?.poLine, vendor: source?.vendor, facility, partNumber, description, material, quantity, uom: source?.uom, category, attributes, componentKey: source?.componentKey, trackingPolicy: policy, serialNumber: serial, lotNumber: lot, heatNumber: heat, vendorPoLineId: source?.vendorPoLineId, expectedShipmentLineId: source?.expectedShipmentLineId } }); setPartNumber(""); setDescription(""); setMaterial(""); setAttributes({}); setSerial(""); setLot(""); setHeat(""); setSourceId(""); };
+  return <>
+    <div className="card"><h3 style={{ marginTop: 0 }}>Receive material</h3><p className="from-default">Receive creates a movement. Tracked material enters quarantine until Quality accepts it. Accepted material may be put away or issued directly to an active Unit/work allocation.</p>{persistenceMode === "local" && <p className="from-default">Local UAT mode is device-local. Shared commands require the server mode and an OEH identity mapping.</p>}<div className="field-grid"><label>Facility<select value={facility} onChange={(e) => { setFacility(e.target.value as Facility); setSourceId(""); }}><option>Mississauga</option><option>Houston</option></select></label><label>Against confirmed inbound<select data-testid="intake-po-line" value={sourceId} onChange={(e) => chooseSource(e.target.value)}><option value="">Not matched to expected shipment</option>{sources.map((source) => <option key={source.value} value={source.value}>{source.label}</option>)}</select></label><label>Part number<input value={partNumber} onChange={(e) => setPartNumber(e.target.value)} /></label><label>Description<input value={description} onChange={(e) => setDescription(e.target.value)} /></label><label>Material<input value={material} onChange={(e) => setMaterial(e.target.value)} /></label><label>Quantity<input type="number" min={1} value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))} /></label><label>Category<select value={category} onChange={(e) => setCategory(e.target.value as InventoryCategory)}>{INVENTORY_CATEGORIES.map((value) => <option key={value}>{value}</option>)}</select></label><label>Tracking<select value={policy} disabled={trackingIsDerived} aria-label="Tracking policy" onChange={(e) => setPolicy(e.target.value as TrackingPolicy)}>{TRACKING_POLICIES.map((value) => <option key={value}>{value}</option>)}</select>{trackingIsDerived && <span className="from-default">Configured by component role</span>}</label>{policy === "Serialized" && <label>Serial number<input value={serial} onChange={(e) => setSerial(e.target.value)} /></label>}{policy === "LotTracked" && <label>Lot number<input value={lot} onChange={(e) => setLot(e.target.value)} /></label>}{policy === "HeatTracked" && <label>Heat number<input data-testid="intake-heat" value={heat} onChange={(e) => setHeat(e.target.value)} /></label>}</div><button type="button" className="btn btn-primary" data-testid="intake-submit" disabled={!partNumber.trim() || !description.trim()} onClick={receive}>Receive</button></div>
+    <InspectionQueue positions={quarantine} />
+  </>;
+}
+
+function InspectionQueue({ positions }: { positions: ReturnType<typeof inventoryPositions> }) {
+  const dispatch = useAppDispatch();
+  const [notes, setNotes] = useState<Record<string, string>>({});
+  return <div className="card"><h3 style={{ marginTop: 0 }}>Receiving queue · quarantine ({positions.length})</h3>{positions.length === 0 && <p>Nothing is waiting for inspection.</p>}{positions.map((position) => <div key={position.identity.id} data-testid={`inventory-quarantine-${position.identity.id}`} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}><b style={{ minWidth: 260 }}>{position.identity.partNumber} — {position.identity.description}</b><input value={notes[position.identity.id] ?? ""} onChange={(e) => setNotes((current) => ({ ...current, [position.identity.id]: e.target.value }))} placeholder="Inspection note (required to reject)" data-testid={`inspect-note-${position.identity.id}`} /><button type="button" className="btn btn-ok" data-testid={`inspect-accept-${position.identity.id}`} onClick={() => dispatch({ type: "inspectInventory", identityId: position.identity.id, decision: "Accept", note: notes[position.identity.id] ?? "Accepted in UAT inspection" })}>Accept</button><button type="button" className="btn btn-danger" onClick={() => dispatch({ type: "inspectInventory", identityId: position.identity.id, decision: "Reject", note: notes[position.identity.id] ?? "" })}>Reject</button></div>)}</div>;
+}
+
+function HistoryTab({ facility, setFacility }: { facility: "All" | Facility; setFacility: (value: "All" | Facility) => void }) {
+  const state = useAppState();
+  const identities = state.inventoryIdentities.filter((identity) => facility === "All" || identity.facility === facility);
+  return <div className="card"><div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}><div><h3 style={{ margin: 0 }}>Movement history</h3><p className="from-default" style={{ marginBottom: 0 }}>Append-only audit trail. Opening movements retain batch, source hash, source row, approver, approval time, and reason.</p></div><label>Facility<select value={facility} onChange={(e) => setFacility(e.target.value as "All" | Facility)}>{FACILITIES.map((value) => <option key={value}>{value}</option>)}</select></label></div>{identities.map((identity) => { const history = historyFor(state.inventoryMovements, identity.id); return <div key={identity.id} style={{ marginTop: 16 }} data-testid={`inventory-history-${identity.id}`}><b>{identity.partNumber} — {identity.description}</b><table className="data"><thead><tr><th>Movement</th><th>Qty</th><th>Unit/location</th><th>Provenance</th><th>Recorded</th></tr></thead><tbody>{history.map((movement) => <tr key={movement.id}><td>{MOVEMENT_LABELS[movement.type]}</td><td>{movement.quantity || ""}</td><td>{movement.unitId ?? movement.toLocationId ?? ""}</td><td style={{ fontSize: 12 }}>{movement.importBatchId ? `${movement.importBatchId} · row ${movement.sourceRow} · approved ${movement.approvedBy}` : movement.reason ?? "—"}</td><td><Exact at={movement.recordedAt} /></td></tr>)}</tbody></table></div>; })}{identities.length === 0 && <p>No movement history in this facility.</p>}</div>;
 }

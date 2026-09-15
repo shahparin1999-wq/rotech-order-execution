@@ -19,6 +19,7 @@ import { inspectInventory, receiveInventory, reserveInventory } from "@/domain/i
 import { requiredSpecFromDescription } from "@/domain/ledger/componentUsage";
 import { availabilityForRequirement } from "@/domain/inventory/availability";
 import { newAssemblyLine, newSpareLine } from "@/domain/configurator";
+import { trackingPolicyFor } from "@/domain/inventory/identity";
 import type { AppState } from "@/domain/types";
 
 function orderWithSpareAndAssembly(quantity = 2) {
@@ -158,6 +159,7 @@ describe("summarizeOrderTree", () => {
     for (const req of identifiable) {
       const spec = requiredSpecFromDescription(req.description);
       const key = req.componentId?.split("-").pop();
+      const trackingPolicy = trackingPolicyFor(key ?? "");
       state = receiveInventory(state, "e-dave", {
         kind: "Stock",
         facility: "Mississauga",
@@ -166,7 +168,10 @@ describe("summarizeOrderTree", () => {
         material: spec.material,
         quantity: 1,
         componentKey: key,
-        trackingPolicy: "QuantityTracked"
+        trackingPolicy,
+        ...(trackingPolicy === "Serialized" ? { serialNumber: `SER-${key}` } : {}),
+        ...(trackingPolicy === "LotTracked" ? { lotNumber: `LOT-${key}` } : {}),
+        ...(trackingPolicy === "HeatTracked" ? { heatNumber: `HEAT-${key}` } : {})
       });
       const identityId = state.inventoryIdentities.at(-1)!.id;
       state = inspectInventory(state, "e-dave", identityId, "Accept", "Looks good");

@@ -11,6 +11,7 @@ import { buildInitialState, CUSTOMER_ACME } from "@/domain/fixtures";
 import { createConfiguredOrder } from "@/domain/actions";
 import { inspectInventory, receiveInventory, reserveInventory } from "@/domain/inventoryActions";
 import { newAssemblyLine } from "@/domain/configurator";
+import { trackingPolicyFor } from "@/domain/inventory/identity";
 import type { AppState } from "@/domain/types";
 
 /**
@@ -49,6 +50,8 @@ function casingRequirement(state: AppState, unitId: string) {
 }
 
 function acceptedCasing(state: AppState, opts: { componentKey?: string; material?: string } = {}) {
+  const componentKey = opts.componentKey === undefined ? "casing" : opts.componentKey;
+  const trackingPolicy = trackingPolicyFor(componentKey ?? "");
   let s = receiveInventory(state, "e-dave", {
     kind: "Stock",
     facility: "Mississauga",
@@ -56,8 +59,9 @@ function acceptedCasing(state: AppState, opts: { componentKey?: string; material
     description: "Casing",
     material: opts.material ?? "Ductile Iron",
     quantity: 1,
-    componentKey: opts.componentKey === undefined ? "casing" : opts.componentKey,
-    trackingPolicy: "QuantityTracked"
+    componentKey,
+    trackingPolicy,
+    ...(trackingPolicy === "HeatTracked" ? { heatNumber: `H-${componentKey ?? "generic"}` } : {})
   });
   const identityId = s.inventoryIdentities.at(-1)!.id;
   s = inspectInventory(s, "e-dave", identityId, "Accept", "Looks good");
@@ -104,7 +108,8 @@ describe("Expected — arrived but not yet cleared", () => {
       material: "Ductile Iron",
       quantity: 1,
       componentKey: "casing",
-      trackingPolicy: "QuantityTracked"
+      trackingPolicy: "HeatTracked",
+      heatNumber: "H-EX-001"
     });
     const req = casingRequirement(state, "EX-001_1.1");
     const result = availabilityForRequirement(state, req.id);

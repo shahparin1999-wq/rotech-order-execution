@@ -154,6 +154,12 @@ function newIdempotencyKey(): string {
   return `cmd-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function trustedUatHeaders(employeeId: string): Record<string, string> {
+  // This header is accepted only when the OEH server is explicitly running in
+  // UAT mode. Hosted Sites requests use the platform's oai-authenticated-* headers.
+  return process.env.NEXT_PUBLIC_OEH_UAT_MODE === "1" ? { "x-oeh-uat-employee-id": employeeId } : {};
+}
+
 function ServerStoreProvider({ children }: { children: React.ReactNode }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [state, setState] = useState<AppState>(buildInitialState);
@@ -174,7 +180,7 @@ function ServerStoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/state", { cache: "no-store" });
+    const response = await fetch("/api/state", { cache: "no-store", headers: trustedUatHeaders(stateRef.current.currentUserId) });
     if (!response.ok) throw new Error(`State fetch failed (${response.status})`);
     adopt((await response.json()) as ServerSnapshot);
   }, [adopt]);
@@ -183,7 +189,10 @@ function ServerStoreProvider({ children }: { children: React.ReactNode }) {
     const storedUser = readStoredUser();
     (async () => {
       try {
-        const response = await fetch("/api/state", { cache: "no-store" });
+        const initialUser = storedUser && stateRef.current.employees.some((employee) => employee.id === storedUser)
+          ? storedUser
+          : stateRef.current.currentUserId;
+        const response = await fetch("/api/state", { cache: "no-store", headers: trustedUatHeaders(initialUser) });
         if (!response.ok) throw new Error(`State fetch failed (${response.status})`);
         const snapshot = (await response.json()) as ServerSnapshot;
         const user =
@@ -203,7 +212,7 @@ function ServerStoreProvider({ children }: { children: React.ReactNode }) {
       try {
         const response = await fetch("/api/commands", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...trustedUatHeaders(stateRef.current.currentUserId) },
           body: JSON.stringify({
             idempotencyKey: newIdempotencyKey(),
             actorId: stateRef.current.currentUserId,

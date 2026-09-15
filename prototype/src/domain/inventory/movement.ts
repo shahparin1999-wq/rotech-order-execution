@@ -43,6 +43,13 @@ export interface InventoryMovement {
   reason?: string;
   /** Required for Adjusted (INV-015). */
   authorizedBy?: string;
+  /** Opening-balance provenance. These fields are retained on every movement. */
+  importBatchId?: string;
+  sourceFileId?: string;
+  sourceFileHash?: string;
+  sourceRow?: number;
+  approvedBy?: string;
+  approvedAt?: string;
   recordedBy: string;
   recordedAt: string;
 }

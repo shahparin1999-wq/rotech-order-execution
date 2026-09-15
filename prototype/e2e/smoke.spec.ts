@@ -4,7 +4,7 @@ test.describe("Application shell", () => {
   test("home page renders the shell with four primary destinations and the mock banner", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Home" })).toBeVisible();
-    await expect(page.getByText("PROTOTYPE - mock data only")).toBeVisible();
+    await expect(page.getByText(/UAT fixture data only/)).toBeVisible();
 
     const nav = page.getByRole("navigation", { name: "Primary" });
     await expect(nav).toBeVisible();

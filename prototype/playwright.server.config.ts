@@ -28,7 +28,9 @@ export default defineConfig({
       ...process.env,
       OEH_PERSISTENCE: process.env.DATABASE_URL ? "postgres" : "file",
       OEH_STATE_FILE: stateFile,
-      OEH_ALLOW_RESET: "1"
+      OEH_ALLOW_RESET: "1",
+      OEH_UAT_MODE: "1",
+      NEXT_PUBLIC_OEH_UAT_MODE: "1"
     }
   },
   projects: [

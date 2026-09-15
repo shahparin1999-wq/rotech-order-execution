@@ -6,10 +6,12 @@
 
 import Link from "next/link";
 import { use } from "react";
-import { useAppState } from "@/store/StoreProvider";
+import { useState } from "react";
+import { useAppDispatch, useAppState } from "@/store/StoreProvider";
 import { employeeName, resolveScan, unitById } from "@/domain/selectors";
 import { IdentityBanner } from "@/components/IdentityBanner";
 import { QrSvg } from "@/components/bits";
+import { activeUnitAllocation, available, currentLocation, isInstalled, qualityState } from "@/domain/inventory/movement";
 
 function Resolver({ publicRef }: { publicRef: string }) {
   const state = useAppState();
@@ -94,6 +96,8 @@ function Resolver({ publicRef }: { publicRef: string }) {
             </Link>
           </div>
         )}
+
+        {qr.recordType === "InventoryItem" && <InventoryItemActions identityId={qr.targetId} />}
 
         {qr.recordType === "Component" && (
           <div className="card">
@@ -187,6 +191,44 @@ function Resolver({ publicRef }: { publicRef: string }) {
         </div>
       </div>
     </>
+  );
+}
+
+function InventoryItemActions({ identityId }: { identityId: string }) {
+  const state = useAppState();
+  const dispatch = useAppDispatch();
+  const identity = state.inventoryIdentities.find((item) => item.id === identityId);
+  const [unitId, setUnitId] = useState(state.units.find((unit) => unit.location === identity?.facility)?.unitId ?? state.units[0]?.unitId ?? "");
+  const [error, setError] = useState<string | null>(null);
+  if (!identity) return null;
+
+  const quality = qualityState(state.inventoryMovements, identityId);
+  const allocation = activeUnitAllocation(state.inventoryMovements, identityId);
+  const position = state.inventoryLocations.find((location) => location.facility === identity.facility && !location.id.endsWith("-RECV") && !location.id.endsWith("-QUAR"));
+  const selectedUnit = state.units.find((unit) => unit.unitId === unitId);
+  const run = (action: () => void) => {
+    try { setError(null); action(); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+  };
+
+  return (
+    <div className="card" data-testid={`inventory-item-actions-${identityId}`}>
+      <h3 style={{ marginTop: 0 }}>Inventory item actions</h3>
+      <p className="from-default">Issue and return are contextual actions on this item. Every command is checked by OEH capabilities and appends an audited movement.</p>
+      <p><b>Quality:</b> {quality} · <b>Available:</b> {available(state.inventoryMovements, identityId)} · <b>Location:</b> {currentLocation(state.inventoryMovements, identityId) ?? "Unassigned"} · <b>Allocation:</b> {allocation ?? "None"}</p>
+      {quality === "Accepted" && position && !allocation && (
+        <button type="button" className="btn" data-testid={`inventory-putaway-${identityId}`} onClick={() => run(() => dispatch({ type: "putAwayInventory", identityId, locationId: position.id }))}>Put away at {position.area}{position.bin ? ` · ${position.bin}` : ""}</button>
+      )}
+      {quality === "Accepted" && !isInstalled(state.inventoryMovements, identityId) && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "end", marginTop: 10 }}>
+          <label>Issue to Unit<select data-testid={`inventory-unit-${identityId}`} value={unitId} onChange={(event) => setUnitId(event.target.value)}>{state.units.map((unit) => <option key={unit.unitId} value={unit.unitId}>{unit.unitId} · {unit.model}</option>)}</select></label>
+          {allocation === unitId ? <button type="button" className="btn btn-primary" data-testid={`inventory-install-${identityId}`} onClick={() => run(() => dispatch({ type: "installInventory", identityId, unitId, quantity: 1 }))}>Install into {selectedUnit?.unitId ?? unitId}</button> : <button type="button" className="btn btn-primary" data-testid={`inventory-issue-${identityId}`} onClick={() => run(() => dispatch({ type: "issueInventoryToUnit", identityId, unitId, quantity: 1 }))}>Issue to {selectedUnit?.unitId ?? unitId}</button>}
+        </div>
+      )}
+      {allocation && isInstalled(state.inventoryMovements, identityId) && (
+        <button type="button" className="btn" style={{ marginTop: 10 }} data-testid={`inventory-return-${identityId}`} onClick={() => run(() => dispatch({ type: "returnInventoryToStock", identityId, unitId: allocation, quantity: 1, reason: "Returned during UAT rework", locationId: position?.id ?? `LOC-${identity.facility === "Houston" ? "HOU" : "MIS"}-RECV` }))}>Return to stock</button>
+      )}
+      {error && <p role="alert" style={{ color: "var(--danger)" }}>{error}</p>}
+    </div>
   );
 }
 

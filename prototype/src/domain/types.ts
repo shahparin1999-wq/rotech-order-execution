@@ -4,6 +4,14 @@ import type { InventoryIdentity, InventoryLocation } from "./inventory/identity"
 import type { InventoryMovement } from "./inventory/movement";
 import type { InventoryReceipt, InventoryReceiptLine } from "./inventory/receipt";
 import type { InternalJob } from "./inventory/internalJobs";
+import type {
+  ExpectedShipment,
+  OpeningImportRecord,
+  ParseRun,
+  ParsedField,
+  ReconciliationException,
+  ShipmentFileRecord
+} from "./inventory/contracts";
 import type { VendorPoReference } from "./purchasing/poReference";
 
 // Domain types for the mock vertical slice. All data is fixture/mock data;
@@ -44,6 +52,10 @@ export interface Employee {
   role: string;
   department: Department;
   facility: Facility;
+  /** Optional identity projection; absent in historical fixtures. */
+  email?: string;
+  authSubject?: string;
+  rotechEmployeeId?: string;
 }
 
 // Customer/Contact are new lightweight CRM-style entities. Orders reference
@@ -821,6 +833,12 @@ export interface AppState {
   inventoryReceiptLines: InventoryReceiptLine[];
   inventoryLocations: InventoryLocation[];
   internalJobs: InternalJob[];
+  shipmentFiles: ShipmentFileRecord[];
+  parseRuns: ParseRun[];
+  parsedFields: ParsedField[];
+  expectedShipments: ExpectedShipment[];
+  openingImports: OpeningImportRecord[];
+  reconciliationExceptions: ReconciliationException[];
   // Vendor PO REFERENCES (AIMCOR issues the PO): purchasing visibility only.
   vendorPoReferences: VendorPoReference[];
   favourites: string[]; // view ids or order numbers

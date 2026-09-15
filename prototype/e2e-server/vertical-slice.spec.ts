@@ -23,6 +23,11 @@ async function resetServer(page: Page) {
   expect(response.ok()).toBeTruthy();
 }
 
+async function actingAs(page: Page, employeeId: string) {
+  await page.getByTestId("profile-toggle").click();
+  await page.getByTestId("user-switcher").selectOption(employeeId);
+}
+
 test.describe("Gate A vertical slice — Qty-5 CPQ order", () => {
   test.beforeEach(async ({ page }) => {
     await resetServer(page);
@@ -31,7 +36,7 @@ test.describe("Gate A vertical slice — Qty-5 CPQ order", () => {
   test("import → shortage → PO → receipt → install into one Unit → evidence, with siblings isolated", async ({ page }) => {
     // --- Import the real CPQ bundle as a Rotech sales order ----------------
     await page.goto("/orders");
-    await expect(page.getByTestId("persistence-banner")).toContainText("SHARED STATE");
+    await expect(page.getByTestId("persistence-banner")).toContainText("SHARED OEH STATE");
     await page.getByTestId("new-work-order-button").click();
     await page.getByTestId("import-cpq-toggle").click();
     await page.getByTestId("cpq-file-input").setInputFiles(FIXTURE);
@@ -74,22 +79,40 @@ test.describe("Gate A vertical slice — Qty-5 CPQ order", () => {
 
     // --- Receive one casing against the PO line, inspect, put away ----------
     await page.goto("/inventory");
-    await page.getByTestId("intake-po-line").selectOption({ index: 1 });
+    await actingAs(page, "e-tom");
+    await page.getByTestId("inventory-tab-receiving").click();
+    const poOption = page.getByTestId("intake-po-line").locator("option").filter({ hasText: "4500187" });
+    const poValue = await poOption.getAttribute("value");
+    expect(poValue).toBeTruthy();
+    await page.getByTestId("intake-po-line").selectOption(poValue!);
     await page.getByTestId("intake-heat").fill("H-IN-77821");
     await page.getByTestId("intake-submit").click();
+    await actingAs(page, "e-priya");
     const inspectAccept = page.locator('[data-testid^="inspect-accept-"]').last();
     await expect(inspectAccept).toBeVisible();
     const identityId = (await inspectAccept.getAttribute("data-testid"))!.replace("inspect-accept-", "");
     await page.getByTestId(`inspect-note-${identityId}`).fill("Heat cert matches");
+    const inspectVersion = await page.getByTestId("persistence-banner").getAttribute("data-version");
     await inspectAccept.click();
-    await page.getByTestId(`putaway-${identityId}`).click();
+    await expect.poll(async () => page.getByTestId("persistence-banner").getAttribute("data-version")).not.toBe(inspectVersion);
 
-    // --- Issue and install into Unit 1.4 only --------------------------------
-    await page.getByTestId("inventory-tab-outtake").click();
-    await page.getByTestId(`outtake-unit-${identityId}`).selectOption(UNIT_14);
-    await page.getByTestId(`outtake-issue-${identityId}`).click();
-    await page.getByTestId(`outtake-install-${identityId}`).click();
-    await expect(page.getByTestId("outtake-error")).toHaveCount(0);
+    // --- Issue and install from the individual inventory item view ----------
+    await page.getByTestId("inventory-tab-stock").click();
+    const stockRow = page.getByTestId(`inventory-stock-row-${identityId}`);
+    const itemHref = await stockRow.getByRole("link", { name: "View item" }).getAttribute("href");
+    expect(itemHref).toBeTruthy();
+    await page.goto(itemHref!);
+    await actingAs(page, "e-tom");
+    const putAwayVersion = await page.getByTestId("persistence-banner").getAttribute("data-version");
+    await page.getByTestId(`inventory-putaway-${identityId}`).click();
+    await expect.poll(async () => page.getByTestId("persistence-banner").getAttribute("data-version")).not.toBe(putAwayVersion);
+    await actingAs(page, "e-alex");
+    await page.getByTestId(`inventory-unit-${identityId}`).selectOption(UNIT_14);
+    const issueVersion = await page.getByTestId("persistence-banner").getAttribute("data-version");
+    await page.getByTestId(`inventory-issue-${identityId}`).click();
+    await expect.poll(async () => page.getByTestId("persistence-banner").getAttribute("data-version")).not.toBe(issueVersion);
+    await page.getByTestId(`inventory-install-${identityId}`).click();
+    await expect(page.getByTestId("error-toast")).toHaveCount(0);
 
     // --- As-built on 1.4: heat number captured; assembly still held for the rest
     await page.goto(`/units/${UNIT_14}`);
